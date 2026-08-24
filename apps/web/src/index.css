@@ -1,0 +1,92 @@
+.page {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: var(--s-6) var(--s-4) var(--s-7);
+}
+
+.page > * + * {
+  margin-top: var(--s-6);
+}
+
+.masthead h1 {
+  font-size: var(--s-text-2xl);
+  margin: 0 0 var(--s-2);
+  letter-spacing: -0.02em;
+}
+
+.masthead .claim {
+  font-size: var(--s-text-md);
+  color: var(--s-ink-2);
+  max-width: 46rem;
+  margin: 0;
+}
+
+.eyebrow {
+  font-family: var(--s-mono);
+  font-size: var(--s-text-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--s-ink-2);
+  margin: 0 0 var(--s-2);
+}
+
+h2 {
+  font-size: var(--s-text-lg);
+  margin: 0 0 var(--s-3);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+
+.action-note {
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-2);
+  margin: var(--s-2) 0 0;
+}
+
+/* pipeline diagram — plain CSS so it renders identically everywhere */
+.flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: var(--s-2);
+}
+
+.flow-step {
+  flex: 1 1 8rem;
+  background: var(--s-surface);
+  border: 1px solid var(--s-line);
+  border-radius: var(--s-radius);
+  padding: var(--s-2) var(--s-3);
+}
+
+.flow-step strong {
+  display: block;
+  font-size: var(--s-text-sm);
+}
+
+.flow-step span {
+  display: block;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-2);
+  margin-top: 0.1rem;
+}
+
+.flow-step--sensor {
+  border-left: 3px solid var(--s-accent);
+}
+
+.flow-step--aside {
+  border-style: dashed;
+  background: transparent;
+}
+
+.footer {
+  color: var(--s-ink-2);
+  font-size: var(--s-text-sm);
+  border-top: 1px solid var(--s-line);
+  padding-top: var(--s-4);
+}

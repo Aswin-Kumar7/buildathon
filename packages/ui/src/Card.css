@@ -1,0 +1,17 @@
+.s-card {
+  background: var(--s-surface);
+  border: 1px solid var(--s-line);
+  border-radius: var(--s-radius-lg);
+  padding: var(--s-4);
+}
+.s-card__title {
+  margin: 0 0 var(--s-2);
+  font-size: var(--s-text-md);
+  font-weight: 600;
+}
+.s-card__body > :first-child {
+  margin-top: 0;
+}
+.s-card__body > :last-child {
+  margin-bottom: 0;
+}

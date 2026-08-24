@@ -1,0 +1,30 @@
+.s-badge {
+  display: inline-block;
+  font-family: var(--s-mono);
+  font-size: var(--s-text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--s-radius);
+  white-space: nowrap;
+}
+.s-badge--neutral {
+  background: var(--s-surface-2);
+  color: var(--s-ink-2);
+}
+.s-badge--critical {
+  background: var(--s-critical-soft);
+  color: var(--s-critical);
+}
+.s-badge--warn {
+  background: var(--s-warn-soft);
+  color: var(--s-warn);
+}
+.s-badge--ok {
+  background: var(--s-ok-soft);
+  color: var(--s-ok);
+}
+.s-badge--info {
+  background: var(--s-info-soft);
+  color: var(--s-info);
+}

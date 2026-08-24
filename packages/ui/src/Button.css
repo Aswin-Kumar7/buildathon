@@ -1,0 +1,38 @@
+.s-button {
+  font-family: inherit;
+  font-size: var(--s-text-base);
+  font-weight: 500;
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--s-radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease;
+}
+.s-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.s-button--primary {
+  background: var(--s-accent);
+  color: #fff;
+}
+.s-button--primary:hover:not(:disabled) {
+  background: var(--s-accent-ink);
+}
+.s-button--secondary {
+  background: var(--s-surface);
+  color: var(--s-ink);
+  border-color: var(--s-line);
+}
+.s-button--secondary:hover:not(:disabled) {
+  border-color: var(--s-accent);
+}
+.s-button--ghost {
+  background: transparent;
+  color: var(--s-accent-ink);
+}
+.s-button--ghost:hover:not(:disabled) {
+  background: var(--s-accent-soft);
+}

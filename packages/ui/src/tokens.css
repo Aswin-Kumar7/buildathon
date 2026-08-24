@@ -1,0 +1,132 @@
+/*
+ * Sentinel design tokens.
+ *
+ * This is an operations console, not a marketing site: dense, calm, precise.
+ * Semantic colour (critical / warn / ok / info) is deliberately separate from the
+ * accent, so "this needs attention" never reads as "this is branded".
+ *
+ * A system font stack is used on purpose — a risk console should render instantly
+ * and must not depend on a font host being reachable.
+ */
+
+:root {
+  /* neutrals, very slightly cool so they sit with the teal accent */
+  --s-bg: #f7f9fa;
+  --s-surface: #ffffff;
+  --s-surface-2: #eef2f4;
+  --s-line: #d5dde0;
+  --s-ink: #101a1d;
+  --s-ink-2: #566468;
+
+  /* accent — deliberately teal so it never collides with semantic blue */
+  --s-accent: #0f766e;
+  --s-accent-ink: #0b5a54;
+  --s-accent-soft: #d9f0ed;
+
+  /* semantic */
+  --s-critical: #b42318;
+  --s-critical-soft: #fdeae8;
+  --s-warn: #b54708;
+  --s-warn-soft: #fdf0e3;
+  --s-ok: #067647;
+  --s-ok-soft: #e2f5ea;
+  --s-info: #1d4ed8;
+  --s-info-soft: #e6ecfd;
+
+  --s-focus: #1d4ed8;
+
+  /* type */
+  --s-font: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --s-mono: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+  --s-text-xs: 0.75rem;
+  --s-text-sm: 0.8125rem;
+  --s-text-base: 0.875rem;
+  --s-text-md: 1rem;
+  --s-text-lg: 1.25rem;
+  --s-text-xl: 1.75rem;
+  --s-text-2xl: 2.25rem;
+
+  /* spacing — 4px base */
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.5rem;
+  --s-6: 2rem;
+  --s-7: 3rem;
+
+  --s-radius: 4px;
+  --s-radius-lg: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --s-bg: #0c1113;
+    --s-surface: #141b1e;
+    --s-surface-2: #1b2429;
+    --s-line: #2a363b;
+    --s-ink: #e6edef;
+    --s-ink-2: #94a5aa;
+
+    --s-accent: #3cb5a8;
+    --s-accent-ink: #7fd5cb;
+    --s-accent-soft: #10322f;
+
+    --s-critical: #f28b82;
+    --s-critical-soft: #381917;
+    --s-warn: #f0a35a;
+    --s-warn-soft: #382513;
+    --s-ok: #6bcb94;
+    --s-ok-soft: #112e1e;
+    --s-info: #8fb0f5;
+    --s-info-soft: #16223f;
+
+    --s-focus: #8fb0f5;
+  }
+}
+
+:root[data-theme='dark'] {
+  --s-bg: #0c1113;
+  --s-surface: #141b1e;
+  --s-surface-2: #1b2429;
+  --s-line: #2a363b;
+  --s-ink: #e6edef;
+  --s-ink-2: #94a5aa;
+
+  --s-accent: #3cb5a8;
+  --s-accent-ink: #7fd5cb;
+  --s-accent-soft: #10322f;
+
+  --s-critical: #f28b82;
+  --s-critical-soft: #381917;
+  --s-warn: #f0a35a;
+  --s-warn-soft: #382513;
+  --s-ok: #6bcb94;
+  --s-ok-soft: #112e1e;
+  --s-info: #8fb0f5;
+  --s-info-soft: #16223f;
+
+  --s-focus: #8fb0f5;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--s-bg);
+  color: var(--s-ink);
+  font-family: var(--s-font);
+  font-size: var(--s-text-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--s-focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
