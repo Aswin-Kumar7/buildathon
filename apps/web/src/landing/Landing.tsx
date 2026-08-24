@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { Button, Callout, Card } from '@sentinel/ui';
 import { useMeta } from './useMeta.js';
 import { EvidenceTable } from './EvidenceTable.js';
@@ -53,7 +54,10 @@ export function Landing(): React.JSX.Element {
         <h2>Run it</h2>
         <Card>
           <div className="actions">
-            <Button variant="primary" disabled>
+            <Link to="/login">
+              <Button variant="primary">Open the console</Button>
+            </Link>
+            <Button variant="secondary" disabled>
               Replay demo
             </Button>
             <Button variant="secondary" disabled>
@@ -61,9 +65,9 @@ export function Landing(): React.JSX.Element {
             </Button>
           </div>
           <p className="action-note">
-            The replay demo runs from a clean clone with no credentials. Integration verification is
-            separate and needs your own Razorpay test keys. Both arrive with the slices that make
-            them real &mdash; they are disabled here rather than pretending to work.
+            The console is live. The replay demo runs from a clean clone with no credentials, and
+            integration verification needs your own Razorpay test keys &mdash; both arrive with the
+            slices that make them real, and stay disabled until then rather than pretending to work.
           </p>
         </Card>
       </section>

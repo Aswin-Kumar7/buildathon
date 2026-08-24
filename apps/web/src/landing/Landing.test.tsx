@@ -1,6 +1,13 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { Landing } from './Landing.js';
+
+// Link needs router context, which this component test has no reason to build.
+// Rendering it as a plain anchor keeps the test about the page's content.
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ to, children }: { to: string; children: ReactNode }) => <a href={to}>{children}</a>,
+}));
 
 const meta = {
   name: 'Sentinel',

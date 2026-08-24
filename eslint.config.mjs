@@ -34,4 +34,12 @@ export default tseslint.config(
     files: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts'],
     rules: { 'max-lines-per-function': 'off' },
   },
+  {
+    // NestJS resolves constructor dependencies from `design:paramtypes` metadata emitted
+    // at runtime. A class used only as a constructor parameter type looks type-only to
+    // TypeScript, so this rule's autofix rewrites it to `import type` and silently breaks
+    // dependency injection — the failure surfaces at boot, not at compile time.
+    files: ['apps/api/**/*.ts'],
+    rules: { '@typescript-eslint/consistent-type-imports': 'off' },
+  },
 );

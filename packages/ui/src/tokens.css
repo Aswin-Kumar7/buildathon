@@ -5,11 +5,17 @@
  * Semantic colour (critical / warn / ok / info) is deliberately separate from the
  * accent, so "this needs attention" never reads as "this is branded".
  *
- * A system font stack is used on purpose — a risk console should render instantly
- * and must not depend on a font host being reachable.
+ * Light theme only, by decision. A single committed look removes a whole class of
+ * contrast bugs and keeps every screenshot, recording and printed page consistent —
+ * which matters when the demo video is part of the deliverable.
+ *
+ * A system font stack is used on purpose: a risk console should render instantly and
+ * must never depend on a font host being reachable.
  */
 
 :root {
+  color-scheme: light;
+
   /* neutrals, very slightly cool so they sit with the teal accent */
   --s-bg: #f7f9fa;
   --s-surface: #ffffff;
@@ -57,56 +63,8 @@
 
   --s-radius: 4px;
   --s-radius-lg: 6px;
-}
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --s-bg: #0c1113;
-    --s-surface: #141b1e;
-    --s-surface-2: #1b2429;
-    --s-line: #2a363b;
-    --s-ink: #e6edef;
-    --s-ink-2: #94a5aa;
-
-    --s-accent: #3cb5a8;
-    --s-accent-ink: #7fd5cb;
-    --s-accent-soft: #10322f;
-
-    --s-critical: #f28b82;
-    --s-critical-soft: #381917;
-    --s-warn: #f0a35a;
-    --s-warn-soft: #382513;
-    --s-ok: #6bcb94;
-    --s-ok-soft: #112e1e;
-    --s-info: #8fb0f5;
-    --s-info-soft: #16223f;
-
-    --s-focus: #8fb0f5;
-  }
-}
-
-:root[data-theme='dark'] {
-  --s-bg: #0c1113;
-  --s-surface: #141b1e;
-  --s-surface-2: #1b2429;
-  --s-line: #2a363b;
-  --s-ink: #e6edef;
-  --s-ink-2: #94a5aa;
-
-  --s-accent: #3cb5a8;
-  --s-accent-ink: #7fd5cb;
-  --s-accent-soft: #10322f;
-
-  --s-critical: #f28b82;
-  --s-critical-soft: #381917;
-  --s-warn: #f0a35a;
-  --s-warn-soft: #382513;
-  --s-ok: #6bcb94;
-  --s-ok-soft: #112e1e;
-  --s-info: #8fb0f5;
-  --s-info-soft: #16223f;
-
-  --s-focus: #8fb0f5;
+  --s-shadow: 0 1px 2px rgb(16 26 29 / 6%);
 }
 
 *,

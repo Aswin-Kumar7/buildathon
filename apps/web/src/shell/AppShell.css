@@ -1,0 +1,136 @@
+.shell {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.shell__nav {
+  background: var(--s-surface);
+  border-right: 1px solid var(--s-line);
+  padding: var(--s-4) var(--s-3);
+}
+
+.shell__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-weight: 600;
+  font-size: var(--s-text-md);
+  margin-bottom: var(--s-5);
+  padding: 0 var(--s-2);
+}
+
+.shell__mark {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 2px;
+  background: var(--s-accent);
+}
+
+.shell__nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.shell__nav a,
+.shell__pending {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  border-radius: var(--s-radius);
+  text-decoration: none;
+  color: var(--s-ink);
+}
+
+.shell__nav a:hover {
+  background: var(--s-surface-2);
+}
+
+.shell__nav a.is-current {
+  background: var(--s-accent-soft);
+  color: var(--s-accent-ink);
+  font-weight: 500;
+}
+
+.shell__pending {
+  color: var(--s-ink-2);
+  cursor: not-allowed;
+}
+
+.shell__pending em {
+  font-family: var(--s-mono);
+  font-style: normal;
+  font-size: var(--s-text-xs);
+  opacity: 0.75;
+}
+
+.shell__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.shell__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-5);
+  border-bottom: 1px solid var(--s-line);
+  background: var(--s-surface);
+}
+
+.shell__user {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.shell__identity em {
+  font-style: normal;
+  font-family: var(--s-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-2);
+  margin-left: var(--s-1);
+}
+
+.shell__content {
+  padding: var(--s-5);
+  max-width: 64rem;
+}
+
+.shell__content > * + * {
+  margin-top: var(--s-5);
+}
+
+.page-head h1 {
+  font-size: var(--s-text-xl);
+  margin: 0 0 var(--s-1);
+}
+
+.page-head p {
+  color: var(--s-ink-2);
+  margin: 0;
+}
+
+@media (max-width: 48rem) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .shell__nav {
+    border-right: 0;
+    border-bottom: 1px solid var(--s-line);
+  }
+
+  .shell__nav ul {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
