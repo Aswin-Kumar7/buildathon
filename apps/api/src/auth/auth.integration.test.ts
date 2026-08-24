@@ -7,6 +7,7 @@ import { sessions, type DbHandle } from '@sentinel/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../app.module.js';
 import { AuthService, hashToken } from './auth.service.js';
+import { DEMO_USERS, seedDemoUsers } from './seed.js';
 import { DB } from '../db/db.module.js';
 import { SESSION_COOKIE } from './session.guard.js';
 
@@ -153,6 +154,27 @@ describe('auth', () => {
       .set('Cookie', cookieFrom(signedIn))
       .set('x-csrf-token', signedIn.body.csrfToken);
     expect(response.status).toBe(403);
+  });
+
+  it('seeds the demo accounts even when the table already holds other users', async () => {
+    // The regression this guards: seeding used to be skipped whenever the user table was
+    // non-empty, so a single unrelated row left the demo accounts uncreated and sign-in
+    // answered "Email or password is incorrect" — indistinguishable from a typo. This
+    // suite has already inserted two users by the time it runs, which is that state.
+    await seedDemoUsers(app.get(AuthService), 'development');
+
+    const demo = DEMO_USERS[0]!;
+    const response = await login(demo.email, demo.password);
+    expect(response.status).toBe(200);
+    expect(response.body.user.email).toBe(demo.email);
+  });
+
+  it('seeds no demo accounts in production', async () => {
+    await seedDemoUsers(app.get(AuthService), 'production');
+    // Nothing to assert beyond it not throwing and not creating anything new; the guard
+    // exists so a deployed instance never ships with a published password.
+    const response = await login('never-seeded@sentinel.local', 'sentinel-demo');
+    expect(response.status).toBe(401);
   });
 
   it('revokes the session on logout', async () => {

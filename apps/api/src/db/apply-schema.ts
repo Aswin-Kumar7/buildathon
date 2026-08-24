@@ -63,4 +63,39 @@ export async function applySchema(handle: DbHandle): Promise<void> {
     CREATE INDEX IF NOT EXISTS login_attempts_email_time_idx
       ON sentinel.login_attempts (email, attempted_at);
   `);
+
+  // The storefront's sensor record: the request context Razorpay's webhooks never carry,
+  // keyed on the order id so the payment events that arrive later can be joined to it.
+  await handle.db.execute(sql`
+    CREATE TABLE IF NOT EXISTS sentinel.checkout_sessions (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      razorpay_order_id text NOT NULL UNIQUE,
+      ip_pseudonym text NOT NULL,
+      device_pseudonym text NOT NULL,
+      email_pseudonym text,
+      session_pseudonym text NOT NULL,
+      user_agent_family text NOT NULL,
+      amount_paise integer NOT NULL,
+      currency text NOT NULL DEFAULT 'INR',
+      item_count integer NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now()
+    );
+  `);
+
+  // Every velocity question the detector asks is "this pseudonym, over this window", so
+  // each correlation key is indexed together with time rather than on its own.
+  await handle.db.execute(sql`
+    CREATE INDEX IF NOT EXISTS checkout_sessions_ip_idx
+      ON sentinel.checkout_sessions (ip_pseudonym, created_at);
+  `);
+
+  await handle.db.execute(sql`
+    CREATE INDEX IF NOT EXISTS checkout_sessions_session_idx
+      ON sentinel.checkout_sessions (session_pseudonym, created_at);
+  `);
+
+  await handle.db.execute(sql`
+    CREATE INDEX IF NOT EXISTS checkout_sessions_device_idx
+      ON sentinel.checkout_sessions (device_pseudonym, created_at);
+  `);
 }

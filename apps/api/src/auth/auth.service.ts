@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { hash, verify } from '@node-rs/argon2';
-import { and, desc, eq, gt, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull } from 'drizzle-orm';
 import { loginAttempts, sessions, users, type DbHandle } from '@sentinel/db';
 import type { SessionUser } from '@sentinel/contracts';
 import { DB } from '../db/db.module.js';
@@ -172,10 +172,5 @@ export class AuthService {
         role: input.role ?? 'analyst',
       })
       .onConflictDoNothing();
-  }
-
-  async countUsers(): Promise<number> {
-    const [row] = await this.handle.db.select({ count: sql<number>`count(*)::int` }).from(users);
-    return row?.count ?? 0;
   }
 }
