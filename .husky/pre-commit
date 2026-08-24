@@ -1,0 +1,9 @@
+pnpm exec lint-staged
+node scripts/check-data-size.mjs
+
+# Secret scanning. Enforced unconditionally in CI; a local miss must not block work.
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --no-banner
+else
+  echo "gitleaks not installed locally — CI will still enforce this"
+fi

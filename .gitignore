@@ -1,0 +1,41 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+
+# test / coverage
+coverage/
+.vitest/
+playwright-report/
+test-results/
+
+# environment — never commit real credentials
+.env
+.env.*
+!.env.example
+
+# data — never commit restricted datasets (see docs/DATA_CARD.md)
+data/raw/
+data/interim/
+*.csv
+*.parquet
+*.zip
+!fixtures/**/*.csv
+
+# python
+__pycache__/
+.venv/
+*.pyc
+
+# editors / os
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+docs/
