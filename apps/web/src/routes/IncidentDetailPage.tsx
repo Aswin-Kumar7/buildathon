@@ -100,13 +100,15 @@ function Change({ incident }: { incident: IncidentDetail }): React.JSX.Element |
 
   return (
     <Card>
-      <h2>Change detection</h2>
-      {/* Reported beside the rules rather than folded into the score: "is this above a
-          threshold" and "has this changed" are different questions, and a reader deserves to
-          know which one spoke. */}
+      <h2>Change detection, across the shop</h2>
+      {/* Across the shop rather than this entity, which is the level the method is good for: a
+          session has no history by construction, so asking whether it changed can only answer
+          "it is new". Reported beside the rules rather than folded into the score — "is this
+          above a threshold" and "has this changed" are different questions. */}
       <p className="incident__what">
-        Normal for this entity was {baseline.mean.toFixed(1)} attempts a minute, learned over{' '}
-        {baseline.buckets} minutes.
+        Normal for this shop was {baseline.mean.toFixed(1)} attempts a minute, learned over{' '}
+        {baseline.buckets} minutes. This describes the shop's overall traffic at the time, not this
+        entity on its own.
       </p>
       <ul className="abstentions">
         {ewma.fired && (

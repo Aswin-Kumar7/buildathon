@@ -277,6 +277,10 @@ test.describe('feature inspector', () => {
 });
 
 test.describe('incidents', () => {
+  // Longer than the default, and honestly so: each of these replays a scenario, waits for an
+  // asynchronous queue to drain it, and then runs detection until it has something to judge.
+  test.describe.configure({ timeout: 150_000 });
+
   /**
    * Replays the enumeration scenario, runs a detection pass, and opens the queue.
    *
@@ -314,22 +318,30 @@ test.describe('incidents', () => {
     // through the same server, and the feature window anchors to the newest event whatever its
     // source — so one live attempt would hide a scenario recorded months ago behind it.
     await page.getByRole('button', { name: 'Replayed' }).click();
-    await page.getByRole('button', { name: 'Run detection' }).click();
+
+    // Detection is retried until it finds something, because ingestion is asynchronous. The
+    // replay writes sixty-seven events; the drain claims fifty a second, so a pass run the
+    // instant the replay returns judges a scenario that is still arriving. Waiting is the
+    // honest thing for the test to do — the alternative is a system that pretends its own
+    // queue is synchronous.
+    await expect(async () => {
+      await page.getByRole('button', { name: 'Run detection' }).click();
+      await expect(page.getByText('Card spread').first()).toBeVisible({ timeout: 5_000 });
+    }).toPass({ timeout: 90_000 });
   }
 
   test('turns a replayed burst into one incident with readable evidence', async ({ page }) => {
     // The slice's exit condition, end to end.
     await replayAndDetect(page);
 
-    await expect(page.getByText('Card spread').first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(/Suggested:/).first()).toBeVisible();
+    // Labelled by where its events came from. A replayed incident is never evidence the system
+    // works against Razorpay, so it must say so even when the queue is showing both.
     await expect(page.getByText('replayed').first()).toBeVisible();
   });
 
   test('explains the score as a sum a person can follow', async ({ page }) => {
     await replayAndDetect(page);
-    await expect(page.getByText('Card spread').first()).toBeVisible({ timeout: 30_000 });
-
     await page.getByRole('link', { name: 'Open' }).first().click();
     await expect(page.getByRole('heading', { name: 'Why this score' })).toBeVisible();
     // Codes rendered into sentences at the edge, with the numbers that produced them.
@@ -339,8 +351,6 @@ test.describe('incidents', () => {
 
   test('records who moved an incident, and refuses what the machine forbids', async ({ page }) => {
     await replayAndDetect(page);
-    await expect(page.getByText('Card spread').first()).toBeVisible({ timeout: 30_000 });
-
     await page.getByRole('link', { name: 'Open' }).first().click();
     await page.getByRole('button', { name: /Mark under review/ }).click();
 
@@ -352,8 +362,6 @@ test.describe('incidents', () => {
 
   test('says a resolved incident is final rather than offering to reopen it', async ({ page }) => {
     await replayAndDetect(page);
-    await expect(page.getByText('Card spread').first()).toBeVisible({ timeout: 30_000 });
-
     await page.getByRole('link', { name: 'Open' }).first().click();
     await page.getByRole('button', { name: /Mark resolved/ }).click();
 

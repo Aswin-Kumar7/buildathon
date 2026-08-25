@@ -4,6 +4,7 @@ import { incidents, incidentTransitions, users, type DbHandle } from '@sentinel/
 import {
   bucketize,
   canTransition,
+  DEFAULT_CHANGE_OPTIONS,
   clusterIncidents,
   detectChange,
   dropDuplicateViews,
@@ -11,16 +12,16 @@ import {
   firedRules,
   timeToDetect,
   thresholdHash,
-  THRESHOLDS,
   type ChangeResult,
   type EntityKind,
   type Evaluation,
   type Incident as ComputedIncident,
   type IncidentStatus,
+  type Observation,
 } from '@sentinel/detect';
 import type { EvaluateResponse, IncidentDetail, IncidentSummary } from '@sentinel/contracts';
 import { DB } from '../db/db.module.js';
-import { FeaturesService } from '../features/features.service.js';
+import { FeaturesService, type EventSource } from '../features/features.service.js';
 
 /** Entity kinds evaluated on every pass. An attacker rotating one is caught by another. */
 const KINDS: readonly EntityKind[] = ['session', 'device', 'network'];
@@ -29,6 +30,7 @@ const KINDS: readonly EntityKind[] = ['session', 'device', 'network'];
 const CANDIDATES = 40;
 
 type Row = typeof incidents.$inferSelect;
+type Source = 'razorpay' | 'replay' | 'all';
 
 @Injectable()
 export class IncidentsService {
@@ -45,7 +47,7 @@ export class IncidentsService {
    * only because of the order events happened to be processed in is an incident nobody can
    * explain. Cheap enough at this scale to prefer the version that can be re-run.
    */
-  async evaluate(source: 'razorpay' | 'replay' | 'all' = 'all'): Promise<EvaluateResponse> {
+  async evaluate(source: Source = 'all'): Promise<EvaluateResponse> {
     const hash = thresholdHash();
     let evaluated = 0;
     let opened = 0;
@@ -56,11 +58,16 @@ export class IncidentsService {
     let asOf = 0;
 
     const found: ComputedIncident[] = [];
+    const provenance = new Map<string, EventSource>();
+    let observations: Observation[] = [];
+
     for (const kind of KINDS) {
       const ranked = await this.features.rank(kind, CANDIDATES, source);
       if (ranked.vectors.length === 0) continue;
       evaluated += ranked.vectors.length;
       asOf = Math.max(asOf, ranked.asOf);
+      observations = ranked.observations;
+      for (const [key, from] of ranked.provenance) provenance.set(key, from);
 
       const evaluations: Evaluation[] = ranked.vectors.map((vector) => ({
         vector,
@@ -70,12 +77,18 @@ export class IncidentsService {
       found.push(...clusterIncidents(evaluations));
     }
 
+    const change = IncidentsService.changeAcrossTraffic(observations, asOf);
+
     // One machine has one session, one device and one network, so evaluating all three kinds
     // finds the same burst three times. Three rows for one thing is the same failure as sixty
     // alerts for one burst, just smaller — the analyst still has to work out they are the same.
     for (const computed of dropDuplicateViews(found)) {
-      const change = this.changeFor(computed, asOf);
-      const wrote = await this.upsert(computed, change, hash, source);
+      const wrote = await this.upsert(
+        computed,
+        change,
+        hash,
+        provenance.get(computed.entityKey) ?? 'razorpay',
+      );
       if (wrote === 'opened') opened += 1;
       else updated += 1;
     }
@@ -84,24 +97,45 @@ export class IncidentsService {
       evaluated,
       opened,
       updated,
-      expired: await this.expireIdle(asOf === 0 ? Date.now() : asOf),
+      // A pass that saw nothing expires nothing. Falling back to the clock here meant that
+      // evaluating a source with no events — a scope just cleared, a shop that has not opened
+      // yet — closed every incident in the queue, because an incident recorded against
+      // historical timestamps is always "idle" by wall-clock reckoning. No data is not
+      // evidence that time has passed for the incidents that do exist.
+      expired: asOf === 0 ? 0 : await this.expireIdle(asOf, source),
     };
   }
 
   /**
-   * Change detection over this entity's own minute series.
+   * Change detection across the shop's traffic, once per pass.
    *
-   * Reported beside the rules rather than folded into the score. The two answer different
-   * questions — "is this above a threshold" and "has this changed" — and a reader deciding
-   * whether to act deserves to see which one spoke.
+   * Across the shop rather than per entity, which is the level the method is actually good for.
+   * A session has no history by construction — it did not exist an hour ago — so asking whether
+   * it changed can only ever answer "it is new". A merchant's overall arrival rate does have a
+   * baseline, and a shift in it is the low-amplitude case a fixed threshold cannot reach, which
+   * is the reason CUSUM is here at all.
+   *
+   * Reported beside the rules rather than folded into the score. "Is this above a threshold"
+   * and "has this changed" are different questions, and a reader deciding whether to act
+   * deserves to know which one spoke.
    */
-  private changeFor(computed: ComputedIncident, asOf: number): ChangeResult | null {
-    const from = computed.firstAttemptAt - THRESHOLDS.incidentIdleMs;
+  private static changeAcrossTraffic(
+    observations: readonly Observation[],
+    asOf: number,
+  ): ChangeResult | null {
+    if (observations.length === 0) return null;
+
+    const from = Math.min(...observations.map((o) => o.at));
     if (asOf <= from) return null;
 
-    // Only the entity's own attempts, so the baseline is what normal looked like for it.
-    const series = bucketize([computed.firstAttemptAt, computed.lastActivityAt], from, asOf);
-    return series.length > 0 ? detectChange(series) : null;
+    const series = bucketize(
+      observations.map((o) => o.at),
+      from,
+      asOf,
+    );
+    // Fewer buckets than the warm-up means there is no baseline to have departed from, and a
+    // detector run on its own warm-up would be reporting on nothing.
+    return series.length > DEFAULT_CHANGE_OPTIONS.warmUpBuckets ? detectChange(series) : null;
   }
 
   /**
@@ -118,7 +152,7 @@ export class IncidentsService {
     computed: ComputedIncident,
     change: ChangeResult | null,
     hash: string,
-    source: 'razorpay' | 'replay' | 'all',
+    source: EventSource,
   ): Promise<'opened' | 'updated'> {
     const values = {
       key: computed.key,
@@ -132,7 +166,10 @@ export class IncidentsService {
       evidence: computed.score.evidence,
       abstentions: computed.score.abstentions,
       change,
-      source: source === 'replay' ? ('replay' as const) : ('razorpay' as const),
+      // Taken from the events behind this entity, never from the scope that was asked for.
+      // Evaluating "both" and labelling the result `razorpay` would present replayed traffic
+      // as a real detection — the one thing this system claims it never does.
+      source,
       firstAttemptAt: new Date(computed.firstAttemptAt),
       detectedAt: new Date(computed.detectedAt),
       lastActivityAt: new Date(computed.lastActivityAt),
@@ -191,8 +228,17 @@ export class IncidentsService {
    * same thing for live traffic and months apart for a replayed scenario, and using the clock
    * meant every replayed incident was born expired — and therefore unmovable, since `expired`
    * is terminal. The analyst saw a queue of things they could not act on.
+   *
+   * Scoped to the traffic the pass actually looked at, for the same reason. A pass over live
+   * traffic carries a wall-clock moment, and applying it to incidents recorded against a
+   * replayed scenario's timestamps would expire all of them at once.
    */
-  private async expireIdle(asOf: number): Promise<number> {
+  private async expireIdle(asOf: number, source: Source): Promise<number> {
+    const scoped =
+      source === 'all'
+        ? undefined
+        : eq(incidents.source, source === 'replay' ? 'replay' : 'razorpay');
+
     const stale = await this.handle.db
       .select({ id: incidents.id, status: incidents.status })
       .from(incidents)
@@ -200,6 +246,7 @@ export class IncidentsService {
         and(
           inArray(incidents.status, ['open', 'under_review']),
           sql`${incidents.expiresAt} < ${new Date(asOf)}`,
+          ...(scoped === undefined ? [] : [scoped]),
         ),
       );
 

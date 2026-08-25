@@ -182,6 +182,9 @@ describe('IncidentDetailPage', () => {
 
     expect(await screen.findByText(/Cumulative deviation reached 18.40/)).toBeInTheDocument();
     expect(screen.getByText(/after 16 minutes of accumulating/)).toBeInTheDocument();
+    // Said plainly, because it is about the shop rather than this entity. A session has no
+    // history to have changed from, so attributing the alarm to one would be misleading.
+    expect(screen.getByText(/not this entity on its own/)).toBeInTheDocument();
   });
 
   it('surfaces a failure rather than a blank page', async () => {

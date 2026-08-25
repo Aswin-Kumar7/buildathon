@@ -24,6 +24,8 @@ const READ_LIMIT = 20_000;
 /** Where `asOf` came from. Reported, because it changes how the numbers should be read. */
 export type AsOfBasis = 'now' | 'last-activity';
 
+export type EventSource = 'razorpay' | 'replay';
+
 export interface RankedFeatures {
   candidates: number;
   vectors: FeatureVector[];
@@ -32,6 +34,17 @@ export interface RankedFeatures {
   newestObservationAt: number | null;
   basis: AsOfBasis;
   source: Source;
+
+  /**
+   * What the vectors were computed from, and where each entity's events came from.
+   *
+   * Carried for callers that need more than the vectors — change detection needs the raw
+   * arrival times, and anything that records a conclusion needs to know whether the traffic
+   * behind it was real or replayed. Neither reaches the wire: the controller parses the
+   * response through the contract, which does not mention them.
+   */
+  observations: Observation[];
+  provenance: Map<string, EventSource>;
 }
 
 export type Source = 'razorpay' | 'replay' | 'all';
@@ -47,7 +60,9 @@ export class FeaturesService {
    * records anything at all. Without it there are no correlations to compute, because a
    * Razorpay webhook carries no session, device or address.
    */
-  private async observations(source: Source): Promise<Observation[]> {
+  private async observations(
+    source: Source,
+  ): Promise<{ observations: Observation[]; provenance: Map<string, EventSource> }> {
     const rows = await this.handle.db
       .select({ event: canonicalEvents, checkout: checkoutSessions })
       .from(canonicalEvents)
@@ -58,29 +73,49 @@ export class FeaturesService {
       .orderBy(desc(canonicalEvents.eventAt))
       .limit(READ_LIMIT);
 
-    return rows
-      .filter(({ event }) => source === 'all' || event.source === source)
-      .map(({ event, checkout }) => ({
-        at: event.eventAt.getTime(),
-        razorpayOrderId: event.razorpayOrderId ?? '',
-        razorpayPaymentId: event.razorpayPaymentId,
-        outcome:
-          event.status === 'captured'
-            ? ('captured' as const)
-            : event.status === 'failed'
-              ? ('failed' as const)
-              : event.status === 'authorized'
-                ? ('authorized' as const)
-                : ('other' as const),
-        amountPaise: event.amountPaise,
-        cardId: event.cardId,
-        errorSource: event.errorSource,
-        errorReason: event.errorReason,
-        sessionPseudonym: checkout?.sessionPseudonym ?? null,
-        devicePseudonym: checkout?.devicePseudonym ?? null,
-        ipPseudonym: checkout?.ipPseudonym ?? null,
-        userAgentFamily: checkout?.userAgentFamily ?? null,
-      }));
+    const kept = rows.filter(({ event }) => source === 'all' || event.source === source);
+
+    // Provenance, per correlation key rather than per query.
+    //
+    // Taken from the events themselves because the scope asked for is not evidence of what
+    // came back: evaluating "both" and then labelling everything `razorpay` would present
+    // replayed traffic as a real detection. `replay` wins a tie — a key that touched any
+    // synthetic event must never be counted as evidence the system works against Razorpay.
+    const provenance = new Map<string, EventSource>();
+    for (const { event, checkout } of kept) {
+      for (const key of [
+        checkout?.sessionPseudonym,
+        checkout?.devicePseudonym,
+        checkout?.ipPseudonym,
+      ]) {
+        if (key === null || key === undefined) continue;
+        if (event.source === 'replay' || !provenance.has(key)) provenance.set(key, event.source);
+      }
+    }
+
+    const observations = kept.map(({ event, checkout }) => ({
+      at: event.eventAt.getTime(),
+      razorpayOrderId: event.razorpayOrderId ?? '',
+      razorpayPaymentId: event.razorpayPaymentId,
+      outcome:
+        event.status === 'captured'
+          ? ('captured' as const)
+          : event.status === 'failed'
+            ? ('failed' as const)
+            : event.status === 'authorized'
+              ? ('authorized' as const)
+              : ('other' as const),
+      amountPaise: event.amountPaise,
+      cardId: event.cardId,
+      errorSource: event.errorSource,
+      errorReason: event.errorReason,
+      sessionPseudonym: checkout?.sessionPseudonym ?? null,
+      devicePseudonym: checkout?.devicePseudonym ?? null,
+      ipPseudonym: checkout?.ipPseudonym ?? null,
+      userAgentFamily: checkout?.userAgentFamily ?? null,
+    }));
+
+    return { observations, provenance };
   }
 
   /**
@@ -134,7 +169,7 @@ export class FeaturesService {
    * near a system that can block a payment: approximate to find candidates, exact to decide.
    */
   async rank(entityKind: EntityKind, limit = 20, source: Source = 'all'): Promise<RankedFeatures> {
-    const observations = await this.observations(source);
+    const { observations, provenance } = await this.observations(source);
     const { asOf, generatedAt, newest, basis } = FeaturesService.resolveAsOf(
       observations,
       DEFAULT_WINDOW.windowMs,
@@ -167,6 +202,8 @@ export class FeaturesService {
       newestObservationAt: newest,
       basis,
       source,
+      observations,
+      provenance,
     };
   }
 
@@ -175,7 +212,7 @@ export class FeaturesService {
     entityKey: string,
     source: Source = 'all',
   ): Promise<FeatureVector> {
-    const observations = await this.observations(source);
+    const { observations } = await this.observations(source);
     const { asOf } = FeaturesService.resolveAsOf(observations, DEFAULT_WINDOW.windowMs);
     return computeFeatures(entityKind, entityKey, observations, asOf, DEFAULT_WINDOW, true);
   }

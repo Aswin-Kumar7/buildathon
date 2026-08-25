@@ -234,7 +234,7 @@ attention" never reads as "branded".
 
 **Gates** — lint, typecheck, unit tests, format check, data-size guard, gitleaks, a payload-leak
 guard, a Docker manifest check, and end-to-end. **466 unit tests** (api 249, detect 101, web 74,
-corpus 20, contracts 13, storefront 10, ui 9), **127 integration tests** and **33 Playwright
+corpus 20, contracts 13, storefront 10, ui 9), **131 integration tests** and **33 Playwright
 tests**.
 
 ## Security decisions in place
@@ -387,6 +387,26 @@ problems. It is now a real trace rather than a fixture.
   order — so the first version tested one session and reported green
 
 ## Corrections
+
+**Tier 2 was wired to nothing.** Change detection was fed a two-element series — an incident's
+first and last attempt — while the comment claimed it was reading the entity's arrivals. Nineteen
+tests stood behind EWMA and CUSUM and not one assertion checked the result in the API, so it
+passed. It now runs over real arrival times, and **across the shop rather than per entity**, which
+is the level the method is good for: a session has no history by construction, so asking whether
+it changed can only answer "it is new".
+
+**Incidents were labelled by the query, not by the data.** An incident built entirely from
+replayed events, evaluated with the default scope of both, was stored as `razorpay` — synthetic
+traffic presented as a real detection, which is the one thing this project claims it never does.
+Provenance now comes from the events behind each correlation key, and `replay` wins a tie.
+
+**An empty detection pass expired the whole queue.** A pass over a source with no events fell back
+to the wall clock, and every incident recorded against historical timestamps is idle by that
+reckoning — so one empty pass closed every incident, irreversibly, since `expired` is terminal.
+Found by the end-to-end suite, which cleared replayed events between tests and then could not move
+an incident it had just opened. A pass that sees nothing now expires nothing, and expiry is scoped
+to the traffic the pass actually looked at.
+
 
 **Change detection tuned on tidy noise was tuned on the wrong distribution.** The textbook CUSUM
 pairing false-alarmed on a third of quiet entities, which was obvious once measured. Less obvious:

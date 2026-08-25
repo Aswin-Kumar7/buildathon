@@ -138,6 +138,44 @@ describe('incidents', () => {
     expect(Array.isArray(detail.incident.abstentions)).toBe(true);
   });
 
+  it('labels an incident by where its events came from, not by what was asked for', async () => {
+    // Everything here arrived through replay, and the pass ran with the default scope of both.
+    // Labelling it `razorpay` would present synthetic traffic as a real detection — the one
+    // thing this system claims it never does. It was doing exactly that, because the label came
+    // from the query rather than from the data.
+    const body = (await h.get('/api/incidents')).body as IncidentListResponse;
+
+    expect(body.incidents.length).toBeGreaterThan(0);
+    expect(body.incidents.every((i) => i.source === 'replay')).toBe(true);
+  });
+
+  it('says nothing about change when there is no history to compare against', async () => {
+    // This burst lasts five minutes. There is no baseline it could have departed from, and a
+    // detector run on its own warm-up would be reporting on nothing — so it reports nothing.
+    const list = (await h.get('/api/incidents')).body as IncidentListResponse;
+    const detail = (await h.get(`/api/incidents/${list.incidents[0]!.id}`))
+      .body as IncidentDetailResponse;
+
+    expect(detail.incident.change).toBeNull();
+  });
+
+  it('does not expire the queue when a pass finds nothing to look at', async () => {
+    // Found by the end-to-end suite, and a real defect rather than a test artifact. Evaluating a
+    // scope with no events fell back to the wall clock, and every incident recorded against
+    // historical timestamps is "idle" by that reckoning — so one empty pass closed the whole
+    // queue, irreversibly, because `expired` is terminal.
+    const before = (await h.get('/api/incidents')).body as IncidentListResponse;
+    expect(before.incidents.some((i) => i.status !== 'expired')).toBe(true);
+
+    // Nothing here arrived as real traffic, so this pass has nothing to judge.
+    const empty = await h.post('/api/incidents/evaluate?source=razorpay');
+    expect(empty.body.evaluated).toBe(0);
+    expect(empty.body.expired).toBe(0);
+
+    const after = (await h.get('/api/incidents')).body as IncidentListResponse;
+    expect(after.incidents.map((i) => i.status)).toEqual(before.incidents.map((i) => i.status));
+  });
+
   it('measures time-to-detect from the attempt rather than the pass', async () => {
     const body = (await h.get('/api/incidents')).body as IncidentListResponse;
     const incident = body.incidents[0]!;
@@ -243,4 +281,45 @@ describe('incidents, the cases that must not open one', () => {
       }
     }, 180_000);
   }
+});
+
+describe('incidents, change detection with real history', () => {
+  /**
+   * The low-amplitude attack runs for over an hour, which is the only way change detection has
+   * anything to say: it needs a baseline before it can report a departure from one.
+   *
+   * This is also the test that would have caught the alarm being computed from a two-element
+   * series — the first and last attempt — which could never have fired. Nothing asserted on the
+   * change result at all, so nothing noticed that Tier 2 was wired to nothing.
+   */
+  let h: Harness;
+
+  beforeAll(async () => {
+    h = await boot(['attack_low_amplitude'], 'incidents-change@test.local');
+    await h.post('/api/incidents/evaluate');
+  }, 180_000);
+
+  afterAll(async () => {
+    await h.app.close();
+  });
+
+  it('learns a baseline from real arrival times and reports a departure from it', async () => {
+    const list = (await h.get('/api/incidents')).body as IncidentListResponse;
+    expect(list.incidents.length).toBeGreaterThan(0);
+
+    const detail = (await h.get(`/api/incidents/${list.incidents[0]!.id}`))
+      .body as IncidentDetailResponse;
+    expect(detail.incident.change).not.toBeNull();
+
+    const change = detail.incident.change!;
+    expect(change.baseline.buckets).toBeGreaterThan(2);
+    expect(change.baseline.deviation).toBeGreaterThan(0);
+    // A fired alarm has to carry the numbers that justify it, or it is an assertion nobody can
+    // check.
+    if (change.cusum.fired) {
+      expect(change.cusum.statistic).toBeGreaterThan(change.cusum.limit);
+      expect(change.cusum.buckets).toBeGreaterThan(0);
+    }
+    if (change.ewma.fired) expect(change.ewma.statistic).toBeGreaterThan(change.ewma.limit);
+  });
 });
