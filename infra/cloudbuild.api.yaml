@@ -1,0 +1,56 @@
+# Builds the API + console image and pushes it to Artifact Registry.
+#
+#   gcloud builds submit --config infra/cloudbuild.api.yaml
+#
+# Also used by the push-to-main trigger, which is why the deploy step is here rather than
+# in a separate command: a build that pushes an image nobody deploys is not a deployment.
+#
+# The service must already exist, created once by the manual deploy in infra/README.md
+# with its environment variables and secrets. This only ever swaps the image.
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    id: build
+    args:
+      - build
+      - --file=Dockerfile
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/api:latest
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/api:$BUILD_ID
+      - .
+
+  # Deploys the image that was just built. Only --image is passed: environment variables
+  # and secrets live on the service, set once by the first manual deploy, and Cloud Run
+  # preserves anything a deploy does not mention. Keeping config out of here means a push
+  # to main can never quietly change how production is configured.
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: deploy
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/api:$BUILD_ID
+      - --region=${_REGION}
+      - --project=$PROJECT_ID
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/api:latest
+  # Also tagged with the build id, so a bad deploy can be rolled back to a specific image
+  # rather than to whatever `latest` happened to be at the time.
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/api:$BUILD_ID
+
+options:
+  machineType: E2_HIGHCPU_8
+  # Required when the build runs as a user-managed service account, and harmless otherwise.
+  # Without it the build fails with a logs-bucket permission error that has nothing to do
+  # with the Dockerfile.
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _SERVICE: sentinel-api
+  # Mumbai. Razorpay is India-based, and the webhook round trip is the latency that matters
+  # — we have five seconds to acknowledge and no say in when they call.
+  _REGION: asia-south1
+  _REPO: sentinel
+
+timeout: 1200s

@@ -1,0 +1,44 @@
+# Builds the storefront image and pushes it to Artifact Registry.
+#
+#   gcloud builds submit --config infra/cloudbuild.storefront.yaml \
+#     --substitutions=_API_BASE_URL=https://sentinel-api-xxxxx.a.run.app
+#
+# _API_BASE_URL is not optional in practice. Vite substitutes it into the bundle at build
+# time, so a static page has no way to learn it later — which is why the API has to exist
+# before this runs, and why changing the API's address means rebuilding the shop.
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    id: build
+    args:
+      - build
+      - --file=Dockerfile.storefront
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/storefront:latest
+      - --tag=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/storefront:$BUILD_ID
+      - .
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: deploy
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/storefront:$BUILD_ID
+      - --region=${_REGION}
+      - --project=$PROJECT_ID
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/storefront:latest
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/storefront:$BUILD_ID
+
+options:
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _SERVICE: sentinel-shop
+  _REGION: asia-south1
+  _REPO: sentinel
+
+timeout: 1200s

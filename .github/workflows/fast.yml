@@ -1,3 +1,8 @@
+# Every push and every pull request runs the gate.
+#
+# The jobs themselves live in verify.yml, which deploy.yml also calls — so what guards a
+# pull request and what guards production are the same definition, not two that agree today.
+
 name: fast
 
 on:
@@ -10,49 +15,5 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: lint
-        run: pnpm lint
-
-      - name: typecheck
-        run: pnpm typecheck
-
-      - name: unit tests
-        run: pnpm test:unit
-
-      - name: format check
-        run: pnpm check:format
-
-      - name: assert nothing changed
-        run: |
-          pnpm format
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "Formatter produced changes. Run 'pnpm format' and commit."
-            git --no-pager diff
-            exit 1
-          fi
-
-  secrets:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  verify:
+    uses: ./.github/workflows/verify.yml

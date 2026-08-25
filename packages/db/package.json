@@ -3,17 +3,24 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./schema": "./src/schema.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "default": "./dist/schema.js"
+    }
   },
   "scripts": {
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run --passWithNoTests",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.7",
@@ -25,5 +32,8 @@
     "drizzle-kit": "^0.31.6",
     "typescript": "^5.7.2",
     "vitest": "^3.2.4"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }

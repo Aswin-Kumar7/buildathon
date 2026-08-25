@@ -1,0 +1,141 @@
+# Builds and deploys both services from GitHub, without connecting the repository inside
+# the Google Cloud console.
+#
+# The console route needs someone signed in to GCP to authorise the Cloud Build GitHub App.
+# When the project belongs to somebody else that is a dead end, so the direction is
+# reversed: GitHub holds the credentials and pushes to Cloud Run, rather than Google pulling
+# from GitHub.
+#
+# Authentication is a service-account key held in a GitHub secret. Workload Identity
+# Federation would be better — it mints a short-lived token from GitHub's own signed claim,
+# so no long-lived credential exists anywhere — but it has to be configured by someone with
+# IAM admin on the project, and a key is what we have. The migration is two lines in this
+# file plus one setup command; infra/README.md has both.
+#
+# What that choice costs: this key does not expire, and anyone who can read the repository
+# secret, or any workflow that runs in this repository, can deploy to the project. Keep the
+# secret out of pull-request workflows and rotate the key when the project is handed back.
+#
+# Setup and the two repository secrets are in infra/README.md.
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  # Deploy without a commit — useful when a build failed for a reason that was not the code.
+  workflow_dispatch:
+
+env:
+  REGION: asia-south1
+  REPOSITORY: sentinel
+
+# Only what the jobs actually use. `id-token: write` would be needed for Workload Identity
+# Federation and is deliberately absent, so nothing here can mint an OIDC token it has no
+# use for.
+permissions:
+  contents: read
+
+# A second push while the first is deploying should supersede it, not race it. The
+# in-progress run is not cancelled, because stopping halfway through a Cloud Run rollout
+# leaves the traffic split somewhere nobody chose.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Nothing reaches Cloud Run that has not passed the same gate a pull request passes.
+  # Before this, `fast` and `deploy` both fired on a push to main and neither waited for the
+  # other, so a commit with failing tests or a leaked secret deployed anyway while the red
+  # tick appeared beside it.
+  verify:
+    uses: ./.github/workflows/verify.yml
+
+  changes:
+    needs: verify
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      storefront: ${{ steps.filter.outputs.storefront }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'apps/api/**'
+              - 'apps/web/**'
+              - 'packages/**'
+              - 'Dockerfile'
+              - 'pnpm-lock.yaml'
+            storefront:
+              - 'apps/storefront/**'
+              - 'packages/**'
+              - 'Dockerfile.storefront'
+              - 'pnpm-lock.yaml'
+
+  api:
+    needs: [verify, changes]
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authorise docker against Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/api"
+          docker build --file Dockerfile --tag "$IMAGE:${{ github.sha }}" --tag "$IMAGE:latest" .
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+      # Only the image. Environment variables and secrets live on the service, set once by
+      # hand, and Cloud Run keeps anything a deploy does not mention — so a push to main can
+      # never quietly change how production is configured.
+      - name: Deploy
+        run: |
+          gcloud run deploy sentinel-api \
+            --image="${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/api:${{ github.sha }}" \
+            --region="${REGION}" \
+            --project="${{ secrets.GCP_PROJECT_ID }}"
+
+  storefront:
+    needs: [verify, changes]
+    if: needs.changes.outputs.storefront == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authorise docker against Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      # No build argument for the API's address: the shop reads it from API_BASE_URL at
+      # start-up, which is what lets this image be built without knowing where the API is.
+      - name: Build and push
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/storefront"
+          docker build --file Dockerfile.storefront --tag "$IMAGE:${{ github.sha }}" --tag "$IMAGE:latest" .
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+      - name: Deploy
+        run: |
+          gcloud run deploy sentinel-shop \
+            --image="${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/storefront:${{ github.sha }}" \
+            --region="${REGION}" \
+            --project="${{ secrets.GCP_PROJECT_ID }}"

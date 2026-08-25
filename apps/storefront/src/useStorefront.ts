@@ -5,6 +5,7 @@ import {
   type CatalogItem,
 } from '@sentinel/contracts';
 import { getClientSessionId } from './session.js';
+import { apiUrl } from './api.js';
 import { openCheckout } from './checkout.js';
 import type { Status } from './CheckoutPanel.js';
 
@@ -47,7 +48,7 @@ export function useStorefront(): Storefront {
 
     void (async () => {
       try {
-        const response = await fetch('/api/catalog');
+        const response = await fetch(apiUrl('/api/catalog'));
         const parsed = catalogResponseSchema.parse(await response.json());
         setCatalog(parsed.items);
       } catch {
@@ -75,7 +76,7 @@ export function useStorefront(): Storefront {
   async function run(): Promise<void> {
     setStatus({ kind: 'creating' });
     try {
-      const response = await fetch('/api/orders', {
+      const response = await fetch(apiUrl('/api/orders'), {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         // No amount. The server prices the cart from its own catalogue; a total sent from

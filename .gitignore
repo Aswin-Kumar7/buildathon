@@ -42,3 +42,14 @@ __pycache__/
 !.vscode/extensions.json
 
 docs/
+
+# Service-account keys and anything else shaped like a private key. These arrive as a
+# download with a project-shaped filename and are easy to drop into a repository while
+# wiring up a deploy — which is how they end up on GitHub. A key belongs in a secret store,
+# never in a working tree.
+*.pem
+*.p12
+*-key.json
+*service-account*.json
+gha-creds-*.json
+project-*-*.json

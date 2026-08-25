@@ -1,0 +1,25 @@
+# Anything the build does not need, and anything that must never reach an image.
+.git
+.github
+node_modules
+**/node_modules
+**/dist
+**/.turbo
+.turbo
+
+# Secrets. .env is gitignored, but a Docker build context is not git — without this line a
+# COPY . . puts the database password and the payload key inside a published image layer.
+.env
+.env.*
+!.env.example
+
+# Test and tooling output
+test-results
+playwright-report
+coverage
+**/*.tsbuildinfo
+
+# Documentation and data that no build step reads
+docs
+data
+logs

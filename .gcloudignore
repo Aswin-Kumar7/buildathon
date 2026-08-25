@@ -1,0 +1,22 @@
+# What gets uploaded to Cloud Build. Same reasoning as .dockerignore, and it must be
+# maintained alongside it — gcloud does not read .dockerignore.
+.git
+.github
+node_modules
+**/node_modules
+**/dist
+**/.turbo
+.turbo
+
+.env
+.env.*
+!.env.example
+
+test-results
+playwright-report
+coverage
+**/*.tsbuildinfo
+
+docs
+data
+logs

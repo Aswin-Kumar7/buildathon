@@ -1,0 +1,40 @@
+# The demo storefront, on its own origin.
+#
+# Separate from the API image on purpose. The shop is a public, anonymous, untrusted page;
+# the console holds an authenticated session. Sharing an origin would put them inside one
+# security boundary, where a compromised shop page could read the console's CSRF token and
+# act as the analyst.
+
+FROM node:22-slim AS base
+ENV PNPM_HOME=/pnpm \
+    PATH=/pnpm:$PATH \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
+WORKDIR /repo
+
+FROM base AS deps
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY apps/storefront/package.json apps/storefront/
+COPY packages/contracts/package.json packages/contracts/
+COPY packages/db/package.json packages/db/
+COPY packages/ui/package.json packages/ui/
+RUN pnpm install --frozen-lockfile
+
+FROM deps AS build
+COPY . .
+RUN pnpm build
+
+# No node_modules at all. `serve.mjs` uses only Node built-ins, so the runtime image is the
+# base plus a few hundred kilobytes of assets, and there is nothing in it to patch.
+#
+# It also injects API_BASE_URL into index.html at request time, which is what lets this
+# image be built from the repository before the API's address is known.
+FROM node:22-slim AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=build /repo/apps/storefront/dist ./dist
+COPY --from=build /repo/apps/storefront/serve.mjs ./serve.mjs
+USER node
+CMD ["node", "serve.mjs", "dist"]

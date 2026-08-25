@@ -3,8 +3,8 @@
 Single source of truth for where Sentinel actually stands. Updated with every change.
 
 **Last updated:** 2026-08-24
-**Current slice:** 3 — Storefront and Razorpay orders (complete, awaiting tag)
-**Latest tag:** `v0.2.0` → `v0.3.0` pending
+**Current slice:** 4 — Webhook ingestion (complete, awaiting tag)
+**Latest tag:** `v0.3.0` → `v0.4.0` pending
 
 ## Slice progress
 
@@ -14,8 +14,8 @@ Single source of truth for where Sentinel actually stands. Updated with every ch
 | 1 | Landing page | `v0.1.0` | **done** |
 | 2 | Auth and app shell | `v0.2.0` | **done** |
 | 3 | Storefront and Razorpay orders | `v0.3.0` | **done** |
-| 4 | Webhook ingestion | `v0.4.0` | **next** |
-| 5 | Canonical state | `v0.5.0` | not started |
+| 4 | Webhook ingestion | `v0.4.0` | **done** |
+| 5 | Canonical state | `v0.5.0` | **next** |
 | 6 | Scenario corpus and replay | `v0.6.0` | not started |
 | 7 | Features, tiles and sketches | `v0.7.0` | not started |
 | 8 | Rules to incidents | `v0.8.0` | not started |
@@ -57,6 +57,9 @@ over HTTPS. Verified: `public` holds zero tables.
 - `GET /api/catalog` — the shop's price list, which is also the server's pricing authority
 - `POST /api/orders` — creates a real test-mode Razorpay order and records the request
   context against it. Public by design: shoppers are anonymous.
+- `POST /api/webhooks/razorpay` — the delivery endpoint. Unauthenticated by necessity
+  (Razorpay holds no session with us) and authenticated by HMAC over the raw body.
+- `GET /api/ingestion/metrics` — what the system health page reads. Session required.
 
 **UI** — landing page (evidence table read live from the API), login page, protected
 `/console` route, and the console shell: sidebar, user identity, permanent `TEST MODE`
@@ -67,13 +70,31 @@ number that makes them real.
 and a Razorpay hosted-checkout button. It exists to be the **sensor**: card details are
 entered inside Razorpay's iframe and never touch our code, and the page says so.
 
+**Ingestion** — the transactional inbox. A delivery is verified, encrypted, inserted and
+committed *before* it is acknowledged; a worker then derives the redacted canonical event,
+retrying and dead-lettering on failure.
+
+| Stage | What happens | Why in this order |
+|---|---|---|
+| Verify | HMAC-SHA256 over the exact bytes received | Re-serialising reorders keys, and the digest stops matching |
+| Encrypt | Per-event data key, wrapped by a key held outside the database | A database dump alone decrypts to nothing |
+| Insert | Unique constraint on the event id; a repeat increments a counter | At-least-once delivery cannot become two rows |
+| Commit | — | A 2xx before this loses the event if the process dies: Razorpay never resends |
+| Acknowledge | 200 | — |
+| Drain | Derive the redacted canonical event, mark processed | Nothing downstream ever reads the encrypted payload |
+
+**System health page** — ingestion rate, duplicate rate, queue depth, oldest waiting event,
+dead-letter depth, late-event count, and the watermark. It states whether ingestion is
+configured *before* showing any number, because an unconfigured webhook and a healthy idle
+one produce identical zeroes.
+
 **Design system** — light theme only, by decision. Tokens plus five primitives: Button,
 Badge, Card, Callout, Table. Semantic colour is kept separate from the accent so "needs
 attention" never reads as "branded".
 
 **Gates** — lint, typecheck, unit tests, format check, data-size guard, gitleaks, and
-end-to-end. **123 unit tests** (api 79, contracts 13, ui 9, web 12, storefront 10) and
-**17 Playwright tests**.
+end-to-end, plus a payload-leak guard. **223 unit tests** (api 169, web 22, contracts 13,
+storefront 10, ui 9) and **19 Playwright tests**.
 
 ## Security decisions in place
 
@@ -100,21 +121,60 @@ end-to-end. **123 unit tests** (api 79, contracts 13, ui 9, web 12, storefront 1
 - **`X-Forwarded-For` is only believed behind a configured proxy.** Otherwise it is a
   string the caller controls, and the caller could pick a new address per request —
   making one attacker look like thousands of unrelated shoppers.
+- **Webhook payloads are envelope-encrypted at rest.** A fresh random data key encrypts
+  each payload; the long-lived key encrypts only that data key. It therefore encrypts a
+  few hundred bytes over its whole life rather than gigabytes, and rotating it means
+  rewrapping one small key per row instead of re-encrypting every payload ever received.
+  AES-256-GCM throughout, so a tampered row fails authentication rather than decrypting to
+  plausible rubbish.
+- **Decryption failures are indistinguishable from each other.** "Wrong key" and "tampered
+  ciphertext" return the same message, because telling a caller which is which is a
+  decryption oracle. Asserted by a test.
+- **The canonical event is a whitelist, not a blacklist.** A field is copied across only if
+  it is named, so a customer-associated field appearing in a future Razorpay payload is
+  excluded by default rather than leaking until somebody notices. Email, contact, card last
+  four, VPA, cardholder name and account id never leave the encrypted blob.
+- **`last4` is deliberately not stored** even though it is available. For a tokenised card
+  it is the token's last four rather than the card's, so it identifies a person without
+  even being the signal it appears to be.
+- **A signature is compared in constant time**, and a malformed one is rejected rather than
+  throwing — otherwise a short header becomes a 500 that tells the sender their input was
+  interestingly wrong.
+- **`check:payload` greps output directories** for payload field names and for anything
+  shaped like an email address, an Indian phone number or a card number. Verified by
+  planting a leak and watching it fail.
 
 ## Evidence status
 
-Order creation against the real Razorpay sandbox is now proven. Nothing else is: no
-webhook ingestion, no detection, no models. The landing page reports this honestly rather
-than describing an aspiration.
+Order creation and webhook ingestion are proven. Detection and the models are not — nothing
+reads the events yet. The landing page reports this honestly rather than describing an
+aspiration.
 
-The proof, run through our own endpoint rather than a hand-written probe: a POST to
+**Order creation**, through our own endpoint rather than a hand-written probe: a POST to
 `/api/orders` created test-mode order `order_TTbYwLv72hZAOI` (₹897.00, 3 items) and wrote
 the matching sensor row to Supabase, whose stored values contain none of the email,
 session id, user-agent or address that produced them.
 
+**Webhook ingestion**, against the running API and real Supabase Postgres:
+
+| Delivered | Result |
+|---|---|
+| Wrong signature | 401, nothing persisted |
+| Valid signed event | 200, one row, encrypted |
+| The same event again | 200, `stored: false`, `delivery_count` 2, still one row |
+
+The drain then derived the canonical event in 550 ms. Checking the stored inbox and
+canonical rows for the values that produced them: the email, phone number, card last four,
+cardholder name and account id are all absent. The order id is present, which is the point
+— it is the join key to the checkout session, and it identifies an order rather than a
+person.
+
+**Still unproven:** a delivery originating from Razorpay rather than from us. That needs
+`RAZORPAY_WEBHOOK_SECRET` and a public HTTPS endpoint.
+
 | Layer | What it will prove | Status |
 |---|---|---|
-| L1 — integration | The ingestion contract works against the real Razorpay sandbox | **order creation proven**; webhook ingestion pending (Slice 4) |
+| L1 — integration | The ingestion contract works against the real Razorpay sandbox | **order creation and webhook ingestion proven**; a delivery from Razorpay itself still needs the webhook secret |
 | L2 — scenario compliance | The detector complies with disclosed scenario specifications | not started (Slice 6–9) |
 | L3 — benchmark | Precision and recall on labels we did not author | not started (Slice 12) |
 
@@ -128,9 +188,14 @@ session id, user-agent or address that produced them.
   status `created`
 - Live flow over HTTP: signed-out `/me` returns `null`; login issues a session and CSRF
   token; the cookie authenticates `/me` and the guarded route; a wrong password returns 401
-- 17 Playwright tests boot the real API, console and storefront: landing, login,
-  redirect-to-intended, route protection, shell, sign out, catalogue rendering, cart
-  totals, and session-id persistence across a reload
+- 19 Playwright tests boot the real API, console and storefront: landing, login,
+  redirect-to-intended, route protection, shell, sign out, system health, catalogue
+  rendering, cart totals, and session-id persistence across a reload
+- Deduplication survives a process restart, proven against a file-backed embedded Postgres
+  rather than an in-memory one that would have forgotten everything on close and passed for
+  the wrong reason
+- Dead-lettering after three attempts, and a dead row can be put back in the queue
+- The payload-leak guard was verified by planting a leak and watching it fail
 - Supabase `public` schema contains zero tables
 - Data guard rejects a 10.5 MB staged file and any path under `data/raw/`
 
@@ -182,6 +247,29 @@ value out of `.env` — so the override appeared to be ignored for no reason. Fi
 port 3001 meant Turbo's own API could not bind, and the suite silently tested week-old
 code. Worth checking the port before believing a failure.
 
+**The unit suite cannot catch a driver difference, and one was waiting.** The metrics query
+interpolated a `Date` straight into a `sql` template. PGlite coerces it; postgres.js throws,
+because a bare parameter has no column to infer a type from. Every unit test passed — they
+all run on PGlite — and the system health page hung on "Reading ingestion metrics…" the
+moment it met a real server. Fixed by passing an ISO string with an explicit
+`::timestamptz` cast, and the rest of the codebase was swept for the same shape. The
+general lesson: the embedded database is the right default and is not a substitute for
+running against the real one before believing a query works.
+
+**Playwright killed turbo and turbo's children survived.** Every end-to-end run left an API
+holding port 3001. The next run then found a server answering on 3001 that it had not
+started, `pnpm dev` failed to bind, and the suite tested stale code — which cost real time
+twice before the pattern was obvious. Fixed with `gracefulShutdown` on the web server, and
+the global setup now says so explicitly when the API answers but a Vite port does not.
+
+**The shared packages shipped raw TypeScript, and nothing noticed until production.**
+`packages/contracts` and `packages/db` pointed `main` at `./src/index.ts`. Vite and
+`@swc-node/register` transpile on the fly, so every test, every dev server and the whole
+end-to-end suite were green — while `node dist/main.js` could not load the application at
+all. Found by running the built output before writing the Dockerfile rather than after
+deploying it. Both packages now compile to `dist` and point there, and `turbo dev` depends
+on `^build`.
+
 **`z.coerce.boolean()` reads the string "false" as true.** `.env` said `TRUST_PROXY=false`
 and the running server was trusting `X-Forwarded-For` from anyone. Nothing failed, no test
 covered it, and the setting read correctly to anyone skimming the file — the value was
@@ -212,11 +300,32 @@ explicit set, and an unrecognised value is rejected at startup rather than guess
 - `gitleaks` is not installed locally, so the pre-commit hook warns rather than blocks. CI
   enforces it unconditionally.
 - GitHub Actions are referenced by tag, not pinned to commit SHAs. Recorded in ADR-0001.
-- No Docker locally. Supabase covers the real-Postgres need; Cloud Run is the deployment
-  target, which will shape how the Slice 4 worker runs (always-on instance versus
-  trigger plus scheduled sweep).
+- No Docker locally, so the two Dockerfiles are unverified until the first Cloud Build run.
+  The production **output** is verified — `node dist/main.js` was run with NODE_ENV=production
+  against real Postgres, serving the console and answering the API — so what remains
+  untested is the image build, not the thing it builds.
 - The Supabase password was pasted into a chat log and should be rotated.
-- `RAZORPAY_WEBHOOK_SECRET` is still empty. Slice 4 cannot start without it.
+- `RAZORPAY_WEBHOOK_SECRET` is still empty, so the webhook endpoint refuses every delivery
+  and the health page says so. The machinery is proven with a locally generated secret;
+  what is missing is a delivery that originated from Razorpay.
+- No public HTTPS endpoint yet, so Razorpay has nowhere to deliver to. A tunnel covers
+  local verification; Cloud Run is the real answer.
+- **Schema changes are applied as idempotent DDL, not migrations.** `CREATE TABLE IF NOT
+  EXISTS` never alters a table that already exists, so adding a column does nothing to a
+  database created before it, and the failure appears at query time rather than at boot.
+  Survivable while the schema only grows; drizzle-kit has to take over the first time a
+  column changes type or is dropped.
+- The drain runs inside the API process on a timer. That is correct for now and wrong at
+  scale; the architecture's `apps/worker` extraction is deliberately deferred until the
+  Cloud Run shape is settled.
+- **The always-on Cloud Run instance costs roughly $45–55 a month** — about $100 across the
+  planned two-month run, out of $300 of trial credits. It exists only because the drain is a
+  `setInterval` and Cloud Run gives an idle instance no CPU. A Cloud Scheduler job calling a
+  drain endpoint would allow scale-to-zero and cost almost nothing, at the price of a cold
+  start on the webhook path. That is the right change for a long-lived deployment and the
+  wrong one for a two-month demo, so the timer stays. An earlier estimate of $10–15 was
+  wrong: with CPU always allocated, it is billed for every second the instance exists rather
+  than only during requests.
 - Three fixture users (`analyst@test.local`, `admin@test.local`, `ratelimit@test.local`)
   and ~43 login-attempt rows are still sitting in Supabase from the test run described
   above. They are harmless now that seeding no longer depends on an empty table, and they
@@ -225,12 +334,62 @@ explicit set, and an unrecognised value is rejected at startup rather than guess
   payment means interacting with Razorpay's hosted iframe on their domain. Covered up to
   the handover point; the rest needs a person, or the webhook replay arriving in Slice 4.
 
+## Deployment
+
+Two Cloud Run services in `asia-south1`: `sentinel-api` (API + console, same origin as the
+session cookie it issues) and `sentinel-shop` (the storefront, deliberately on its own
+origin — an anonymous public page must not share a security boundary with an authenticated
+session). Runbook in [`infra/README.md`](infra/README.md); nothing has to be installed
+locally, because Cloud Shell provides the terminal.
+
+**Everything runs from GitHub Actions**, because there is nowhere else to run it: the
+project belongs to somebody else, so there is no Cloud console available and nothing may be
+installed locally. `deploy.yml` builds and deploys on every push to `main`; `gcp-setup.yml`
+is dispatched by hand to do the one-time provisioning and the service configuration that
+would normally be a terminal session.
+
+Authentication is a service-account key in a GitHub secret. Workload Identity Federation
+would be better — no long-lived credential anywhere — but it needs IAM admin on the project,
+which we do not have. The migration is two lines per workflow and is written down in the
+runbook.
+
+`deploy.yml` passes only `--image`. Configuration lives on the service and is set by the
+dispatched `configure` step, so a push to `main` can never quietly change how production is
+configured.
+
+The gate lives in `verify.yml` and is called by both `fast.yml` and `deploy.yml`, with every
+deploy job waiting on it. The first version did not do this: both workflows fired on a push
+to main and neither waited for the other, so a commit could deploy while its own tests were
+still failing beside it.
+
+The shop reads the API's address from `API_BASE_URL` at start-up and injects it into
+index.html, rather than having it compiled into the bundle. That was a deliberate change:
+a build-time value makes the shop's image depend on an address that only exists once the
+API is deployed, so neither service could build itself from the repository. As a runtime
+value each one builds independently and they are pointed at each other afterwards.
+
+Three settings there are load-bearing rather than cosmetic:
+
+- **`TRUST_PROXY=true`** — Cloud Run forwards the client address in `X-Forwarded-For`.
+  Without it every request looks like it came from Google's frontend, the IP pseudonym
+  collapses to one constant, and per-network velocity silently stops working.
+- **`--no-cpu-throttling`** — Cloud Run allocates CPU only during a request by default, and
+  the drain is a timer. Without it, events are processed when traffic happens to arrive.
+- **`--max-instances=1`** — the drain polls from inside the API process. Two instances poll
+  the same rows: nothing corrupts, but the attempt counter inflates and rows dead-letter
+  early. Lifting it needs `FOR UPDATE SKIP LOCKED` or a separate worker service.
+
+Secrets go through Secret Manager, never `--set-env-vars`: a revision's environment is
+readable by anyone with Viewer on the project.
+
 ## Next
 
-Slice 4 — webhook ingestion. Receive `payment.captured`, `payment.failed` and
-`order.paid`, verify the HMAC signature, respond inside Razorpay's 5-second contract, and
-persist idempotently under at-least-once delivery with no ordering guarantee. Then join
-each event to the checkout session recorded in Slice 3 — the point at which the detector
-finally has both halves: what Razorpay saw, and who was asking.
+Slice 5 — canonical payment state. Attempts reconstructed from immutable event history
+rather than mutated in place, so the same events in any order, with any duplicates, across
+a restart, resolve to the same thing. `failed → captured` is a **valid** transition — it is
+what a UPI retry looks like — and the console must render it as mitigating evidence rather
+than as two problems. Missing, late or inconsistent data becomes a typed exception record,
+never a silent guess.
 
-Blocked on `RAZORPAY_WEBHOOK_SECRET`.
+Then the attempt timeline: the signature visual, and the first screen that shows a real
+payment's history including a recovered failure shown as recovery.

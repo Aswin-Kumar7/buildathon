@@ -1,0 +1,35 @@
+# Gitleaks configuration.
+#
+# The default rules are kept in full and this only adds exceptions. Two test fixtures trip
+# the generic-api-key rule, and both have to stay in the repository: a signature test needs
+# a secret to sign with, and the sealed-payload tests need a key to seal with.
+#
+# The exceptions are the exact literal values, not the files they live in. Allowlisting
+# `**/*.test.ts` would be one line shorter and would mean a real credential pasted into a
+# test file goes unreported forever — which is a likely enough accident to design against.
+# If one of these constants is ever replaced with something real, it stops matching and
+# gitleaks catches it.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Synthetic values that are meant to be committed"
+regexes = [
+  # apps/api/vitest.config.ts — the payload key the suite seals with. Sixteen repeating
+  # bytes; no real key looks like this.
+  '''00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff''',
+
+  # apps/api/src/webhooks/signature.test.ts — the webhook secret the HMAC tests sign with.
+  '''whsec_test_0123456789''',
+
+  # apps/api/vitest.config.ts — the pseudonym key, which announces what it is in its own
+  # value.
+  '''test-only-pseudonym-key-0+''',
+
+  # apps/api/vitest.config.ts — the webhook secret pinned for the integration suite.
+  '''whsec_test_only_do_not_use''',
+
+  # .env.example — placeholders, not keys.
+  '''rzp_test_x+''',
+]

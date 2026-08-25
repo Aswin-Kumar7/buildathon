@@ -1,0 +1,63 @@
+# The API, plus the console's built assets.
+#
+# One service, one origin: the console's session cookie and the API that issues it belong
+# together, and same-origin means no CORS on the authenticated path. The storefront is
+# deliberately NOT here — see Dockerfile.storefront.
+
+FROM node:22-slim AS base
+ENV PNPM_HOME=/pnpm \
+    PATH=/pnpm:$PATH \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
+WORKDIR /repo
+
+# Manifests only, so this layer is cached until a dependency actually changes. Copying the
+# source first would reinstall the whole tree on every edit.
+FROM base AS manifests
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY apps/storefront/package.json apps/storefront/
+COPY packages/contracts/package.json packages/contracts/
+COPY packages/db/package.json packages/db/
+COPY packages/ui/package.json packages/ui/
+
+FROM manifests AS deps
+RUN pnpm install --frozen-lockfile
+
+FROM deps AS build
+COPY . .
+# Everything, rather than a filtered subset: Turbo orders it correctly, this stage is
+# thrown away, and a filter that silently misses a shared package produces a runtime
+# "cannot find module" instead of a build error.
+RUN pnpm build
+
+FROM manifests AS runtime
+ENV NODE_ENV=production
+# Production dependencies only. The compiled output is copied in afterwards, so nothing here
+# needs a toolchain.
+#
+# --ignore-scripts because the root `prepare` script runs husky to install git hooks, and
+# husky is a devDependency: with --prod it is not installed, the script still fires, and the
+# build dies on `husky: not found`. A container has no git hooks to install. Nothing else
+# here needs a lifecycle script — the one package that does, esbuild, is a devDependency and
+# is absent too.
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
+
+COPY --from=build /repo/apps/api/dist apps/api/dist
+COPY --from=build /repo/packages/contracts/dist packages/contracts/dist
+COPY --from=build /repo/packages/db/dist packages/db/dist
+
+# The console, served from the same origin as the API that authenticates it. main.ts looks
+# for this directory relative to the working directory and simply serves nothing if it is
+# absent, so an API-only image is still valid.
+COPY --from=build /repo/apps/web/dist apps/api/public
+
+WORKDIR /repo/apps/api
+
+# Cloud Run sandboxes the container, but there is no reason for the process to be root as
+# well. Everything it needs is world-readable and it writes nothing to disk.
+USER node
+
+# No EXPOSE and no hardcoded port: Cloud Run injects PORT and the app listens on it.
+CMD ["node", "dist/main.js"]
