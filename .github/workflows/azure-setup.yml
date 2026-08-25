@@ -29,7 +29,19 @@ on:
 
 env:
   RESOURCE_GROUP: sentinel
-  LOCATION: centralindia
+  # UAE North, after two closer regions turned out to be unusable. Mumbai was the right
+  # answer on latency — Razorpay is India-based and the webhook round trip is what matters,
+  # with five seconds to acknowledge and no say in when they call — but this subscription is
+  # constrained twice over:
+  #
+  #   Central India      allowed by policy, no Container Apps quota
+  #   South Central India allowed by policy, Container Apps not offered there
+  #   Singapore          has quota, blocked by the subscription's allowed-regions policy
+  #   UAE North          allowed, offered, and has quota
+  #
+  # Dubai is roughly 30-50 ms from India against Mumbai's 10-20 ms, which is noise inside a
+  # five-second budget. The remaining fallbacks are malaysiawest and koreacentral.
+  LOCATION: uaenorth
   ENVIRONMENT: sentinel-env
   API_APP: sentinel-api
   SHOP_APP: sentinel-shop
@@ -53,13 +65,28 @@ jobs:
       - name: Install the Container Apps extension
         run: az extension add --name containerapp --upgrade --allow-preview true
 
+      # Checked for, then created — rather than created with `|| echo "already exists"`. That
+      # shortcut reported success for every possible failure, so a create that genuinely
+      # failed printed a reassuring line and the job carried on until a later step complained
+      # the environment did not exist. A real failure has to fail here, where the message is
+      # about the thing that actually broke.
+      #
+      # --logs-destination none skips the Log Analytics workspace: one more resource, one more
+      # provider, and one more thing a student subscription can refuse. Recent logs are still
+      # readable with `az containerapp logs show`, which is all a demo needs.
       - name: Create the Container Apps environment
         run: |
+          if az containerapp env show --name "${ENVIRONMENT}" --resource-group "${RESOURCE_GROUP}" >/dev/null 2>&1; then
+            echo "environment ${ENVIRONMENT} already exists"
+            exit 0
+          fi
+
           az containerapp env create \
             --name "${ENVIRONMENT}" \
             --resource-group "${RESOURCE_GROUP}" \
             --location "${LOCATION}" \
-            --output table || echo "environment already exists"
+            --logs-destination none \
+            --output table
 
       # Both apps are created with a placeholder image and their registry credentials. The
       # deploy workflow only ever swaps the image; everything else about an app is set here

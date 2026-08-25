@@ -1,8 +1,36 @@
 # Deploying to Azure Container Apps
 
-Subscription: Azure for Students. Resource group `sentinel`, region `centralindia` —
-Razorpay is India-based and we have five seconds to acknowledge a webhook whose timing we do
-not control, so the region is not arbitrary.
+Subscription: Azure for Students. Resource group `sentinel` and the container registry in
+`centralindia`; Container Apps in `uaenorth`.
+
+Mumbai was the first choice and would still be the best one. Razorpay is India-based, the
+webhook round trip is the latency that matters, and we have five seconds to acknowledge with
+no say in when they call. This subscription is constrained twice over, and the two
+constraints do not overlap where we wanted them to:
+
+| Region | Allowed by policy | Container Apps offered | Quota |
+|---|---|---|---|
+| `centralindia` | yes | yes | **none** |
+| `indiasouthcentral` | yes | **no** | — |
+| `southeastasia` | **no** | yes | — |
+| `uaenorth` | yes | yes | yes |
+| `malaysiawest`, `koreacentral` | yes | yes | untested fallbacks |
+
+So Dubai: roughly 30–50 ms from India against Mumbai's 10–20 ms, which is noise inside a
+five-second budget. Worth stating plainly in a submission rather than implying the region was
+chosen freely.
+
+To find this out on another subscription, the two questions are what the policy permits and
+where the service exists:
+
+```bash
+az policy assignment list --query "[].{policy:displayName, allowed:parameters.listOfAllowedLocations.value}" -o json
+az provider show -n Microsoft.App --query "resourceTypes[?resourceType=='managedEnvironments'].locations[]" -o json
+```
+
+Quota is not visible in either — a region can pass both and still refuse with
+`MaxNumberOfEnvironmentsInSubExceeded`, which reads like a limit that was hit rather than one
+that was always zero. The only test is to try.
 
 **Everything runs from GitHub Actions.** Nothing is installed locally; the one-time bootstrap
 happens in [Azure Cloud Shell](https://shell.azure.com), and the rest is workflows.
@@ -46,7 +74,7 @@ default. Type `bash` first if you would rather use Bash.
 
 ```bash
 $RG              = "sentinel"
-$LOCATION        = "centralindia"
+$LOCATION        = "centralindia"   # the resource group and registry; Container Apps go to uaenorth
 $SUBSCRIPTION_ID = az account show --query id -o tsv
 $TENANT_ID       = az account show --query tenantId -o tsv
 ```
@@ -81,7 +109,14 @@ az role assignment create --assignee $APP_ID --role Contributor --scope "/subscr
 ```
 
 Trust GitHub for this repository and `main` only. The `subject` is the security boundary —
-without it, any repository in the world could request a token:
+without it, any repository in the world could request a token.
+
+**Use the immutable form.** GitHub embeds numeric owner and repository IDs in the subject it
+presents, so a rename cannot silently transfer the trust:
+`repo:OWNER@OWNER_ID/REPO@REPO_ID:ref:refs/heads/main`. The friendlier
+`repo:OWNER/REPO:ref:...` will simply not match, and the failure is an `AADSTS700213` naming
+a subject you never configured. The workflow log prints the exact subject under
+`Federated token details` — copy it from there rather than assembling it by hand:
 
 ```bash
 @'
