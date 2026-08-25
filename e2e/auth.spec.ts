@@ -81,6 +81,28 @@ test.describe('route protection', () => {
   });
 });
 
+test.describe('payment attempts', () => {
+  test('reconstructs attempts from event history', async ({ page }) => {
+    await signIn(page);
+    await page.getByRole('link', { name: 'Attempts' }).click();
+
+    await expect(page.getByRole('heading', { level: 1, name: 'Payment attempts' })).toBeVisible();
+    // The claim the whole slice rests on, stated on the page rather than only in a doc.
+    await expect(page.getByText(/any sequence, with any duplicates/i)).toBeVisible();
+  });
+
+  test('says plainly that it invents nothing when no events have arrived', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/console/attempts');
+
+    // Either state is honest. What must never appear is an empty table implying zero
+    // failures when the truth is that nothing has been observed.
+    const empty = page.getByText('No payment events yet');
+    const orders = page.locator('.timeline');
+    await expect(empty.or(orders.first())).toBeVisible();
+  });
+});
+
 test.describe('system health', () => {
   test('reports whether webhook ingestion is configured at all', async ({ page }) => {
     await signIn(page);

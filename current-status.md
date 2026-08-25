@@ -3,8 +3,8 @@
 Single source of truth for where Sentinel actually stands. Updated with every change.
 
 **Last updated:** 2026-08-24
-**Current slice:** 4 — Webhook ingestion (complete, awaiting tag)
-**Latest tag:** `v0.3.0` → `v0.4.0` pending
+**Current slice:** 5 — Canonical payment state (complete, awaiting tag)
+**Latest tag:** `v0.4.4` → `v0.5.0` pending
 
 ## Slice progress
 
@@ -15,8 +15,8 @@ Single source of truth for where Sentinel actually stands. Updated with every ch
 | 2 | Auth and app shell | `v0.2.0` | **done** |
 | 3 | Storefront and Razorpay orders | `v0.3.0` | **done** |
 | 4 | Webhook ingestion | `v0.4.0` | **done** |
-| 5 | Canonical state | `v0.5.0` | **next** |
-| 6 | Scenario corpus and replay | `v0.6.0` | not started |
+| 5 | Canonical state | `v0.5.0` | **done** |
+| 6 | Scenario corpus and replay | `v0.6.0` | **next** |
 | 7 | Features, tiles and sketches | `v0.7.0` | not started |
 | 8 | Rules to incidents | `v0.8.0` | not started |
 | 9 | Arbitration and suppression | `v0.9.0` | not started |
@@ -60,6 +60,8 @@ over HTTPS. Verified: `public` holds zero tables.
 - `POST /api/webhooks/razorpay` — the delivery endpoint. Unauthenticated by necessity
   (Razorpay holds no session with us) and authenticated by HMAC over the raw body.
 - `GET /api/ingestion/metrics` — what the system health page reads. Session required.
+- `GET /api/attempts`, `GET /api/attempts/:orderId` — payment attempts resolved from event
+  history, with the checkout context joined on. Session required.
 
 **UI** — landing page (evidence table read live from the API), login page, protected
 `/console` route, and the console shell: sidebar, user identity, permanent `TEST MODE`
@@ -83,6 +85,34 @@ retrying and dead-lettering on failure.
 | Acknowledge | 200 | — |
 | Drain | Derive the redacted canonical event, mark processed | Nothing downstream ever reads the encrypted payload |
 
+**Canonical payment state** — attempts reconstructed from the event history rather than
+mutated as events arrive.
+
+The resolved status of an attempt is the **highest-ranked status in its event set**, not the
+status of the last event to arrive. `max` over a set does not care how the set was assembled,
+so duplicates, reordering and replay after a restart all land in the same place — the
+property is true by construction rather than by careful sequencing. Two permutation tests
+assert it over all 24 orderings of a four-event history.
+
+`failed` ranks below `authorized` deliberately, so a payment that failed and was later
+captured resolves to captured. That is not a contradiction being papered over: it is what a
+UPI late confirmation looks like, and the failure stays on the record so the recovery is
+legible.
+
+An order is not a payment. A shopper declined once who retries produces two payments under
+one order, and `recovered` only exists at that level — no single attempt can see it. That
+flag is what the console is built around: a customer who had a bad minute and an attacker
+produce the same two red dots, and collapsing both into "two failed payments" is how a
+detector ends up accusing people of having a bank that was briefly down.
+
+A checkout with no terminal event past the allowed-lateness bound is recorded as
+**unresolved**, never as a failure. Inventing a failure that never happened is the last thing
+a system keyed on failure counts should do.
+
+**Attempt timeline** — the console page. Per order: each attempt on a vertical spine, coloured
+by outcome, with the gap the shopper waited, the failure reason kept visible on recovered
+attempts, and the session, device and network fingerprints the webhooks cannot carry.
+
 **System health page** — ingestion rate, duplicate rate, queue depth, oldest waiting event,
 dead-letter depth, late-event count, and the watermark. It states whether ingestion is
 configured *before* showing any number, because an unconfigured webhook and a healthy idle
@@ -93,8 +123,8 @@ Badge, Card, Callout, Table. Semantic colour is kept separate from the accent so
 attention" never reads as "branded".
 
 **Gates** — lint, typecheck, unit tests, format check, data-size guard, gitleaks, and
-end-to-end, plus a payload-leak guard. **223 unit tests** (api 169, web 22, contracts 13,
-storefront 10, ui 9) and **19 Playwright tests**.
+end-to-end, plus a payload-leak guard. **264 unit tests** (api 201, web 31, contracts 13,
+storefront 10, ui 9) and **21 Playwright tests**.
 
 ## Security decisions in place
 
@@ -169,7 +199,20 @@ cardholder name and account id are all absent. The order id is present, which is
 — it is the join key to the checkout session, and it identifies an order rather than a
 person.
 
-**Webhook ingestion from Razorpay itself**, now proven on the deployed instance. A live test
+**Canonical state, resolved from the real history.** The deployed instance's own events, read
+back through `/api/attempts`:
+
+```
+order_TTyyheY7fRMZnW   outcome paid   recovered true   failureCount 1
+  pay_TTyzcANZB9mSVn   failed     Visa        international_transaction_not_allowed
+  pay_TTz2PHRSa5mdZp   captured   Visa/DCBL   3 events
+  sensor  session e9487855 · device 5af9f588 · network 9ecb5789 · chrome
+```
+
+Not a fixture: a real declined card and a real retry, resolved into one recovered order with
+the failure still on the record and the storefront's context joined on the order id.
+
+**Webhook ingestion from Razorpay itself**, proven on the deployed instance. A live test
 payment produced a complete sequence against one order:
 
 ```
@@ -375,7 +418,9 @@ explicit set, and an unrecognised value is rejected at startup rather than guess
 Two Azure Container Apps in `centralindia`: `sentinel-api` (API + console, same origin as the
 session cookie it issues) and `sentinel-shop` (the storefront, deliberately on its own origin
 — an anonymous public page must not share a security boundary with an authenticated
-session). Runbook in [`infra/README.md`](infra/README.md).
+session). The deployment runbook was removed once the environment was live; it is in git
+history at `infra/README.md` if the environment ever has to be rebuilt, and the settings that
+matter are listed below.
 
 **Azure, after Google Cloud proved unavailable.** The GCP project belonged to someone else
 and its billing account turned out to be closed — `billingEnabled: true` on the project while
@@ -408,7 +453,13 @@ still failing beside it.
 
 ## Next
 
-Slice 5 — canonical payment state. Attempts reconstructed from immutable event history
+Slice 6 — scenario corpus and replay. Seeded generation of the eight scenario families, so
+the detector can be exercised at volume without touching the network, and the credential-free
+demo path gets something to replay. Scenario definitions and seed hashes are pre-registered
+before any tuning, which is what stops the corpus being quietly shaped to flatter the
+detector.
+
+Previously: Slice 5 — canonical payment state. Attempts reconstructed from immutable event history
 rather than mutated in place, so the same events in any order, with any duplicates, across
 a restart, resolve to the same thing. `failed → captured` is a **valid** transition — it is
 what a UPI retry looks like — and the console must render it as mitigating evidence rather

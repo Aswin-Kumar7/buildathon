@@ -1,0 +1,184 @@
+.orders {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.order__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.order__id {
+  margin: 0;
+  font-family: var(--s-mono);
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-2);
+}
+
+.order__amount {
+  margin: var(--s-1) 0 0;
+  font-size: var(--s-text-lg);
+  font-family: var(--s-mono);
+}
+
+.order__badges {
+  display: flex;
+  gap: var(--s-2);
+  align-items: center;
+}
+
+.order__recovery {
+  margin: var(--s-3) 0 0;
+  padding: var(--s-2) var(--s-3);
+  background: var(--s-ok-soft);
+  border-left: 3px solid var(--s-ok);
+  border-radius: var(--s-radius);
+  font-size: var(--s-text-sm);
+}
+
+/* A vertical spine with a dot per attempt. Reading downwards is reading forwards in time,
+   which is the only ordering a person should have to hold in their head. */
+.timeline {
+  list-style: none;
+  margin: var(--s-4) 0 0;
+  padding: 0;
+  position: relative;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: var(--s-line);
+}
+
+.attempt {
+  position: relative;
+  padding: 0 0 var(--s-4) var(--s-5);
+}
+
+.attempt:last-child {
+  padding-bottom: 0;
+}
+
+.attempt__dot {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid var(--s-surface);
+  background: var(--s-ink-2);
+}
+
+.attempt--ok .attempt__dot {
+  background: var(--s-ok);
+}
+
+.attempt--warn .attempt__dot {
+  background: var(--s-warn);
+}
+
+.attempt--critical .attempt__dot {
+  background: var(--s-critical);
+}
+
+.attempt__head {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.attempt__head strong {
+  text-transform: capitalize;
+}
+
+.attempt__id,
+.attempt__time,
+.attempt__gap {
+  font-family: var(--s-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-2);
+}
+
+.attempt__gap {
+  font-style: italic;
+}
+
+.attempt__meta {
+  margin: var(--s-1) 0 0;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-2);
+}
+
+.attempt__failure {
+  margin: var(--s-2) 0 0;
+  padding: var(--s-2);
+  background: var(--s-critical-soft);
+  border-radius: var(--s-radius);
+  font-size: var(--s-text-sm);
+  font-family: var(--s-mono);
+}
+
+/* The correlation keys Razorpay's webhooks cannot carry, shortened to something comparable
+   at a glance. Two orders sharing a session fingerprint are the same visitor. */
+.fingerprints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+  margin: var(--s-4) 0 0;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--s-line);
+}
+
+.fingerprints dt {
+  font-size: var(--s-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-ink-2);
+}
+
+.fingerprints dd {
+  margin: 2px 0 0;
+  font-family: var(--s-mono);
+  font-size: var(--s-text-sm);
+}
+
+.unresolved {
+  list-style: none;
+  margin: var(--s-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.unresolved li {
+  display: flex;
+  gap: var(--s-4);
+  align-items: baseline;
+  padding: var(--s-2) var(--s-3);
+  background: var(--s-surface);
+  border: 1px solid var(--s-line);
+  border-radius: var(--s-radius);
+  font-size: var(--s-text-sm);
+}
+
+.unresolved__id {
+  font-family: var(--s-mono);
+  flex: 1;
+}
+
+.muted {
+  color: var(--s-ink-2);
+}
