@@ -1,0 +1,158 @@
+{
+  "baseline_logistic": {
+    "pr_auc": 0.634351
+  },
+  "cost": {
+    "false_negative_paise": 300000,
+    "false_positive_paise": 120000
+  },
+  "error_taxonomy": [
+    {
+      "amount_band": "low",
+      "false_negative": 57,
+      "false_positive": 26,
+      "n": 1196
+    },
+    {
+      "amount_band": "mid",
+      "false_negative": 108,
+      "false_positive": 32,
+      "n": 1196
+    },
+    {
+      "amount_band": "high",
+      "false_negative": 132,
+      "false_positive": 61,
+      "n": 1196
+    }
+  ],
+  "feature_importance": [
+    {
+      "feature": "C1",
+      "importance": 0.175347
+    },
+    {
+      "feature": "V1",
+      "importance": 0.170468
+    },
+    {
+      "feature": "C2",
+      "importance": 0.137405
+    },
+    {
+      "feature": "V2",
+      "importance": 0.127586
+    },
+    {
+      "feature": "TransactionAmt",
+      "importance": 0.04146
+    },
+    {
+      "feature": "card1",
+      "importance": 0.036745
+    },
+    {
+      "feature": "addr1",
+      "importance": 0.018319
+    },
+    {
+      "feature": "D1_norm",
+      "importance": 0.014739
+    },
+    {
+      "feature": "V3",
+      "importance": 0.012592
+    }
+  ],
+  "honest": {
+    "brier": 0.08635,
+    "model": "sklearn-histgb",
+    "n_test": 3588,
+    "positives": 495,
+    "pr_auc": {
+      "high": 0.563244,
+      "low": 0.472418,
+      "point": 0.5166
+    },
+    "precision": {
+      "high": 0.679071,
+      "low": 0.574285,
+      "point": 0.624606
+    },
+    "recall": {
+      "high": 0.445303,
+      "low": 0.358777,
+      "point": 0.4
+    },
+    "reliability": [
+      {
+        "observed": 0.013172,
+        "predicted": 0.005247
+      },
+      {
+        "observed": 0.026923,
+        "predicted": 0.030742
+      },
+      {
+        "observed": 0.041436,
+        "predicted": 0.038435
+      },
+      {
+        "observed": 0.0,
+        "predicted": 0.039339
+      },
+      {
+        "observed": 0.084088,
+        "predicted": 0.064489
+      },
+      {
+        "observed": 0.193353,
+        "predicted": 0.139929
+      },
+      {
+        "observed": 0.336043,
+        "predicted": 0.25416
+      },
+      {
+        "observed": 0.626168,
+        "predicted": 0.598108
+      }
+    ],
+    "roc_auc": 0.860618,
+    "threshold": 0.315789
+  },
+  "leakage": {
+    "delta": 0.10867,
+    "dropped_to_gap": 542,
+    "honest_pr_auc": 0.5166,
+    "honest_uid_overlap": 0,
+    "naive_pr_auc": 0.62527,
+    "naive_uid_overlap": 1560
+  },
+  "learning_curve": [
+    {
+      "n_train": 3048,
+      "train_fraction": 0.25,
+      "val_pr_auc": 0.521378
+    },
+    {
+      "n_train": 6096,
+      "train_fraction": 0.5,
+      "val_pr_auc": 0.53605
+    },
+    {
+      "n_train": 12193,
+      "train_fraction": 1.0,
+      "val_pr_auc": 0.551439
+    }
+  ],
+  "provenance": {
+    "data_note": "Synthetic stand-in \u2014 the competition data cannot be redistributed. It is built to reproduce the one structure the method exists to handle (fraud clustered by card over time), so the leakage delta is real; the absolute scores are not a claim about IEEE-CIS. Place train_transaction.csv in the data directory to run on the real thing.",
+    "data_source": "synthetic",
+    "fraud_rate": 0.131866,
+    "model_backend": "sklearn-histgb",
+    "n_rows": 18587,
+    "n_uids": 2242,
+    "seed": 20260826
+  }
+}

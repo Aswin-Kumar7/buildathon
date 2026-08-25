@@ -1,0 +1,71 @@
+@import './IncidentsPage.css';
+
+.metrics-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.metrics-table {
+  width: 100%;
+  margin: var(--s-3) 0;
+  border-collapse: collapse;
+  font-size: var(--s-text-sm);
+}
+
+.metrics-table th,
+.metrics-table td {
+  text-align: left;
+  padding: var(--s-2);
+  border-bottom: 1px solid var(--s-line);
+  font-variant-numeric: tabular-nums;
+}
+
+.metrics-table th {
+  font-size: var(--s-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-ink-2);
+}
+
+/* The careless split's inflated score, marked so the eye lands on the thing not to trust. */
+.metrics-table .is-inflated {
+  color: var(--s-critical-ink, var(--s-ink));
+  font-weight: 600;
+}
+
+.metrics-delta {
+  margin: 0;
+  font-size: var(--s-text-sm);
+}
+
+.metrics-bars {
+  margin: var(--s-2) 0 var(--s-3);
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metrics-bars li {
+  display: grid;
+  grid-template-columns: 7rem 1fr 3rem;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--s-text-sm);
+}
+
+.metrics-bar {
+  height: 0.75rem;
+  border-radius: var(--s-radius);
+  background: var(--s-accent-soft, var(--s-line));
+  min-width: 2px;
+}
+
+.metrics-bar__value {
+  font-variant-numeric: tabular-nums;
+  color: var(--s-ink-2);
+  text-align: right;
+}

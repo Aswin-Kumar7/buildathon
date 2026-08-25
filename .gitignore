@@ -56,3 +56,10 @@ project-*-*.json
 
 # Editor and assistant scratch config, created automatically and specific to one machine.
 .claude/
+
+# The IEEE-CIS competition data is never committed — the rules forbid redistribution. The
+# generated artefacts (metrics.json, model_card.md) ARE committed; only the raw data is ignored.
+ml/models/transaction_risk/data/
+__pycache__/
+*.pyc
+.pytest_cache/

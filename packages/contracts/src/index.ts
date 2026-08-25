@@ -9,3 +9,4 @@ export * from './feature.js';
 export * from './incident.js';
 export * from './containment.js';
 export * from './audit.js';
+export * from './model.js';

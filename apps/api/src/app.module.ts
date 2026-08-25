@@ -13,6 +13,7 @@ import { IncidentsModule } from './incidents/incidents.module.js';
 import { PolicyModule } from './policy/policy.module.js';
 import { ContainmentModule } from './containment/containment.module.js';
 import { AuditModule } from './audit/audit.module.js';
+import { ModelMetricsModule } from './model-metrics/model-metrics.module.js';
 import { ZodExceptionFilter } from './common/zod-exception.filter.js';
 
 // The filter is registered here rather than in main.ts so tests boot the same wiring the
@@ -33,6 +34,7 @@ import { ZodExceptionFilter } from './common/zod-exception.filter.js';
     PolicyModule,
     ContainmentModule,
     AuditModule,
+    ModelMetricsModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: ZodExceptionFilter }],
 })

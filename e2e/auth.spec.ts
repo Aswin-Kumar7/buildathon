@@ -489,3 +489,17 @@ test.describe('audit chain', () => {
     await expect(page.getByText(/pnpm audit:verify/)).toBeVisible();
   });
 });
+
+test.describe('model benchmark', () => {
+  test('shows the held-out numbers and the leakage delta', async ({ page }) => {
+    await signIn(page);
+    await page.getByRole('link', { name: 'Metrics' }).click();
+
+    await expect(page.getByRole('heading', { level: 1, name: 'Model benchmark' })).toBeVisible();
+    // The artefact is committed, so the benchmark renders; if a clone had not generated it, the
+    // page would say so rather than show zeros.
+    await expect(page.getByText(/The leakage delta|has not been generated/)).toBeVisible({
+      timeout: 30_000,
+    });
+  });
+});

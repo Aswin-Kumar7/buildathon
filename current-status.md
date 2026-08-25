@@ -3,8 +3,8 @@
 Single source of truth for where Sentinel actually stands. Updated with every change.
 
 **Last updated:** 2026-08-25
-**Current slice:** 11 — Audit chain (built; suites written, not yet run)
-**Latest tag:** `v0.10.1` → `v0.11.0` pending
+**Current slice:** 12 — Model A, real labelled benchmark (built; JS/pytest suites written, not yet run)
+**Latest tag:** `v0.11.0` → `v0.12.0` pending
 
 ## Slice progress
 
@@ -21,8 +21,8 @@ Single source of truth for where Sentinel actually stands. Updated with every ch
 | 8 | Rules to incidents | `v0.8.0` | **done** |
 | 9 | Arbitration and suppression | `v0.9.0` | **done** |
 | 10 | Policy, approval and containment | `v0.10.0` | **done** |
-| 11 | Audit chain | `v0.11.0` | **built (tests pending run)** |
-| 12 | Model A — real labelled benchmark | `v0.12.0` | **next** |
+| 11 | Audit chain | `v0.11.0` | **done** |
+| 12 | Model A — real labelled benchmark | `v0.12.0` | **built (tests pending run)** |
 | 13 | Model B and ONNX serving | `v0.13.0` | not started |
 | 14 | Narration | `v0.14.0` | not started |
 | 15 | Performance and degradation | `v0.15.0` | not started |
@@ -303,6 +303,30 @@ console acts yet. The detail view shows the score as the sum it actually is, eve
 with mitigating evidence in the same list rather than a panel away — a reader deciding whether to
 act on somebody needs to see what argued against it in the same glance.
 
+**Model benchmark** — `ml/models/transaction_risk`, a Python pipeline whose deliverable is an
+*honest evaluation*, not a leaderboard score. It reconstructs the card identity the IEEE-CIS
+community found (`card1 + addr1 + first-transaction-day`, recovered via `D1`), splits on **whole
+cards ordered by time with a delay gap**, trains a calibrated gradient-boosted model over a logistic
+baseline, and reports precision, recall, PR-AUC and calibration with **bootstrap confidence
+intervals** on a test set it never saw.
+
+The headline is the **leakage delta**: the same model scored on a careless random split next to the
+honest one. On the current run the careless split shares **1,560 cards** across train and test and
+scores PR-AUC 0.63; the honest split shares **zero** and scores 0.52 — a **+0.11** inflation that is
+purely the model memorising cards it will not see again. That gap is the difference between a score
+and a claim, and it is the number the whole slice exists to publish.
+
+`make eval` is deterministic from a fixed seed (two runs are byte-identical), so `make check-metrics`
+can regenerate and diff the committed `metrics.json`. The competition data is **never committed** —
+the rules forbid it and the download 403s until you join — so a clean clone runs on a deterministic
+synthetic stand-in built to reproduce the one structure the method handles (fraud clustered by card
+over time). Every artefact records which source it used, and the metrics page carries that evidence
+label on the numbers.
+
+**Metrics page** — `/console/metrics` renders the artefact: the leakage delta first, the held-out
+numbers with their intervals, feature importance (card identifiers correctly near zero on the honest
+split), the cost-chosen threshold, and an error taxonomy — each under the synthetic-vs-real label.
+
 **Audit chain** — `packages/audit`, and a `sentinel.audit_log` table. Every decision and every
 hand that touched one is appended as an entry carrying the hash of the entry before it, so
 changing any past row changes its hash, which breaks the link the next row recorded. `verifyChain`
@@ -337,10 +361,11 @@ guard, a Docker manifest check, a metrics-freshness check, and end-to-end. **565
 policy 31, corpus 20, contracts 13, storefront 10, ui 9), **157 integration tests** and **38
 Playwright tests** — the last figure verified at slice 10 plus the containment-enforcement pair.
 
-Slice 11 adds an `@sentinel/audit` unit suite, an audit integration suite (including the
-corrupt-and-catch demo), an `AuditPage` web suite, and an E2E case. These are **written but not
-yet executed** — the run is deferred until asked, and the counts above will be updated once it
-has happened rather than before.
+Slices 11 and 12 add: an `@sentinel/audit` unit suite and integration suite (the corrupt-and-catch
+demo), a Python pytest suite for split integrity and eval reproducibility, `AuditPage`,
+`MetricsPage`, and model-metrics web suites, and E2E cases. The Python `make eval` and its
+determinism **have been run** (byte-identical across runs); the JS and pytest **suites are written
+but not yet executed** — deferred until asked, and the counts will be updated once they run.
 
 ## Security decisions in place
 
@@ -492,6 +517,22 @@ problems. It is now a real trace rather than a fixture.
   order — so the first version tested one session and reported green
 
 ## Corrections
+
+**The leakage delta came out backwards, which meant the demonstration did not work.** The first
+synthetic generator gave fraud such a strong feature signal that the model aced both splits, leaving
+no room for memorisation to inflate the careless one — so the honest split scored *higher*, the
+opposite of the point. Rebuilt so fraud is mostly a property of the card and the transaction-level
+signal is deliberately weak: now the careless split memorises the card and inflates by +0.11, and
+the honest split is left with only what generalises. This is the more faithful design anyway — most
+of the signal in card fraud really is the card's history.
+
+**LightGBM's native build crashed on this machine** with an access violation inside `fit` — an ABI
+fault, not a code bug. Rather than fight it, the boosted model tries LightGBM and falls back to
+sklearn's histogram gradient boosting (the same algorithm), records which backend ran on every
+artefact, and computes feature importance backend-agnostically via permutation. LightGBM remains the
+intended backend where its build is healthy; the fallback means a reviewer on a broken install still
+gets a real run rather than a stack trace.
+
 
 **`contain` contained nothing.** The method that answers "is this entity blocked" existed, was
 tested, and was called by nobody — a contained session could still open an order. The checkout
@@ -909,10 +950,9 @@ still failing beside it.
 
 ## Next
 
-Slice 11's suites still need a run — unit, integration, and end-to-end — before the slice is
-tagged. After that, Slice 12: Model A, a real labelled benchmark. The detector's rules and
-arbitration are the baseline a learned model has to beat, and this is where that measurement is
-made rather than assumed.
+Slices 11 and 12's suites still need a run — unit, integration, and end-to-end — before the slice is
+tagged. After that, Slice 13: Model B and ONNX serving — a second model, and the model moved out of Python
+and into the request path as a portable ONNX graph the detector can consult.
 
 Previously: Slice 11 — the audit chain. Every decision and every hand that touched one, in a tamper-evident
 sequence: containment already records who did what and when, and this makes that record
