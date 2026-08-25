@@ -169,8 +169,8 @@ test.describe('console shell', () => {
   test('marks unbuilt sections as unavailable rather than faking them', async ({ page }) => {
     await signIn(page);
     // Present as text, but deliberately not a link — the slice number is shown instead.
-    await expect(page.getByText('Incidents')).toBeVisible();
-    await expect(page.getByRole('link', { name: /Incidents/ })).toHaveCount(0);
+    await expect(page.getByText('Policy')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Policy/ })).toHaveCount(0);
   });
 
   test('signs out and loses access to the console', async ({ page }) => {
@@ -273,5 +273,90 @@ test.describe('feature inspector', () => {
     await expect(
       page.getByText(/No real payment events|Estimated to find, exact to decide/).first(),
     ).toBeVisible();
+  });
+});
+
+test.describe('incidents', () => {
+  /**
+   * Replays the enumeration scenario, runs a detection pass, and opens the queue.
+   *
+   * The whole chain, for real: storefront-shaped checkout context, webhook ingestion,
+   * redaction, state resolution, features, rules, clustering, persistence.
+   */
+  async function replayAndDetect(page: Page): Promise<void> {
+    await signIn(page);
+    await page.goto('/console/scenarios');
+    await expect(page.getByRole('heading', { level: 1, name: 'Scenarios' })).toBeVisible({
+      timeout: 60_000,
+    });
+
+    // Cleared first. Earlier specs in this run replay other families into the same database,
+    // and the corpus families start at the same instant but run for different lengths — the
+    // dunning storm lasts two hours, the enumeration burst five minutes. The feature window
+    // anchors to the newest event, so leaving both in place would put the burst outside it.
+    const clear = page.getByRole('button', { name: 'Remove replayed events' });
+    if (await clear.isEnabled()) {
+      await clear.click();
+      await expect(clear).toBeDisabled({ timeout: 30_000 });
+    }
+
+    const replay = page.getByRole('button', { name: 'Replay Card enumeration, undisguised' });
+    await expect(replay).toBeVisible({ timeout: 60_000 });
+    await replay.click();
+    await expect(page.getByText(/events and \d+ checkouts written/)).toBeVisible({
+      timeout: 30_000,
+    });
+
+    await page.getByRole('link', { name: 'Incidents' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Incidents' })).toBeVisible();
+
+    // Scoped to replayed traffic before evaluating. The storefront specs put live payments
+    // through the same server, and the feature window anchors to the newest event whatever its
+    // source — so one live attempt would hide a scenario recorded months ago behind it.
+    await page.getByRole('button', { name: 'Replayed' }).click();
+    await page.getByRole('button', { name: 'Run detection' }).click();
+  }
+
+  test('turns a replayed burst into one incident with readable evidence', async ({ page }) => {
+    // The slice's exit condition, end to end.
+    await replayAndDetect(page);
+
+    await expect(page.getByText('Card spread').first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/Suggested:/).first()).toBeVisible();
+    await expect(page.getByText('replayed').first()).toBeVisible();
+  });
+
+  test('explains the score as a sum a person can follow', async ({ page }) => {
+    await replayAndDetect(page);
+    await expect(page.getByText('Card spread').first()).toBeVisible({ timeout: 30_000 });
+
+    await page.getByRole('link', { name: 'Open' }).first().click();
+    await expect(page.getByRole('heading', { name: 'Why this score' })).toBeVisible();
+    // Codes rendered into sentences at the edge, with the numbers that produced them.
+    await expect(page.getByText(/different cards from one place/)).toBeVisible();
+    await expect(page.getByText(/Total/)).toBeVisible();
+  });
+
+  test('records who moved an incident, and refuses what the machine forbids', async ({ page }) => {
+    await replayAndDetect(page);
+    await expect(page.getByText('Card spread').first()).toBeVisible({ timeout: 30_000 });
+
+    await page.getByRole('link', { name: 'Open' }).first().click();
+    await page.getByRole('button', { name: /Mark under review/ }).click();
+
+    await expect(page.getByText(/Open → Under review/)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/by Demo Analyst/)).toBeVisible();
+    // `open` is not reachable from `under_review`, so the console must not offer it.
+    await expect(page.getByRole('button', { name: /Mark open/ })).toHaveCount(0);
+  });
+
+  test('says a resolved incident is final rather than offering to reopen it', async ({ page }) => {
+    await replayAndDetect(page);
+    await expect(page.getByText('Card spread').first()).toBeVisible({ timeout: 30_000 });
+
+    await page.getByRole('link', { name: 'Open' }).first().click();
+    await page.getByRole('button', { name: /Mark resolved/ }).click();
+
+    await expect(page.getByText(/Resolved is final/)).toBeVisible({ timeout: 30_000 });
   });
 });

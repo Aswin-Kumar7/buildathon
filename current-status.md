@@ -3,8 +3,8 @@
 Single source of truth for where Sentinel actually stands. Updated with every change.
 
 **Last updated:** 2026-08-25
-**Current slice:** 7 — Features, tiles and sketches (complete, awaiting tag)
-**Latest tag:** `v0.6.0` → `v0.7.0` pending
+**Current slice:** 8 — Rules to incidents (complete, awaiting tag)
+**Latest tag:** `v0.7.0` → `v0.8.0` pending
 
 ## Slice progress
 
@@ -18,8 +18,8 @@ Single source of truth for where Sentinel actually stands. Updated with every ch
 | 5 | Canonical state | `v0.5.0` | **done** |
 | 6 | Scenario corpus and replay | `v0.6.0` | **done** |
 | 7 | Features, tiles and sketches | `v0.7.0` | **done** |
-| 8 | Rules to incidents | `v0.8.0` | **next** |
-| 9 | Arbitration and suppression | `v0.9.0` | not started |
+| 8 | Rules to incidents | `v0.8.0` | **done** |
+| 9 | Arbitration and suppression | `v0.9.0` | **next** |
 | 10 | Policy, approval and containment | `v0.10.0` | not started |
 | 11 | Audit chain | `v0.11.0` | not started |
 | 12 | Model A — real labelled benchmark | `v0.12.0` | not started |
@@ -179,6 +179,50 @@ When nothing has arrived within a whole window, it evaluates as of the last thin
 says so on the page. A replayed scenario carries the timestamps it was recorded with, so its
 rates are real but historical; presenting them as live would be a lie by omission.
 
+**Detection** — two tiers, both pure, both in `packages/detect`.
+
+*Tier 1, deterministic rules.* Nine of them, over a feature vector. Six can incriminate;
+**three can only mitigate** — a recovered order, failures Razorpay blamed on its own gateway,
+and cards being retried rather than walked. Mitigations carry negative weight and sit in the
+same evidence list, because a rule set that can only accuse will eventually accuse a shopper
+whose card was declined twice before it worked.
+
+Rules emit **codes and numbers, never prose**. The sentence a person reads is rendered in the
+console from those, so a reason can be counted, compared and tested, and cannot drift from what
+happened because somebody improved the wording.
+
+A rule that cannot run **abstains and says why**, which is not the same as finding nothing.
+"Not enough attempts to judge cadence" is silence; "cadence looks human" is a finding. `card_spread`
+abstains outright on an unconfirmed sketch — a decision that can block a payment may rest on the
+exact count or on nothing.
+
+*Tier 2, change detection.* EWMA for loud bursts, CUSUM for the quiet persistent case a fixed
+threshold cannot reach. Both explain themselves in their own terms: how far past normal, and
+after how many minutes of accumulating.
+
+**Scoring** is additive, and every term appears in the explanation. Abstentions widen a
+**confidence band** rather than scoring zero — missing information must not read as innocence —
+and an incident will not open on a wide band however high the score.
+
+**Thresholds** live in one file with a hash, the same pre-registration idea as the corpus specs.
+Every incident records which threshold set judged it, because a score means nothing next to
+thresholds nobody can see.
+
+**Incidents** — one episode per entity, not one alert per attempt, keyed on the entity and when
+its activity began so a replay reproduces it. Lifecycle `open → under review → contained →
+resolved`, plus automatic expiry; `resolved` and `expired` are terminal, and the API refuses an
+illegal move with a 400 rather than ignoring it. Every transition records who made it, or names
+the system when it was automatic.
+
+A detection pass recomputes scores, never status — one that reset `under_review` to `open` would
+throw away an analyst's work each time it ran.
+
+**Incident queue and detail** — `/console/incidents`. The queue carries severity, status, age,
+time-to-detect, expiry and a suggested action *labelled as a suggestion*, because nothing in this
+console acts yet. The detail view shows the score as the sum it actually is, every term signed,
+with mitigating evidence in the same list rather than a panel away — a reader deciding whether to
+act on somebody needs to see what argued against it in the same glance.
+
 **System health page** — ingestion rate, duplicate rate, queue depth, oldest waiting event,
 dead-letter depth, late-event count, and the watermark. It states whether ingestion is
 configured *before* showing any number, because an unconfigured webhook and a healthy idle
@@ -188,9 +232,9 @@ one produce identical zeroes.
 Badge, Card, Callout, Table. Semantic colour is kept separate from the accent so "needs
 attention" never reads as "branded".
 
-**Gates** — lint, typecheck, unit tests, format check, data-size guard, gitleaks, and
-end-to-end, plus a payload-leak guard. **373 unit tests** (api 231, web 52, detect 38,
-corpus 20, contracts 13, storefront 10, ui 9), **109 integration tests** and **29 Playwright
+**Gates** — lint, typecheck, unit tests, format check, data-size guard, gitleaks, a payload-leak
+guard, a Docker manifest check, and end-to-end. **466 unit tests** (api 249, detect 101, web 74,
+corpus 20, contracts 13, storefront 10, ui 9), **127 integration tests** and **33 Playwright
 tests**.
 
 ## Security decisions in place
@@ -325,6 +369,13 @@ problems. It is now a real trace rather than a fixture.
 - The payload-leak guard was verified by planting a leak and watching it fail
 - Supabase `public` schema contains zero tables
 - Data guard rejects a 10.5 MB staged file and any path under `data/raw/`
+- Every benign and operational scenario family produces **zero incidents**, asserted per family
+  in its own database — mixing them anchors the feature window to the longest and tests an
+  accident of the corpus rather than the detector
+- A replayed enumeration burst becomes **exactly one incident** end to end, through replay,
+  ingestion, redaction, state resolution, features, rules and clustering
+- Change detection's false-alarm rate and its detection floor are both asserted, so neither can
+  be improved silently at the other's expense
 - Tile-merge equals the naive computation for four scenario families drawn from the committed
   corpus, and the online/offline decay skew stays under 7%
 - The HyperLogLog was caught reporting 34 distinct values for 100. FNV-1a does not avalanche
@@ -336,6 +387,49 @@ problems. It is now a real trace rather than a fixture.
   order — so the first version tested one session and reported green
 
 ## Corrections
+
+**Change detection tuned on tidy noise was tuned on the wrong distribution.** The textbook CUSUM
+pairing false-alarmed on a third of quiet entities, which was obvious once measured. Less obvious:
+after a sweep brought the synthetic false-alarm rate to 0.55%, the same settings still alarmed on
+the corpus's own `normal_traffic`. Real traffic arrives in clumps that a well-behaved series does
+not. Re-tuned against the corpus itself: **zero false alarms across all five benign families and
+500 stationary series**, catching a sustained 1.5× shift every time.
+
+**What that cost, recorded rather than hidden.** A setting sensitive enough to catch
+`attack_distributed` — which rotates session, device *and* network, 37/37/29 of them, so no single
+entity looks remarkable and Tier 1 scores every one at 0.35 — also alarms on ordinary traffic.
+Measured, the choice was between catching that attack and never crying wolf, and a false positive
+on legitimate traffic is the expensive mistake here. So it goes uncaught, and a test pins that
+fact so it cannot be reversed by accident. It is the blindness the architecture plan describes for
+cross-merchant distribution, arriving one level earlier than expected.
+
+**The dunning storm opened an incident.** Twice, for two different reasons, and both were the
+expensive mistake — telling a merchant that collecting its own money is an incident.
+
+First, `card_reuse` was expressed as cards-per-attempt below 0.3, which is silent on four cards
+across eight attempts. That is what a biller looks like through a thirty-minute window when only
+part of its schedule is in view. Reformulated as attempts *per card*, which is the thing actually
+being claimed.
+
+Second, and more structural: at network level the run showed eight cards over fourteen attempts —
+too little reuse to mitigate, too little spread to accuse — and `approval_collapse` plus
+`reason_mix` alone carried it over the floor. But those two say *a lot of attempts failed the same
+way*, which is equally true of enumeration and of a biller working through cards that are out of
+money. Opening an incident now requires at least one rule that describes **how the traffic
+behaves** rather than **that it failed**.
+
+**Every replayed incident was born expired.** Expiry compared `expires_at` against `now()` while
+the corpus carries timestamps from months ago, so an incident opened and closed in the same pass —
+and `expired` is terminal, so the analyst got a queue of things they could not touch. It now
+expires against the moment the pass judged as of, which is the same thing for live traffic.
+
+**One burst produced three incidents.** A machine has one session, one device and one network, and
+evaluating all three kinds found the same attempts three times. Three rows for one thing is the
+same failure as sixty alerts for one burst, only smaller. Identical span and identical attempt
+count now collapses to the narrowest key — containing one session is a smaller act than containing
+a network for the same evidence — while a genuinely broader incident survives, which is the case
+that must not break when an attacker rotates sessions.
+
 
 **`bank` is not an infrastructure failure.** `infrastructureFailureShare` — the feature whose
 whole job is telling an acquirer outage apart from an attack — originally counted failures
@@ -594,9 +688,15 @@ still failing beside it.
 
 ## Next
 
-Slice 8 — rules to incidents. The first layer that reaches a conclusion rather than presenting
-a number: thresholds over the feature vectors, grouped into an incident with the evidence that
-produced it attached, so a reader can see why it fired and not only that it did.
+Slice 9 — arbitration and suppression. Attack, outage and retry storm as **competing hypotheses**
+rather than one score with subtractions: the system should say which explanation fits best and
+why it rejected the others, and suppress the incident outright when the better explanation is
+somebody else's outage.
+
+Previously: Slice 8 — rules to incidents. Deterministic rules and change detection over the
+feature vectors, grouped into one incident per episode with the evidence that opened it and the
+evidence against it attached. Mitigating evidence is a first-class outcome, rules emit codes
+rather than prose, and a rule that cannot run abstains rather than reading as innocence.
 
 Previously: Slice 7 — features, tiles and sketches. The first layer that reads the canonical
 events for something other than display: decayed counters keyed on the correlations the sensor

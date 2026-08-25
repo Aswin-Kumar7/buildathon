@@ -1,4 +1,14 @@
-import { boolean, index, integer, pgSchema, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  doublePrecision,
+  index,
+  integer,
+  jsonb,
+  pgSchema,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 /**
  * Everything lives in a dedicated `sentinel` schema, never `public`.
@@ -249,3 +259,98 @@ export const canonicalEvents = sentinel.table(
   ],
 );
 export type CanonicalEvent = typeof canonicalEvents.$inferSelect;
+
+export const incidentStatusEnum = sentinel.enum('incident_status', [
+  'open',
+  'under_review',
+  'contained',
+  'resolved',
+  'expired',
+]);
+
+export const incidentSeverityEnum = sentinel.enum('incident_severity', ['low', 'medium', 'high']);
+
+/**
+ * An incident: one entity's episode, not one alert per attempt.
+ *
+ * `key` is derived from the entity and when its activity began, never from a clock, and is
+ * unique — so re-evaluating the same burst updates the same row rather than filling the queue
+ * with the same thing seen again. That is also what lets an incident be cited afterwards: the
+ * same events replayed produce the same key.
+ *
+ * The score and its evidence are stored as they were computed, not recomputed on read. An
+ * explanation that changed when the thresholds moved would be an explanation of a decision
+ * nobody made.
+ */
+export const incidents = sentinel.table(
+  'incidents',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    key: text('key').notNull().unique(),
+
+    entityKind: text('entity_kind').notNull(),
+    entityKey: text('entity_key').notNull(),
+
+    status: incidentStatusEnum('status').notNull().default('open'),
+    severity: incidentSeverityEnum('severity').notNull(),
+
+    score: doublePrecision('score').notNull(),
+    scoreLower: doublePrecision('score_lower').notNull(),
+    scoreUpper: doublePrecision('score_upper').notNull(),
+    band: text('band').notNull(),
+
+    /** Evidence and abstentions exactly as the rules produced them. Codes and numbers, no prose. */
+    evidence: jsonb('evidence').notNull(),
+    abstentions: jsonb('abstentions').notNull(),
+    change: jsonb('change'),
+
+    /** Kept apart for the same reason every other count is: replayed traffic is not evidence. */
+    source: eventSourceEnum('source').notNull().default('razorpay'),
+
+    firstAttemptAt: timestamp('first_attempt_at', { withTimezone: true }).notNull(),
+    detectedAt: timestamp('detected_at', { withTimezone: true }).notNull(),
+    lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+
+    observations: integer('observations').notNull().default(1),
+    /** Which threshold set produced this. A score is only meaningful next to what judged it. */
+    thresholdHash: text('threshold_hash').notNull(),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('incidents_status_idx').on(table.status, table.detectedAt),
+    index('incidents_entity_idx').on(table.entityKind, table.entityKey),
+    index('incidents_severity_idx').on(table.severity, table.detectedAt),
+  ],
+);
+export type Incident = typeof incidents.$inferSelect;
+
+/**
+ * Every status change, with who made it and when.
+ *
+ * Append-only. "Contained" and "resolved" are claims about what a person did, and an incident
+ * whose history could be rewritten could not answer the only question that matters afterwards,
+ * which is why it was closed. The audit chain in a later slice builds on this; even without it,
+ * the record has to exist from the moment the first transition is possible.
+ */
+export const incidentTransitions = sentinel.table(
+  'incident_transitions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    incidentId: uuid('incident_id')
+      .notNull()
+      .references(() => incidents.id, { onDelete: 'cascade' }),
+
+    fromStatus: incidentStatusEnum('from_status').notNull(),
+    toStatus: incidentStatusEnum('to_status').notNull(),
+    /** Null when the system did it — expiry is automatic and says so rather than blaming anyone. */
+    actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
+    note: text('note'),
+
+    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('incident_transitions_incident_idx').on(table.incidentId, table.at)],
+);
+export type IncidentTransition = typeof incidentTransitions.$inferSelect;

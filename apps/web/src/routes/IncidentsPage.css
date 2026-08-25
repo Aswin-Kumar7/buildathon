@@ -1,0 +1,129 @@
+/* The entity/traffic picker is the feature inspector's, doing the same job here. */
+@import './FeaturesPage.css';
+
+.incident-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.incident-meta {
+  margin: var(--s-3) 0 0;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-2);
+}
+
+.incident-meta code,
+.incident__what code {
+  font-family: var(--s-mono);
+}
+
+.incidents {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
+  gap: var(--s-3);
+}
+
+.incident__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+}
+
+.incident__what {
+  margin: 0 0 var(--s-3);
+  font-size: var(--s-text-sm);
+  text-transform: capitalize;
+}
+
+.incident__facts {
+  margin: 0 0 var(--s-3);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: var(--s-3);
+}
+
+.incident__facts dt {
+  font-size: var(--s-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-ink-2);
+}
+
+.incident__facts dd {
+  margin: 2px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.incident__band {
+  display: block;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-2);
+}
+
+.incident__rules {
+  margin: 0 0 var(--s-2);
+  font-size: var(--s-text-sm);
+}
+
+.incident__suggestion {
+  margin: 0;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-2);
+}
+
+/* The score as the sum it actually is. Signs are shown so the arithmetic can be followed,
+   and mitigating terms sit in the same list rather than in a panel one scroll away. */
+.breakdown,
+.abstentions,
+.history {
+  margin: 0 0 var(--s-3);
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.breakdown li {
+  display: flex;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-top: 1px solid var(--s-line);
+}
+
+.breakdown__weight {
+  flex: 0 0 3.5rem;
+  font-family: var(--s-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.breakdown__text {
+  font-size: var(--s-text-sm);
+  line-height: 1.5;
+}
+
+.breakdown .is-mitigating .breakdown__weight {
+  color: var(--s-ok-ink, var(--s-ink-2));
+}
+
+.breakdown__total {
+  border-top: 2px solid var(--s-line-strong, var(--s-line));
+  font-weight: 600;
+}
+
+.abstentions li,
+.history li {
+  font-size: var(--s-text-sm);
+  line-height: 1.5;
+}
+
+.history {
+  counter-reset: step;
+}

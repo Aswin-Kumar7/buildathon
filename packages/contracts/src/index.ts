@@ -6,3 +6,4 @@ export * from './ingestion.js';
 export * from './attempt.js';
 export * from './scenario.js';
 export * from './feature.js';
+export * from './incident.js';

@@ -15,7 +15,7 @@ const NAV: NavItem[] = [
   { to: '/console', label: 'Overview' },
   { to: '/console/attempts', label: 'Attempts' },
   { to: '/console/features', label: 'Features' },
-  { to: '/console/incidents', label: 'Incidents', arrivesIn: 'Slice 8' },
+  { to: '/console/incidents', label: 'Incidents' },
   { to: '/console/scenarios', label: 'Scenarios' },
   { to: '/console/policy', label: 'Policy', arrivesIn: 'Slice 10' },
   { to: '/console/audit', label: 'Audit', arrivesIn: 'Slice 11' },

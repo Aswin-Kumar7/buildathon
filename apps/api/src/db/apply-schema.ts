@@ -27,6 +27,7 @@ export async function applySchema(handle: DbHandle): Promise<void> {
   await createAuthTables(handle);
   await createTelemetryTables(handle);
   await createIngestionTables(handle);
+  await createIncidentTables(handle);
 }
 
 /**
@@ -57,6 +58,88 @@ async function createTypes(handle: DbHandle): Promise<void> {
       CREATE TYPE sentinel.event_source AS ENUM ('razorpay', 'replay');
     EXCEPTION WHEN duplicate_object THEN NULL;
     END $$;
+  `);
+
+  await handle.db.execute(sql`
+    DO $$ BEGIN
+      CREATE TYPE sentinel.incident_status AS ENUM
+        ('open', 'under_review', 'contained', 'resolved', 'expired');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+  `);
+
+  await handle.db.execute(sql`
+    DO $$ BEGIN
+      CREATE TYPE sentinel.incident_severity AS ENUM ('low', 'medium', 'high');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+  `);
+}
+
+/**
+ * Incidents, and the record of every hand that moved one.
+ *
+ * `key` is unique so re-evaluating a burst updates the episode rather than adding another row
+ * for the same thing. The transitions table is append-only: "contained" and "resolved" are
+ * claims about what somebody did, and a history that could be rewritten could not answer why
+ * an incident was closed.
+ */
+async function createIncidentTables(handle: DbHandle): Promise<void> {
+  await handle.db.execute(sql`
+    CREATE TABLE IF NOT EXISTS sentinel.incidents (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      key text NOT NULL UNIQUE,
+      entity_kind text NOT NULL,
+      entity_key text NOT NULL,
+      status sentinel.incident_status NOT NULL DEFAULT 'open',
+      severity sentinel.incident_severity NOT NULL,
+      score double precision NOT NULL,
+      score_lower double precision NOT NULL,
+      score_upper double precision NOT NULL,
+      band text NOT NULL,
+      evidence jsonb NOT NULL,
+      abstentions jsonb NOT NULL,
+      change jsonb,
+      source sentinel.event_source NOT NULL DEFAULT 'razorpay',
+      first_attempt_at timestamptz NOT NULL,
+      detected_at timestamptz NOT NULL,
+      last_activity_at timestamptz NOT NULL,
+      expires_at timestamptz NOT NULL,
+      observations integer NOT NULL DEFAULT 1,
+      threshold_hash text NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    );
+  `);
+
+  await handle.db.execute(sql`
+    CREATE INDEX IF NOT EXISTS incidents_status_idx
+      ON sentinel.incidents (status, detected_at);
+  `);
+  await handle.db.execute(sql`
+    CREATE INDEX IF NOT EXISTS incidents_entity_idx
+      ON sentinel.incidents (entity_kind, entity_key);
+  `);
+  await handle.db.execute(sql`
+    CREATE INDEX IF NOT EXISTS incidents_severity_idx
+      ON sentinel.incidents (severity, detected_at);
+  `);
+
+  await handle.db.execute(sql`
+    CREATE TABLE IF NOT EXISTS sentinel.incident_transitions (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      incident_id uuid NOT NULL REFERENCES sentinel.incidents(id) ON DELETE CASCADE,
+      from_status sentinel.incident_status NOT NULL,
+      to_status sentinel.incident_status NOT NULL,
+      actor_id uuid REFERENCES sentinel.users(id) ON DELETE SET NULL,
+      note text,
+      at timestamptz NOT NULL DEFAULT now()
+    );
+  `);
+
+  await handle.db.execute(sql`
+    CREATE INDEX IF NOT EXISTS incident_transitions_incident_idx
+      ON sentinel.incident_transitions (incident_id, at);
   `);
 }
 
