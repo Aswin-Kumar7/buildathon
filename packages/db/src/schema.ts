@@ -304,6 +304,14 @@ export const incidents = sentinel.table(
     abstentions: jsonb('abstentions').notNull(),
     change: jsonb('change'),
 
+    /**
+     * Which explanation won, what it beat, and what to do about it.
+     *
+     * Stored as computed rather than recomputed on read, like the score. An explanation that
+     * changed when the thresholds moved would be an explanation of a decision nobody made.
+     */
+    arbitration: jsonb('arbitration'),
+
     /** Kept apart for the same reason every other count is: replayed traffic is not evidence. */
     source: eventSourceEnum('source').notNull().default('razorpay'),
 

@@ -3,7 +3,11 @@ import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import type { INestApplication } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { IncidentDetailResponse, IncidentListResponse } from '@sentinel/contracts';
+import type {
+  ComparisonResponse,
+  IncidentDetailResponse,
+  IncidentListResponse,
+} from '@sentinel/contracts';
 import { AppModule } from '../app.module.js';
 import { AuthService } from '../auth/auth.service.js';
 import { CSRF_HEADER, SESSION_COOKIE } from '../auth/session.guard.js';
@@ -321,5 +325,87 @@ describe('incidents, change detection with real history', () => {
       expect(change.cusum.buckets).toBeGreaterThan(0);
     }
     if (change.ewma.fired) expect(change.ewma.statistic).toBeGreaterThan(change.ewma.limit);
+  });
+});
+
+describe('the three-way comparison', () => {
+  /**
+   * Served from the committed corpus rather than from stored traffic, so it works on a clean
+   * clone with an empty database — which is exactly the state a reviewer starts from.
+   */
+  let h: Harness;
+
+  beforeAll(async () => {
+    h = await boot([], 'compare@test.local');
+  }, 180_000);
+
+  afterAll(async () => {
+    await h.app.close();
+  });
+
+  it('needs a session', async () => {
+    expect((await request(h.app.getHttpServer()).get('/api/incidents/compare')).status).toBe(401);
+  });
+
+  it('works with nothing in the database at all', async () => {
+    const response = await h.get('/api/incidents/compare');
+
+    expect(response.status).toBe(200);
+    expect(response.body.cases).toHaveLength(3);
+  });
+
+  it('reaches a different decision for each of the three', async () => {
+    // The slice's exit condition. Same thresholds, same evidence layout, three answers.
+    const body = (await h.get('/api/incidents/compare')).body as ComparisonResponse;
+    const decisions = body.cases.map((c) => c.arbitration.decision);
+
+    expect(new Set(decisions).size).toBe(3);
+    expect(decisions).toContain('contain');
+  });
+
+  it('explains each one as what it actually is', async () => {
+    const body = (await h.get('/api/incidents/compare')).body as ComparisonResponse;
+    const best = Object.fromEntries(body.cases.map((c) => [c.family, c.arbitration.best]));
+
+    expect(best['attack_loud']).toBe('attack');
+    expect(best['gateway_outage']).toBe('outage');
+    expect(best['retry_storm']).toBe('retry_storm');
+  });
+
+  it('carries the rejected explanations, not just the winner', async () => {
+    // A verdict without the alternatives is an assertion. The runner-up and the margin are what
+    // let a reader tell a conclusion from a coin toss.
+    const body = (await h.get('/api/incidents/compare')).body as ComparisonResponse;
+
+    for (const item of body.cases) {
+      expect(item.arbitration.fits, item.family).toHaveLength(5);
+      expect(item.arbitration.runnerUp).not.toBe(item.arbitration.best);
+      const total = item.arbitration.fits.reduce((sum, f) => sum + f.probability, 0);
+      expect(total).toBeCloseTo(1, 1);
+    }
+  });
+
+  it('shows the shop around each entity, which is what separates them', async () => {
+    // The three are indistinguishable from the entity alone. The outage is spread across
+    // unrelated shoppers and blamed on the gateway; the attack is one session and nobody else.
+    const body = (await h.get('/api/incidents/compare')).body as ComparisonResponse;
+    const outage = body.cases.find((c) => c.family === 'gateway_outage')!;
+    const attack = body.cases.find((c) => c.family === 'attack_loud')!;
+
+    expect(outage.traffic.infrastructureFailureShare).toBeGreaterThan(0.5);
+    expect(outage.traffic.failingSessions).toBeGreaterThan(5);
+    expect(outage.traffic.topSessionFailureShare).toBeLessThan(0.5);
+
+    expect(attack.traffic.infrastructureFailureShare).toBe(0);
+    expect(attack.traffic.topSessionFailureShare).toBe(1);
+  });
+
+  it('costs the wrong call in both directions', async () => {
+    const body = (await h.get('/api/incidents/compare')).body as ComparisonResponse;
+
+    for (const item of body.cases) {
+      expect(item.counterfactual.ifWrongToAct, item.family).toMatch(/^[a-z0-9_]+$/);
+      expect(item.counterfactual.ifWrongToWait).toMatch(/^[a-z0-9_]+$/);
+    }
   });
 });

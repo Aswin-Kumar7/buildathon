@@ -368,3 +368,31 @@ test.describe('incidents', () => {
     await expect(page.getByText(/Resolved is final/)).toBeVisible({ timeout: 30_000 });
   });
 });
+
+test.describe('three that look alike', () => {
+  test('reaches three different decisions with no traffic in the database', async ({ page }) => {
+    // The slice's exit condition, and the reason this page is computed from the corpus: it has
+    // to work on a clean clone, which is the state a reviewer starts from.
+    await signIn(page);
+    await page.getByRole('link', { name: 'Three that look alike' }).click();
+
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Three that look alike' }),
+    ).toBeVisible();
+    await expect(page.getByText('Contain')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText('Watch, do not act')).toBeVisible();
+    await expect(page.getByText('Leave alone')).toBeVisible();
+  });
+
+  test('shows the shop around each entity, which is what separates them', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/console/compare');
+
+    await expect(page.getByText('The shop around it').first()).toBeVisible({ timeout: 30_000 });
+    // Restraint made visible rather than narrated: the outage column carries the reason not to
+    // act, in the same layout as the column that says to act.
+    await expect(
+      page.getByText(/customers are punished for an outage that is not theirs or ours/),
+    ).toBeVisible();
+  });
+});

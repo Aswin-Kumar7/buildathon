@@ -24,6 +24,63 @@ export interface Observation {
   userAgentFamily: string | null;
 }
 
+/**
+ * Collapses events to one row per payment attempt.
+ *
+ * A payment emits several webhooks — authorized, then captured, then the order paid — and each
+ * carries the payment entity. Counting them as attempts inflates the denominator of every rate
+ * by however many events a *successful* payment happens to produce, which in the corpus is
+ * nearly three; a failed one produces a single event and is counted honestly.
+ *
+ * The effect was to crush the approval rate of healthy traffic while leaving an attack's
+ * untouched, so the detector separated them better than it deserved to. Applied inside the pure
+ * functions rather than left to callers, because a definition that has to be remembered at five
+ * call sites is one that will be forgotten at the sixth.
+ *
+ * The surviving row keeps the earliest arrival — when the shopper actually tried — and the
+ * furthest-along outcome, resolved by the same ranking the payment state machine uses.
+ */
+const OUTCOME_RANK: Record<Observation['outcome'], number> = {
+  other: 0,
+  failed: 1,
+  authorized: 2,
+  captured: 3,
+};
+
+export function perPayment(observations: readonly Observation[]): Observation[] {
+  const byPayment = new Map<string, Observation>();
+  const unkeyed: Observation[] = [];
+
+  for (const observation of observations) {
+    const id = observation.razorpayPaymentId;
+    if (id === null || id === '') {
+      unkeyed.push(observation);
+      continue;
+    }
+
+    const existing = byPayment.get(id);
+    if (existing === undefined) {
+      byPayment.set(id, observation);
+      continue;
+    }
+
+    byPayment.set(id, {
+      ...existing,
+      at: Math.min(existing.at, observation.at),
+      outcome:
+        OUTCOME_RANK[observation.outcome] > OUTCOME_RANK[existing.outcome]
+          ? observation.outcome
+          : existing.outcome,
+      // A decline reason only exists on the failure, and is worth keeping when a later event
+      // supersedes the outcome — it is how a recovery is explained.
+      errorReason: existing.errorReason ?? observation.errorReason,
+      errorSource: existing.errorSource ?? observation.errorSource,
+    });
+  }
+
+  return [...byPayment.values(), ...unkeyed].sort((a, b) => a.at - b.at);
+}
+
 /** What a decision can act on. Containment applies to one of these, so features key on them. */
 export type EntityKind = 'session' | 'device' | 'network';
 
@@ -214,7 +271,7 @@ export function computeFeatures(
   confirmExact = true,
 ): FeatureVector {
   const from = asOf - window.windowMs;
-  const observations = all.filter(
+  const observations = perPayment(all).filter(
     (o) => keyOf(o, entityKind) === entityKey && o.at <= asOf && o.at >= from,
   );
 

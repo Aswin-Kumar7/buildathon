@@ -44,6 +44,16 @@ export interface Thresholds {
   /** Score at which an incident is severe. Severity orders a queue; it does not decide action. */
   severityHigh: number;
   severityMedium: number;
+
+  /**
+   * How far ahead the best explanation must be before it is treated as the explanation.
+   *
+   * Below this the traffic is genuinely ambiguous, and the honest response to ambiguity is a
+   * person rather than an automatic action against a shopper.
+   */
+  arbitrationMargin: number;
+  /** How well the attack hypothesis must fit its own expectations before containment. */
+  containmentSupport: number;
 }
 
 export const THRESHOLDS: Thresholds = {
@@ -62,6 +72,8 @@ export const THRESHOLDS: Thresholds = {
   incidentFloor: 0.4,
   severityHigh: 0.7,
   severityMedium: 0.5,
+  arbitrationMargin: 0.08,
+  containmentSupport: 0.7,
 };
 
 /**

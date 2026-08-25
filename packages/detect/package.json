@@ -18,12 +18,15 @@
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "metrics": "node --import @swc-node/register/esm-register src/metrics-cli.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
     "typescript": "^5.7.2",
     "vitest": "^3.2.4",
-    "@sentinel/corpus": "workspace:*"
+    "@sentinel/corpus": "workspace:*",
+    "@swc-node/register": "^1.12.1",
+    "@swc/core": "^1.16.1"
   }
 }

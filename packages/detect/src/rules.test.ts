@@ -10,7 +10,7 @@ const T0 = Date.parse('2026-03-01T09:00:00.000Z');
 const WIDE = { windowMs: minutes(600), halfLifeMs: minutes(5) };
 
 function observation(overrides: Partial<Observation> = {}): Observation {
-  return {
+  const merged: Observation = {
     at: T0,
     razorpayOrderId: 'order_1',
     razorpayPaymentId: 'pay_1',
@@ -24,6 +24,14 @@ function observation(overrides: Partial<Observation> = {}): Observation {
     ipPseudonym: 'v1:network-a',
     userAgentFamily: 'chrome',
     ...overrides,
+  };
+
+  // A distinct payment per attempt unless a test says otherwise. Sharing an id now means "the
+  // same payment, seen again through another webhook", which is not what these fixtures mean —
+  // and left at a constant it collapsed forty attempts into one.
+  return {
+    ...merged,
+    razorpayPaymentId: overrides.razorpayPaymentId ?? `pay_${merged.sessionPseudonym}_${merged.at}`,
   };
 }
 

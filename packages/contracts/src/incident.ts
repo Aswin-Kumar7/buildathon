@@ -83,6 +83,8 @@ export const incidentDetailSchema = incidentSummarySchema.extend({
   evidence: z.array(evidenceSchema),
   abstentions: z.array(abstentionSchema),
   change: changeResultSchema.nullable(),
+  /** Null for incidents recorded before arbitration existed. */
+  arbitration: z.lazy(() => arbitrationSchema).nullable(),
   /** Which threshold set judged this. A score means nothing without what it was compared to. */
   thresholdHash: z.string(),
   history: z.array(
@@ -128,3 +130,83 @@ export const evaluateResponseSchema = z.object({
   expired: z.number().int().nonnegative(),
 });
 export type EvaluateResponse = z.infer<typeof evaluateResponseSchema>;
+
+export const hypothesisSchema = z.enum([
+  'attack',
+  'outage',
+  'retry_storm',
+  'healthy_traffic',
+  'insufficient_evidence',
+]);
+export type HypothesisDto = z.infer<typeof hypothesisSchema>;
+
+export const decisionSchema = z.enum(['contain', 'review', 'monitor', 'none']);
+export type DecisionDto = z.infer<typeof decisionSchema>;
+
+export const expectationSchema = z.object({
+  code: z.string(),
+  observed: z.number(),
+  expected: z.number(),
+  met: z.boolean(),
+  weight: z.number(),
+});
+
+export const hypothesisFitSchema = z.object({
+  hypothesis: hypothesisSchema,
+  support: z.number().min(0).max(1),
+  probability: z.number().min(0).max(1),
+  expectations: z.array(expectationSchema),
+});
+
+/**
+ * The competing explanations, and which one won.
+ *
+ * Carried in full rather than reduced to the winner: the runner-up and the margin between them
+ * are what tell a reader whether the verdict was a conclusion or a coin toss, and the rejected
+ * explanations are what let them see the case that was considered and dismissed.
+ */
+export const arbitrationSchema = z.object({
+  best: hypothesisSchema,
+  runnerUp: hypothesisSchema,
+  margin: z.number(),
+  fits: z.array(hypothesisFitSchema),
+  decision: decisionSchema,
+  abstained: z.boolean(),
+  reasons: z.array(z.string()),
+});
+export type ArbitrationDto = z.infer<typeof arbitrationSchema>;
+
+/** One scenario as the comparison view shows it: same layout, different conclusion. */
+export const comparisonCaseSchema = z.object({
+  family: z.string(),
+  title: z.string(),
+  classification: z.string(),
+  entityKind: z.enum(['session', 'device', 'network']),
+  attempts: z.number().int().nonnegative(),
+  failures: z.number().int().nonnegative(),
+  distinctCards: z.number().int().nonnegative().nullable(),
+  approvalRate: z.number(),
+  /** The shop around it, which is what makes the three tell apart at all. */
+  traffic: z.object({
+    attempts: z.number().int().nonnegative(),
+    failures: z.number().int().nonnegative(),
+    approvalRate: z.number(),
+    infrastructureFailureShare: z.number(),
+    failingSessions: z.number().int().nonnegative(),
+    activeSessions: z.number().int().nonnegative(),
+    topSessionFailureShare: z.number(),
+  }),
+  arbitration: arbitrationSchema,
+  counterfactual: z.object({
+    hypothesis: hypothesisSchema,
+    ifWrongToAct: z.string(),
+    ifWrongToWait: z.string(),
+  }),
+});
+export type ComparisonCase = z.infer<typeof comparisonCaseSchema>;
+
+export const comparisonResponseSchema = z.object({
+  cases: z.array(comparisonCaseSchema),
+  thresholdHash: z.string(),
+});
+export type ComparisonResponse = z.infer<typeof comparisonResponseSchema>;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeFeatures, type Observation } from './features.js';
+import { computeFeatures, perPayment, type Observation } from './features.js';
 import { decayedCount, minutes } from './decay.js';
 import { decayedFromTiles, mergeTiles, minuteOf, tileize, MINUTE } from './tiles.js';
 import { generate } from '@sentinel/corpus';
@@ -59,7 +59,7 @@ function fromCorpus(family: Parameters<typeof generate>[0]): Observation[] {
 }
 
 function observation(overrides: Partial<Observation> = {}): Observation {
-  return {
+  const merged: Observation = {
     at: T0,
     razorpayOrderId: 'order_1',
     razorpayPaymentId: 'pay_1',
@@ -73,6 +73,14 @@ function observation(overrides: Partial<Observation> = {}): Observation {
     ipPseudonym: 'v1:network-a',
     userAgentFamily: 'chrome',
     ...overrides,
+  };
+
+  // A distinct payment per attempt unless a test says otherwise. Sharing an id now means "the
+  // same payment, seen again through another webhook", which is not what these fixtures mean —
+  // and left at a constant it collapsed forty attempts into one.
+  return {
+    ...merged,
+    razorpayPaymentId: overrides.razorpayPaymentId ?? `pay_${merged.sessionPseudonym}_${merged.at}`,
   };
 }
 
@@ -105,7 +113,10 @@ describe('tile merge equals the naive computation', () => {
       expect(observations.length).toBeGreaterThan(20);
 
       const bySession = new Map<string, Observation[]>();
-      for (const o of observations) {
+      // The naive side counts payments too. A webhook is not an attempt: a successful payment
+      // emits three of them, so comparing tiles against raw events would be comparing two
+      // different questions and calling the difference a bug.
+      for (const o of perPayment(observations)) {
         if (o.sessionPseudonym === null) continue;
         const list = bySession.get(o.sessionPseudonym) ?? [];
         list.push(o);

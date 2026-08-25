@@ -95,6 +95,11 @@ function velocity(v: FeatureVector, t: Thresholds): RuleOutcome {
  * Reads `exact`, never `estimate`. A sketch is how this entity became worth looking at; it is
  * not something anyone may be accused on. If the confirmation pass has not run, the rule
  * abstains and says which kind of silence it is.
+ *
+ * Requires the approvals to have collapsed as well, which is the half the name leaves out. A
+ * busy shop seen at network level has one card per shopper and therefore one card per attempt,
+ * and a flash sale behind a single network fired this rule at 176 cards and 89% approved. A
+ * card list being walked does not get approved; that is the entire point of walking it.
  */
 function cardSpread(v: FeatureVector, t: Thresholds): RuleOutcome {
   const cards = v.distinctCards.exact;
@@ -102,6 +107,7 @@ function cardSpread(v: FeatureVector, t: Thresholds): RuleOutcome {
   if (v.attempts === 0) return abstain('card_spread', 'insufficient-data');
 
   const perAttempt = cards / v.attempts;
+  if (v.approvalRate >= 0.5) return quiet('card_spread');
   if (cards < t.cardSpreadMinimum || perAttempt < t.cardsPerAttempt) return quiet('card_spread');
 
   return {

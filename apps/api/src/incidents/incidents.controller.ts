@@ -1,15 +1,18 @@
 import { Body, Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import {
+  comparisonResponseSchema,
   evaluateResponseSchema,
   incidentDetailResponseSchema,
   incidentListResponseSchema,
   transitionRequestSchema,
   type EvaluateResponse,
   type IncidentDetailResponse,
+  type ComparisonResponse,
   type IncidentListResponse,
 } from '@sentinel/contracts';
 import { thresholdHash, type IncidentStatus } from '@sentinel/detect';
 import { IncidentsService } from './incidents.service.js';
+import { ComparisonService } from './comparison.service.js';
 import { SessionGuard, type AuthedRequest } from '../auth/session.guard.js';
 
 const STATUSES: readonly IncidentStatus[] = [
@@ -23,7 +26,21 @@ const STATUSES: readonly IncidentStatus[] = [
 @Controller('incidents')
 @UseGuards(SessionGuard)
 export class IncidentsController {
-  constructor(private readonly incidents: IncidentsService) {}
+  constructor(
+    private readonly incidents: IncidentsService,
+    private readonly comparison: ComparisonService,
+  ) {}
+
+  /**
+   * Three look-alike scenarios, judged side by side.
+   *
+   * Declared before `:id` because a route parameter would otherwise swallow it — `compare` is a
+   * perfectly good-looking incident id as far as the router is concerned.
+   */
+  @Get('compare')
+  compare(): ComparisonResponse {
+    return comparisonResponseSchema.parse(this.comparison.compare());
+  }
 
   @Get()
   async list(

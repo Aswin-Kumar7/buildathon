@@ -22,3 +22,5 @@ export * from './rules.js';
 export * from './score.js';
 export * from './changepoint.js';
 export * from './incident.js';
+export * from './traffic.js';
+export * from './hypothesis.js';

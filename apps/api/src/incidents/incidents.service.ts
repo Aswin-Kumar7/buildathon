@@ -2,8 +2,10 @@ import { Inject, Injectable, NotFoundException, BadRequestException } from '@nes
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { incidents, incidentTransitions, users, type DbHandle } from '@sentinel/db';
 import {
+  arbitrate,
   bucketize,
   canTransition,
+  computeTraffic,
   DEFAULT_CHANGE_OPTIONS,
   clusterIncidents,
   detectChange,
@@ -15,6 +17,8 @@ import {
   type ChangeResult,
   type EntityKind,
   type Evaluation,
+  type Arbitration,
+  type FeatureVector,
   type Incident as ComputedIncident,
   type IncidentStatus,
   type Observation,
@@ -59,6 +63,8 @@ export class IncidentsService {
 
     const found: ComputedIncident[] = [];
     const provenance = new Map<string, EventSource>();
+    // Kept so each incident can be arbitrated against the vector it was actually opened on.
+    const vectors = new Map<string, FeatureVector>();
     let observations: Observation[] = [];
 
     for (const kind of KINDS) {
@@ -69,25 +75,39 @@ export class IncidentsService {
       observations = ranked.observations;
       for (const [key, from] of ranked.provenance) provenance.set(key, from);
 
-      const evaluations: Evaluation[] = ranked.vectors.map((vector) => ({
-        vector,
-        outcomes: evaluateRules(vector),
-        at: ranked.asOf,
-      }));
+      const evaluations: Evaluation[] = ranked.vectors.map((vector) => {
+        vectors.set(`${kind}:${vector.entityKey}`, vector);
+        return { vector, outcomes: evaluateRules(vector), at: ranked.asOf };
+      });
       found.push(...clusterIncidents(evaluations));
     }
 
     const change = IncidentsService.changeAcrossTraffic(observations, asOf);
+    // Computed once: it describes the shop, not any one entity, and every incident in this pass
+    // is judged against the same picture of it.
+    const traffic = computeTraffic(observations, asOf);
 
     // One machine has one session, one device and one network, so evaluating all three kinds
     // finds the same burst three times. Three rows for one thing is the same failure as sixty
     // alerts for one burst, just smaller — the analyst still has to work out they are the same.
     for (const computed of dropDuplicateViews(found)) {
+      const vector = vectors.get(`${computed.entityKind}:${computed.entityKey}`);
+      const arbitration = vector === undefined ? null : arbitrate(vector, traffic);
+
+      // Arbitration has the final say on whether anybody needs to see this. The rules decide
+      // that something is *unusual*; arbitration decides what it is, and an outage, a biller's
+      // schedule or an ordinary busy afternoon are all explanations that argue against putting
+      // it in front of a person at all. Existing incidents are still updated, so one that has
+      // since explained itself says so rather than going stale.
+      const wanted = arbitration === null || ['contain', 'review'].includes(arbitration.decision);
+      if (!wanted && !(await this.exists(computed.key))) continue;
+
       const wrote = await this.upsert(
         computed,
         change,
         hash,
         provenance.get(computed.entityKey) ?? 'razorpay',
+        arbitration,
       );
       if (wrote === 'opened') opened += 1;
       else updated += 1;
@@ -153,6 +173,7 @@ export class IncidentsService {
     change: ChangeResult | null,
     hash: string,
     source: EventSource,
+    arbitration: Arbitration | null,
   ): Promise<'opened' | 'updated'> {
     const values = {
       key: computed.key,
@@ -166,6 +187,7 @@ export class IncidentsService {
       evidence: computed.score.evidence,
       abstentions: computed.score.abstentions,
       change,
+      arbitration,
       // Taken from the events behind this entity, never from the scope that was asked for.
       // Evaluating "both" and labelling the result `razorpay` would present replayed traffic
       // as a real detection — the one thing this system claims it never does.
@@ -205,6 +227,7 @@ export class IncidentsService {
         evidence: values.evidence,
         abstentions: values.abstentions,
         change: values.change,
+        arbitration: values.arbitration,
         source: values.source,
         lastActivityAt: values.lastActivityAt,
         expiresAt: values.expiresAt,
@@ -233,6 +256,16 @@ export class IncidentsService {
    * traffic carries a wall-clock moment, and applying it to incidents recorded against a
    * replayed scenario's timestamps would expire all of them at once.
    */
+  private async exists(key: string): Promise<boolean> {
+    const [row] = await this.handle.db
+      .select({ id: incidents.id })
+      .from(incidents)
+      .where(eq(incidents.key, key))
+      .limit(1);
+
+    return row !== undefined;
+  }
+
   private async expireIdle(asOf: number, source: Source): Promise<number> {
     const scoped =
       source === 'all'
@@ -328,6 +361,7 @@ export class IncidentsService {
       evidence: row.evidence as IncidentDetail['evidence'],
       abstentions: row.abstentions as IncidentDetail['abstentions'],
       change: row.change as IncidentDetail['change'],
+      arbitration: row.arbitration as IncidentDetail['arbitration'],
       thresholdHash: row.thresholdHash,
       history: history.map((entry) => ({
         from: entry.from,

@@ -302,6 +302,12 @@ importers:
       '@sentinel/corpus':
         specifier: workspace:*
         version: link:../corpus
+      '@swc-node/register':
+        specifier: ^1.12.1
+        version: 1.12.1(@swc/core@1.16.1)(@swc/types@0.1.28)(typescript@5.9.3)
+      '@swc/core':
+        specifier: ^1.16.1
+        version: 1.16.1
       '@types/node':
         specifier: ^22.20.1
         version: 22.20.1

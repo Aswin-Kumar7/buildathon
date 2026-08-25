@@ -1,0 +1,135 @@
+/* Three identical columns. The layout being identical is the argument — a reader compares rows
+   across, sees the numbers differ and the conclusion differ, and needs no sentence telling them
+   the system is careful. */
+.compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(21rem, 1fr));
+  gap: var(--s-3);
+  align-items: start;
+}
+
+.compare__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+
+.compare__head h2 {
+  margin: 0;
+  font-size: var(--s-text-md);
+}
+
+.compare h3 {
+  margin: var(--s-4) 0 var(--s-2);
+  font-size: var(--s-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-ink-2);
+}
+
+.compare__facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-2) var(--s-3);
+}
+
+.compare__facts dt {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-2);
+}
+
+.compare__facts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.compare__fits {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.compare__fits li {
+  position: relative;
+  padding: 3px var(--s-2);
+  border-radius: var(--s-radius);
+  overflow: hidden;
+}
+
+.compare__bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--s-line);
+  z-index: 0;
+}
+
+.compare__fits .is-best .compare__bar {
+  background: var(--s-accent-soft, var(--s-line));
+}
+
+.compare__label {
+  position: relative;
+  z-index: 1;
+  font-size: var(--s-text-sm);
+}
+
+.compare__label em {
+  float: right;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  color: var(--s-ink-2);
+}
+
+.compare__margin {
+  margin: var(--s-2) 0 0;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-2);
+}
+
+.compare__expectations {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--s-text-sm);
+}
+
+.compare__expectations .is-unmet {
+  color: var(--s-ink-2);
+}
+
+.compare__decision {
+  display: flex;
+  gap: var(--s-2);
+  margin: var(--s-4) 0 var(--s-3);
+}
+
+.compare__cost {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--s-line);
+}
+
+.compare__cost dt {
+  font-size: var(--s-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-ink-2);
+}
+
+.compare__cost dd {
+  margin: 2px 0 0;
+  font-size: var(--s-text-sm);
+  line-height: 1.5;
+}
