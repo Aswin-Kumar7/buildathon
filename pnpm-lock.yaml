@@ -68,6 +68,9 @@ importers:
       '@sentinel/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
+      '@sentinel/corpus':
+        specifier: workspace:*
+        version: link:../../packages/corpus
       '@sentinel/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -237,6 +240,28 @@ importers:
         specifier: ^3.24.1
         version: 3.25.76
     devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.1)(jsdom@25.0.1)(tsx@4.23.12)(yaml@2.9.0)
+
+  packages/corpus:
+    dependencies:
+      '@sentinel/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+    devDependencies:
+      '@swc-node/register':
+        specifier: ^1.12.1
+        version: 1.12.1(@swc/core@1.16.1)(@swc/types@0.1.28)(typescript@5.9.3)
+      '@swc/core':
+        specifier: ^1.16.1
+        version: 1.16.1
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
       typescript:
         specifier: ^5.7.2
         version: 5.9.3

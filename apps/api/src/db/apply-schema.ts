@@ -23,12 +23,21 @@ import type { DbHandle } from '@sentinel/db';
  */
 export async function applySchema(handle: DbHandle): Promise<void> {
   await handle.db.execute(sql`CREATE SCHEMA IF NOT EXISTS sentinel;`);
+  await createTypes(handle);
   await createAuthTables(handle);
   await createTelemetryTables(handle);
   await createIngestionTables(handle);
 }
 
-async function createAuthTables(handle: DbHandle): Promise<void> {
+/**
+ * Every enum, before any table that might reference one.
+ *
+ * They used to be declared beside the tables that introduced them, which worked until
+ * `checkout_sessions` needed `event_source` — a type created two functions later. The failure
+ * was `type "sentinel.event_source" does not exist` on a fresh database only, so it passed
+ * everywhere the schema already existed.
+ */
+async function createTypes(handle: DbHandle): Promise<void> {
   await handle.db.execute(sql`
     DO $$ BEGIN
       CREATE TYPE sentinel.role AS ENUM ('analyst', 'admin');
@@ -36,6 +45,22 @@ async function createAuthTables(handle: DbHandle): Promise<void> {
     END $$;
   `);
 
+  await handle.db.execute(sql`
+    DO $$ BEGIN
+      CREATE TYPE sentinel.inbox_status AS ENUM ('pending', 'processed', 'dead');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+  `);
+
+  await handle.db.execute(sql`
+    DO $$ BEGIN
+      CREATE TYPE sentinel.event_source AS ENUM ('razorpay', 'replay');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+  `);
+}
+
+async function createAuthTables(handle: DbHandle): Promise<void> {
   await handle.db.execute(sql`
     CREATE TABLE IF NOT EXISTS sentinel.users (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -94,6 +119,7 @@ async function createTelemetryTables(handle: DbHandle): Promise<void> {
       amount_paise integer NOT NULL,
       currency text NOT NULL DEFAULT 'INR',
       item_count integer NOT NULL,
+      source sentinel.event_source NOT NULL DEFAULT 'razorpay',
       created_at timestamptz NOT NULL DEFAULT now()
     );
   `);
@@ -117,13 +143,6 @@ async function createTelemetryTables(handle: DbHandle): Promise<void> {
 }
 
 async function createIngestionTables(handle: DbHandle): Promise<void> {
-  await handle.db.execute(sql`
-    DO $$ BEGIN
-      CREATE TYPE sentinel.inbox_status AS ENUM ('pending', 'processed', 'dead');
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-  `);
-
   // The transactional inbox. The unique constraint on razorpay_event_id is the whole
   // deduplication guarantee: at-least-once delivery cannot become two rows.
   await handle.db.execute(sql`
@@ -131,6 +150,7 @@ async function createIngestionTables(handle: DbHandle): Promise<void> {
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       razorpay_event_id text NOT NULL UNIQUE,
       event_type text NOT NULL,
+      source sentinel.event_source NOT NULL DEFAULT 'razorpay',
       ciphertext text,
       iv text,
       auth_tag text,
@@ -161,6 +181,23 @@ async function createIngestionTables(handle: DbHandle): Promise<void> {
   `);
 
   await createCanonicalEventTable(handle);
+  await addSourceColumns(handle);
+}
+
+/**
+ * `CREATE TABLE IF NOT EXISTS` never alters a table that already exists, so a column added
+ * after a deployment has been running needs saying separately. `ADD COLUMN IF NOT EXISTS` is
+ * idempotent and safe to run on every boot; the day a column needs its type changed instead,
+ * drizzle-kit migrations have to take over.
+ */
+async function addSourceColumns(handle: DbHandle): Promise<void> {
+  for (const table of ['inbox_events', 'canonical_events', 'checkout_sessions']) {
+    await handle.db.execute(
+      sql.raw(
+        `ALTER TABLE sentinel.${table} ADD COLUMN IF NOT EXISTS source sentinel.event_source NOT NULL DEFAULT 'razorpay';`,
+      ),
+    );
+  }
 }
 
 // The redacted canonical event. Nothing downstream reads the inbox directly, so no
@@ -174,6 +211,7 @@ async function createCanonicalEventTable(handle: DbHandle): Promise<void> {
       razorpay_event_id text NOT NULL UNIQUE,
       event_type text NOT NULL,
       entity_type text,
+      source sentinel.event_source NOT NULL DEFAULT 'razorpay',
       razorpay_order_id text,
       razorpay_payment_id text,
       amount_paise integer,

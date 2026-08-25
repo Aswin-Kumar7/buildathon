@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { OrdersModule } from './orders/orders.module.js';
 import { WebhooksModule } from './webhooks/webhooks.module.js';
 import { AttemptsModule } from './attempts/attempts.module.js';
+import { ReplayModule } from './replay/replay.module.js';
 import { ZodExceptionFilter } from './common/zod-exception.filter.js';
 
 // The filter is registered here rather than in main.ts so tests boot the same wiring the
@@ -21,6 +22,7 @@ import { ZodExceptionFilter } from './common/zod-exception.filter.js';
     OrdersModule,
     WebhooksModule,
     AttemptsModule,
+    ReplayModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: ZodExceptionFilter }],
 })

@@ -13,6 +13,7 @@ import { LoginPage } from './routes/LoginPage.js';
 import { OverviewPage } from './routes/OverviewPage.js';
 import { HealthPage } from './routes/HealthPage.js';
 import { AttemptsPage } from './routes/AttemptsPage.js';
+import { ScenariosPage } from './routes/ScenariosPage.js';
 import { AppShell } from './shell/AppShell.js';
 
 export const queryClient = new QueryClient({
@@ -78,10 +79,16 @@ const attemptsRoute = createRoute({
   component: AttemptsPage,
 });
 
+const scenariosRoute = createRoute({
+  getParentRoute: () => consoleRoute,
+  path: '/scenarios',
+  component: ScenariosPage,
+});
+
 const routeTree = rootRoute.addChildren([
   landingRoute,
   loginRoute,
-  consoleRoute.addChildren([overviewRoute, attemptsRoute, healthRoute]),
+  consoleRoute.addChildren([overviewRoute, attemptsRoute, scenariosRoute, healthRoute]),
 ]);
 
 export const router = createRouter({ routeTree });

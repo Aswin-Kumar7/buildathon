@@ -534,6 +534,12 @@ describe('webhook ingestion', () => {
       expect(response.body.configured).toBe(true);
     });
 
+    it('counts replayed events apart from delivered ones', async () => {
+      // The figure this page quotes as evidence must never include invented traffic.
+      const response = await read();
+      expect(response.body.replayedEvents).toBe(0);
+    });
+
     it('counts stored events and the duplicates that were not stored', async () => {
       const response = await read();
       expect(response.body.eventsStored).toBeGreaterThan(0);

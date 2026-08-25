@@ -113,7 +113,17 @@ function Ingestion({ metrics }: { metrics: IngestionMetrics }): React.JSX.Elemen
         <Metric
           label="Events stored"
           value={String(metrics.eventsStored)}
-          note="Distinct events, after deduplication"
+          note="From Razorpay, after deduplication"
+        />
+        {/*
+          Shown beside the real figure rather than folded into it. This page is where the
+          ingestion claim gets read, and a replayed scenario inflating it would make the claim
+          worth nothing.
+        */}
+        <Metric
+          label="Replayed"
+          value={String(metrics.replayedEvents)}
+          note="Synthetic, never counted as evidence"
         />
         <Metric
           label="Arriving"

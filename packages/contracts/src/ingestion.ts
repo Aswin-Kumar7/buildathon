@@ -10,7 +10,13 @@ import { z } from 'zod';
 export const ingestionMetricsSchema = z.object({
   configured: z.boolean(),
 
+  /**
+   * Events delivered by Razorpay. Replayed scenarios are counted separately and never added
+   * in — this is the figure quoted as evidence that ingestion works, and a demo that inflated
+   * it would make the claim worthless.
+   */
   eventsStored: z.number().int().nonnegative(),
+  replayedEvents: z.number().int().nonnegative(),
   canonicalEvents: z.number().int().nonnegative(),
 
   duplicateDeliveries: z.number().int().nonnegative(),

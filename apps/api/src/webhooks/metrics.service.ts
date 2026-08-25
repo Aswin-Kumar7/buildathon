@@ -43,6 +43,7 @@ export class WebhookMetricsService {
     return {
       configured: this.ingest.isConfigured,
       eventsStored: inbox.total,
+      replayedEvents: inbox.replayed,
       canonicalEvents: canonical,
 
       duplicateDeliveries: inbox.duplicates,
@@ -81,7 +82,10 @@ export class WebhookMetricsService {
   private async inboxTotals(windowStart: Date) {
     const [row] = await this.handle.db
       .select({
-        total: sql<number>`count(*)::int`,
+        // Split at the source. Everything below this line that is quoted as evidence counts
+        // only what Razorpay actually delivered.
+        total: sql<number>`count(*) filter (where ${inboxEvents.source} = 'razorpay')::int`,
+        replayed: sql<number>`count(*) filter (where ${inboxEvents.source} = 'replay')::int`,
         // Every delivery beyond the first is a duplicate Razorpay sent us. Counting them
         // is the only way to know whether deduplication is doing anything.
         duplicates: sql<number>`coalesce(sum(${inboxEvents.deliveryCount} - 1), 0)::int`,
@@ -107,6 +111,7 @@ export class WebhookMetricsService {
 
     return {
       total: count(row?.total),
+      replayed: count(row?.replayed),
       duplicates: count(row?.duplicates),
       pending: count(row?.pending),
       dead: count(row?.dead),

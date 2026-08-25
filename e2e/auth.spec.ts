@@ -103,6 +103,37 @@ test.describe('payment attempts', () => {
   });
 });
 
+test.describe('scenarios', () => {
+  test('offers the labelled corpus and says why each case is hard', async ({ page }) => {
+    await signIn(page);
+    await page.getByRole('link', { name: 'Scenarios' }).click();
+
+    await expect(page.getByRole('heading', { level: 1, name: 'Scenarios' })).toBeVisible();
+    await expect(page.getByText('Legitimate dunning')).toBeVisible();
+    await expect(page.getByText(/dunning tries few cards many times/)).toBeVisible();
+  });
+
+  test('counts replayed events apart from real ones', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/console/scenarios');
+
+    // The claim that keeps a demo from inflating the evidence, on the page rather than only
+    // in a document.
+    await expect(page.getByText(/marked apart at the row/)).toBeVisible();
+  });
+
+  test('replays a scenario through the real ingestion path', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/console/scenarios');
+
+    await page.getByRole('button', { name: 'Replay Legitimate dunning' }).click();
+
+    await expect(page.getByText(/events and \d+ checkouts written/)).toBeVisible({
+      timeout: 30_000,
+    });
+  });
+});
+
 test.describe('system health', () => {
   test('reports whether webhook ingestion is configured at all', async ({ page }) => {
     await signIn(page);

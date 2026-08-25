@@ -14,6 +14,17 @@ export const sentinel = pgSchema('sentinel');
 export const roleEnum = sentinel.enum('role', ['analyst', 'admin']);
 
 /**
+ * Where an event came from.
+ *
+ * Replayed scenarios go through the same ingestion, redaction and resolution as live traffic —
+ * that is the point of a replay, and a harness that took a shortcut would be testing the
+ * shortcut. But synthetic events must never be countable as evidence that the system works
+ * against Razorpay, so the distinction is recorded on the row rather than inferred later from
+ * an identifier prefix that nothing enforces.
+ */
+export const eventSourceEnum = sentinel.enum('event_source', ['razorpay', 'replay']);
+
+/**
  * Reviewers. The audit chain records an actor for every approval, so an identity is
  * load-bearing rather than decorative — an approval with nobody attached to it is not
  * an approval.
@@ -89,6 +100,7 @@ export const checkoutSessions = sentinel.table(
     currency: text('currency').notNull().default('INR'),
     itemCount: integer('item_count').notNull(),
 
+    source: eventSourceEnum('source').notNull().default('razorpay'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -128,6 +140,7 @@ export const inboxEvents = sentinel.table(
      */
     razorpayEventId: text('razorpay_event_id').notNull().unique(),
     eventType: text('event_type').notNull(),
+    source: eventSourceEnum('source').notNull().default('razorpay'),
 
     // Envelope-encrypted raw body. A database dump on its own decrypts to nothing: the
     // key that unwraps these rows lives in the environment, not in the database.
@@ -194,6 +207,7 @@ export const canonicalEvents = sentinel.table(
 
     eventType: text('event_type').notNull(),
     entityType: text('entity_type'),
+    source: eventSourceEnum('source').notNull().default('razorpay'),
 
     razorpayOrderId: text('razorpay_order_id'),
     razorpayPaymentId: text('razorpay_payment_id'),

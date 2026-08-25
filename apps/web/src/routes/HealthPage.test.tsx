@@ -8,6 +8,7 @@ import { HealthPage } from './HealthPage.js';
 const healthy: IngestionMetrics = {
   configured: true,
   eventsStored: 128,
+  replayedEvents: 0,
   canonicalEvents: 128,
   duplicateDeliveries: 12,
   duplicateRate: 12 / 140,
@@ -78,6 +79,7 @@ describe('HealthPage', () => {
     stub({
       configured: false,
       eventsStored: 0,
+      replayedEvents: 0,
       canonicalEvents: 0,
       duplicateDeliveries: 0,
       duplicateRate: 0,
@@ -123,6 +125,16 @@ describe('HealthPage', () => {
 
     expect(await screen.findByText('Oldest has waited 800ms')).toBeInTheDocument();
     expect(document.querySelector('.metric--warn')).toBeNull();
+  });
+
+  it('keeps replayed events out of the figure quoted as evidence', async () => {
+    stub({ eventsStored: 128, replayedEvents: 67 });
+    render(wrap(<HealthPage />));
+
+    await screen.findByText('Events stored');
+    expect(metric('Events stored')).toHaveTextContent('128');
+    expect(metric('Replayed')).toHaveTextContent('67');
+    expect(metric('Replayed')).toHaveTextContent('never counted as evidence');
   });
 
   it('says never rather than showing an empty timestamp', async () => {

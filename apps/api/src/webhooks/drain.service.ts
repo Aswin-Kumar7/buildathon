@@ -134,6 +134,10 @@ export class DrainService implements OnModuleDestroy {
         ...canonical,
         receivedAt: row.receivedAt,
         late: row.late,
+        // Carried through rather than defaulted. A replayed event that reached the canonical
+        // table looking like a real one would put synthetic numbers into the evidence, which
+        // is the one thing a demo harness must not be able to do.
+        source: row.source,
       })
       .onConflictDoNothing({ target: canonicalEvents.inboxEventId });
 

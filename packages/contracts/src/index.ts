@@ -4,3 +4,4 @@ export * from './auth.js';
 export * from './order.js';
 export * from './ingestion.js';
 export * from './attempt.js';
+export * from './scenario.js';

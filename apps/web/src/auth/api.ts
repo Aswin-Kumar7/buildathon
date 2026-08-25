@@ -19,6 +19,16 @@ export function setCsrfToken(token: string | null): void {
   csrfToken = token;
 }
 
+/**
+ * For callers that do their own fetch rather than going through `request` below.
+ *
+ * Returns an empty object when there is no token, so a signed-out caller sends no header at
+ * all rather than an empty one the server would have to decide what to do with.
+ */
+export function csrfHeaders(): Record<string, string> {
+  return csrfToken === null ? {} : { 'x-csrf-token': csrfToken };
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,

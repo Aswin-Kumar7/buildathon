@@ -3,8 +3,8 @@
 Single source of truth for where Sentinel actually stands. Updated with every change.
 
 **Last updated:** 2026-08-24
-**Current slice:** 5 — Canonical payment state (complete, awaiting tag)
-**Latest tag:** `v0.4.4` → `v0.5.0` pending
+**Current slice:** 6 — Scenario corpus and replay (complete, awaiting tag)
+**Latest tag:** `v0.5.0` → `v0.6.0` pending
 
 ## Slice progress
 
@@ -16,8 +16,8 @@ Single source of truth for where Sentinel actually stands. Updated with every ch
 | 3 | Storefront and Razorpay orders | `v0.3.0` | **done** |
 | 4 | Webhook ingestion | `v0.4.0` | **done** |
 | 5 | Canonical state | `v0.5.0` | **done** |
-| 6 | Scenario corpus and replay | `v0.6.0` | **next** |
-| 7 | Features, tiles and sketches | `v0.7.0` | not started |
+| 6 | Scenario corpus and replay | `v0.6.0` | **done** |
+| 7 | Features, tiles and sketches | `v0.7.0` | **next** |
 | 8 | Rules to incidents | `v0.8.0` | not started |
 | 9 | Arbitration and suppression | `v0.9.0` | not started |
 | 10 | Policy, approval and containment | `v0.10.0` | not started |
@@ -62,6 +62,8 @@ over HTTPS. Verified: `public` holds zero tables.
 - `GET /api/ingestion/metrics` — what the system health page reads. Session required.
 - `GET /api/attempts`, `GET /api/attempts/:orderId` — payment attempts resolved from event
   history, with the checkout context joined on. Session required.
+- `GET /api/replay`, `POST /api/replay`, `DELETE /api/replay` — the scenario catalogue and the
+  local replay harness. Session required, and refused outright in production.
 
 **UI** — landing page (evidence table read live from the API), login page, protected
 `/console` route, and the console shell: sidebar, user identity, permanent `TEST MODE`
@@ -113,6 +115,38 @@ a system keyed on failure counts should do.
 by outcome, with the gap the shopper waited, the failure reason kept visible on recovered
 attempts, and the session, device and network fingerprints the webhooks cannot carry.
 
+**Scenario corpus** — eight labelled traffic families in `packages/corpus`, generated from
+specifications committed before any detector exists to be tuned against them. Seeded, so a
+family plus a seed reproduces the same events byte for byte; a widened range shows up as a
+changed spec hash in a reviewable diff rather than as noise in a thousand regenerated events.
+
+The corpus exists to make one thing checkable: **raw failure count cannot separate an attack
+from an operational problem.**
+
+| Failures | Family | Class | Approval | Sessions |
+|---|---|---|---|---|
+| 74 | `attack_distributed` | attack | 5% | 37 |
+| 61 | `attack_loud` | attack | 3% | 1 |
+| 43 | `attack_low_amplitude` | attack | 0% | 3 |
+| **36** | `retry_storm` | **operational** | 25% | 2 |
+| **29** | `gateway_outage` | **operational** | 51% | 59 |
+| 20 | `flash_sale` | benign | 89% | 165 |
+| 5 | `customer_error` | benign | 90% | 40 |
+
+A legitimate dunning storm produces more failures than one of the attacks. Blocking it would
+stop a merchant collecting money it is owed; blocking the outage would punish customers for
+the acquirer being down. Neither is separable by counting.
+
+**Replay** — writes a committed scenario into the inbox and lets the real path take it: the
+same encryption, drain, redaction and state resolution. There is deliberately **no
+configurable HTTP target** — a replay tool that can be pointed at a hostname is a load
+generator, and one shipped in a payments repository is a load generator aimed at somebody
+else's checkout.
+
+Replayed rows carry `source = 'replay'` from the inbox through to the canonical event, and
+the health page reports them beside the real figure rather than folded into it. Refused
+outright when `NODE_ENV=production`.
+
 **System health page** — ingestion rate, duplicate rate, queue depth, oldest waiting event,
 dead-letter depth, late-event count, and the watermark. It states whether ingestion is
 configured *before* showing any number, because an unconfigured webhook and a healthy idle
@@ -123,8 +157,8 @@ Badge, Card, Callout, Table. Semantic colour is kept separate from the accent so
 attention" never reads as "branded".
 
 **Gates** — lint, typecheck, unit tests, format check, data-size guard, gitleaks, and
-end-to-end, plus a payload-leak guard. **264 unit tests** (api 201, web 31, contracts 13,
-storefront 10, ui 9) and **21 Playwright tests**.
+end-to-end, plus a payload-leak guard. **307 unit tests** (api 215, web 40, corpus 20,
+contracts 13, storefront 10, ui 9) and **24 Playwright tests**.
 
 ## Security decisions in place
 
@@ -453,7 +487,11 @@ still failing beside it.
 
 ## Next
 
-Slice 6 — scenario corpus and replay. Seeded generation of the eight scenario families, so
+Slice 7 — features, tiles and sketches. The first layer that reads the canonical events for
+something other than display: rolling counters keyed on the correlations the sensor provides,
+computed as of decision time so a decision can be replayed and reproduced.
+
+Previously: Slice 6 — scenario corpus and replay. Seeded generation of the eight scenario families, so
 the detector can be exercised at volume without touching the network, and the credential-free
 demo path gets something to replay. Scenario definitions and seed hashes are pre-registered
 before any tuning, which is what stops the corpus being quietly shaped to flatter the
