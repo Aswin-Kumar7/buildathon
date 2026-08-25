@@ -95,9 +95,13 @@ export class WebhookMetricsService {
         recent: sql<number>`count(*) filter (where ${inboxEvents.receivedAt} >= ${windowStart.toISOString()}::timestamptz)::int`,
         lastReceivedAt: sql<Date | null>`max(${inboxEvents.receivedAt})`,
         oldestPendingAt: sql<Date | null>`min(${inboxEvents.receivedAt}) filter (where ${inboxEvents.status} = 'pending')`,
+        // greatest(..., 0) as a floor. Both timestamps now come from the database and a
+        // negative interval should be impossible, but a metric that can render a negative
+        // duration is a metric nobody trusts afterwards — and rows written before the fix
+        // are still in the table.
         meanProcessingMs: sql<
           number | null
-        >`avg(extract(epoch from (${inboxEvents.processedAt} - ${inboxEvents.receivedAt})) * 1000)`,
+        >`avg(greatest(extract(epoch from (${inboxEvents.processedAt} - ${inboxEvents.receivedAt})) * 1000, 0))`,
       })
       .from(inboxEvents);
 

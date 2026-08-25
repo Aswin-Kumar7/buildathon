@@ -139,7 +139,10 @@ export class DrainService implements OnModuleDestroy {
 
     await this.handle.db
       .update(inboxEvents)
-      .set({ status: 'processed', processedAt: new Date(), attempts: row.attempts + 1 })
+      // `now()` from the database, matching received_at. Latency is the difference between
+      // the two, and a difference is only meaningful when both readings come from the same
+      // clock.
+      .set({ status: 'processed', processedAt: sql`now()`, attempts: row.attempts + 1 })
       .where(eq(inboxEvents.id, row.id));
   }
 

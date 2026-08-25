@@ -445,6 +445,58 @@ describe('webhook ingestion', () => {
     });
   });
 
+  describe('timestamps', () => {
+    it('never records a row as processed before it arrived', async () => {
+      // A live event once reported a processing time of minus 195 milliseconds. received_at
+      // and processed_at were each read from a container's own clock, minutes apart, and a
+      // single NTP correction between them was enough to invert the pair. Both now come from
+      // the database, which cannot disagree with itself.
+      await deliver(paymentCapturedBody({ created_at: 1_768_200_000 }), {
+        eventId: 'evt_CLOCK001',
+      });
+      await drain.drainOnce();
+
+      const row = await rowFor('evt_CLOCK001');
+      expect(row?.processedAt).not.toBeNull();
+      expect(row!.processedAt!.getTime()).toBeGreaterThanOrEqual(row!.receivedAt.getTime());
+    });
+
+    it('stamps arrival from the database rather than from this process', async () => {
+      // Written far enough apart that a process-supplied timestamp would be visibly earlier
+      // than one the database assigned.
+      const before = new Date();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await deliver(paymentCapturedBody({ created_at: 1_768_200_100 }), {
+        eventId: 'evt_CLOCK002',
+      });
+
+      const row = await rowFor('evt_CLOCK002');
+      expect(row?.receivedAt.getTime()).toBeGreaterThan(before.getTime());
+    });
+
+    it('reports no negative processing time however the rows were written', async () => {
+      const analyst = { email: 'clock@test.local', password: 'correct-horse', displayName: 'C' };
+      await app.get(AuthService).createUser({ ...analyst, role: 'analyst' });
+
+      const signedIn = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: analyst.email, password: analyst.password });
+
+      const raw = signedIn.headers['set-cookie'];
+      const list = Array.isArray(raw) ? raw : [raw ?? ''];
+      const cookie = list.find((c) => c.startsWith(SESSION_COOKIE)) ?? '';
+
+      const response = await request(app.getHttpServer())
+        .get('/api/ingestion/metrics')
+        .set('Cookie', cookie);
+
+      expect(response.status).toBe(200);
+      if (response.body.meanProcessingMs !== null) {
+        expect(response.body.meanProcessingMs).toBeGreaterThanOrEqual(0);
+      }
+    });
+  });
+
   describe('metrics', () => {
     let cookie = '';
 

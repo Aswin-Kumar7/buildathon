@@ -223,6 +223,13 @@ instance received one for a rejection that never reached a bank: `error_step:
 payment_initiation`, `error_source: business`. The sensor is still justified — webhooks carry
 no IP, device or session, which is the whole reason it exists — but not for that reason.
 
+**Processing latency was measured across two clocks.** `received_at` and `processed_at` were
+each read from a container's own clock, minutes apart and possibly on different instances,
+and then subtracted. A live event came back at **-195 ms** — processed before it arrived —
+which a single NTP correction is enough to produce. Both timestamps now come from the
+database, which cannot disagree with itself, and the metric has a floor at zero because rows
+written before the fix are still in the table. Two regression tests.
+
 **The running cost on Cloud Run was understated at $10-15 a month.** With CPU always
 allocated it is billed for every second the instance exists rather than only during requests,
 which put it nearer $45-55. Moot now that the deployment is on Azure, but the arithmetic was

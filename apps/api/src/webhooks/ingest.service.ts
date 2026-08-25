@@ -89,8 +89,10 @@ export class IngestService {
       throw new BadRequestException('Webhook body is not a recognisable Razorpay event');
     }
 
-    const receivedAt = new Date();
-    const eventAt = toEventTime(envelope.created_at, receivedAt);
+    // Only a fallback for an event that carries no timestamp of its own. The row's
+    // received_at is set by the database, not from here — see the insert below.
+    const arrivedAt = new Date();
+    const eventAt = toEventTime(envelope.created_at, arrivedAt);
     const mark = await this.watermark();
     const late = mark !== null && eventAt < mark;
 
@@ -118,14 +120,22 @@ export class IngestService {
         wrappedKeyTag: sealed.wrappedKeyTag,
         keyVersion: sealed.keyVersion,
         eventAt,
-        receivedAt,
+        // `now()` from the database rather than `new Date()` from this process.
+        //
+        // received_at and processed_at are subtracted from each other to report processing
+        // latency, and they are written minutes apart by code that may be running on
+        // different container instances. Two wall clocks drifting apart by a few hundred
+        // milliseconds — one NTP correction is enough — produced a live event that appeared
+        // to have been processed 195 ms before it arrived. One clock cannot disagree with
+        // itself, so both timestamps now come from the database.
+        receivedAt: sql`now()`,
         late,
       })
       .onConflictDoUpdate({
         target: inboxEvents.razorpayEventId,
         set: {
           deliveryCount: sql`${inboxEvents.deliveryCount} + 1`,
-          lastDeliveredAt: receivedAt,
+          lastDeliveredAt: sql`now()`,
         },
       })
       .returning();
