@@ -169,8 +169,24 @@ cardholder name and account id are all absent. The order id is present, which is
 — it is the join key to the checkout session, and it identifies an order rather than a
 person.
 
-**Still unproven:** a delivery originating from Razorpay rather than from us. That needs
-`RAZORPAY_WEBHOOK_SECRET` and a public HTTPS endpoint.
+**Webhook ingestion from Razorpay itself**, now proven on the deployed instance. A live test
+payment produced a complete sequence against one order:
+
+```
+order_TTyyheY7fRMZnW
+  payment.failed  ->  payment.authorized  ->  payment.captured  ->  order.paid
+```
+
+Five events stored, five canonical, none pending, none dead-lettered. Drain times 364 ms,
+262 ms and 80 ms. Signature verified against the raw bytes, payload encrypted, committed
+before acknowledgement, redacted on the way out — the card network survived, the card number,
+cardholder and email did not.
+
+That first `payment.failed` carries `error_reason: international_transaction_not_allowed`,
+`error_source: business`, `error_step: payment_initiation` — a rejection Razorpay made before
+any bank was involved. The retry then succeeded on the same order, which is exactly the
+`failed -> captured` recovery Slice 5 has to render as mitigating rather than as two
+problems. It is now a real trace rather than a fixture.
 
 | Layer | What it will prove | Status |
 |---|---|---|
@@ -198,6 +214,19 @@ person.
 - The payload-leak guard was verified by planting a leak and watching it fail
 - Supabase `public` schema contains zero tables
 - Data guard rejects a 10.5 MB staged file and any path under `data/raw/`
+
+## Corrections
+
+**`payment.failed` does fire on a first-attempt failure.** Recorded from research as a
+constraint, and used as part of the justification for the storefront sensor. The deployed
+instance received one for a rejection that never reached a bank: `error_step:
+payment_initiation`, `error_source: business`. The sensor is still justified — webhooks carry
+no IP, device or session, which is the whole reason it exists — but not for that reason.
+
+**The running cost on Cloud Run was understated at $10-15 a month.** With CPU always
+allocated it is billed for every second the instance exists rather than only during requests,
+which put it nearer $45-55. Moot now that the deployment is on Azure, but the arithmetic was
+wrong, not the conclusion.
 
 ## Lessons that cost time
 

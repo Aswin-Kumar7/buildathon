@@ -53,3 +53,6 @@ docs/
 *service-account*.json
 gha-creds-*.json
 project-*-*.json
+
+# Editor and assistant scratch config, created automatically and specific to one machine.
+.claude/
