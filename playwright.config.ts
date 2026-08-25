@@ -40,6 +40,11 @@ export default defineConfig({
     // `pnpm test:integration` with INTEGRATION_DATABASE_URL set.
     env: { DATABASE_URL: '' },
     reuseExistingServer: !process.env.CI,
+    // Turbo spawns the three dev servers as children. Killing turbo outright leaves them
+    // holding their ports, and the next run then finds an API answering on 3001 that it
+    // did not start — which looks like a broken feature rather than a stale process.
+    // A signal gives turbo the chance to take its children down with it.
+    gracefulShutdown: { signal: 'SIGTERM', timeout: 5_000 },
     timeout: 120_000,
     stdout: 'ignore',
     stderr: 'pipe',

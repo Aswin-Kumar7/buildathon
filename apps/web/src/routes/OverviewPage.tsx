@@ -17,11 +17,12 @@ export function OverviewPage(): React.JSX.Element {
         </p>
       </header>
 
-      <Callout tone="info" title="Nothing is being monitored yet">
+      <Callout tone="info" title="Events are arriving, but nothing is detecting yet">
         <p>
-          The console shell is in place, but no payment events are flowing and no detector is
-          running. Sections in the sidebar without a link are not built yet — they show the slice
-          that makes them real rather than pretending to work.
+          Payment events from Razorpay are being verified, stored and redacted &mdash; System health
+          shows that happening live. No detector reads them yet. Sections in the sidebar without a
+          link are not built; they show the slice that makes them real rather than pretending to
+          work.
         </p>
       </Callout>
 

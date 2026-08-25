@@ -5,13 +5,14 @@ import { HealthModule } from './health/health.module.js';
 import { MetaModule } from './meta/meta.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { OrdersModule } from './orders/orders.module.js';
+import { WebhooksModule } from './webhooks/webhooks.module.js';
 import { ZodExceptionFilter } from './common/zod-exception.filter.js';
 
 // The filter is registered here rather than in main.ts so tests boot the same wiring the
 // server does. A guard or filter that exists only in the bootstrap path is one the suite
 // silently never exercises.
 @Module({
-  imports: [DbModule, HealthModule, MetaModule, AuthModule, OrdersModule],
+  imports: [DbModule, HealthModule, MetaModule, AuthModule, OrdersModule, WebhooksModule],
   providers: [{ provide: APP_FILTER, useClass: ZodExceptionFilter }],
 })
 export class AppModule {}

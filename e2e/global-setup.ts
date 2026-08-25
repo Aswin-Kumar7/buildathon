@@ -1,21 +1,31 @@
+const API = 'http://localhost:3001/api/health';
+
 const PORTS = {
   console: 'http://localhost:5173',
   storefront: 'http://localhost:5174',
 };
 
+async function reachable(url: string): Promise<boolean> {
+  try {
+    return (await fetch(url)).ok;
+  } catch {
+    return false;
+  }
+}
+
 async function waitFor(name: string, url: string, timeoutMs = 90_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
 
-  for (;;) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) return;
-    } catch {
-      // Not listening yet.
-    }
-
+  while (!(await reachable(url))) {
     if (Date.now() > deadline) {
-      throw new Error(`${name} did not become reachable at ${url} within ${timeoutMs}ms`);
+      // An API that answers while a Vite server never appears means Playwright reused a
+      // server it did not start: `pnpm dev` then found port 3001 taken, its own API failed
+      // to bind, and the rest of the stack came down with it. Diagnosing that from a bare
+      // timeout took an embarrassingly long time twice, so it says so now.
+      const hint = (await reachable(API))
+        ? `\n\nThe API is answering but ${name} is not, which usually means a dev server was already running on port 3001 before this run. Stop it and try again.`
+        : '';
+      throw new Error(`${name} did not become reachable at ${url} within ${timeoutMs}ms${hint}`);
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }

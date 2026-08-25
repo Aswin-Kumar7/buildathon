@@ -1,0 +1,52 @@
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--s-3);
+  margin: 0;
+}
+
+.metric {
+  background: var(--s-surface);
+  border: 1px solid var(--s-line);
+  border-left: 3px solid var(--s-line);
+  border-radius: var(--s-radius);
+  padding: var(--s-3);
+}
+
+/* Semantic colour is carried on the left edge only. A whole card turning red reads as
+   "this panel is broken" rather than "this number needs attention". */
+.metric--ok {
+  border-left-color: var(--s-ok);
+}
+
+.metric--warn {
+  border-left-color: var(--s-warn);
+}
+
+.metric--critical {
+  border-left-color: var(--s-critical);
+}
+
+.metric dt {
+  font-size: var(--s-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-ink-2);
+}
+
+.metric dd {
+  margin: var(--s-1) 0 0;
+  font-family: var(--s-mono);
+  font-size: var(--s-text-lg);
+  color: var(--s-ink);
+}
+
+.metric__note {
+  margin: var(--s-1) 0 0;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-2);
+}
+
+.muted {
+  color: var(--s-ink-2);
+}

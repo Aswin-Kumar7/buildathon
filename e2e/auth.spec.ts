@@ -81,6 +81,28 @@ test.describe('route protection', () => {
   });
 });
 
+test.describe('system health', () => {
+  test('reports whether webhook ingestion is configured at all', async ({ page }) => {
+    await signIn(page);
+    await page.getByRole('link', { name: 'System health' }).click();
+
+    await expect(page.getByRole('heading', { level: 1, name: 'System health' })).toBeVisible();
+
+    // Either state is correct depending on whether the secrets are set locally; what must
+    // never happen is the page rendering zeroes with no indication which one it is.
+    await expect(page.getByText(/Webhook ingestion is (not )?configured/)).toBeVisible();
+  });
+
+  test('reads live counts from the api rather than placeholders', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/console/health');
+
+    await expect(page.getByText('Events stored')).toBeVisible();
+    await expect(page.getByText('Dead-lettered')).toBeVisible();
+    await expect(page.getByText(/never silently rewrites a decision/i)).toBeVisible();
+  });
+});
+
 test.describe('console shell', () => {
   test('shows the test mode badge and the signed-in identity', async ({ page }) => {
     await signIn(page);

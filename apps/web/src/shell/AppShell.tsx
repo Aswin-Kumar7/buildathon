@@ -18,7 +18,7 @@ const NAV: NavItem[] = [
   { to: '/console/policy', label: 'Policy', arrivesIn: 'Slice 10' },
   { to: '/console/audit', label: 'Audit', arrivesIn: 'Slice 11' },
   { to: '/console/metrics', label: 'Metrics', arrivesIn: 'Slice 12' },
-  { to: '/console/health', label: 'System health', arrivesIn: 'Slice 4' },
+  { to: '/console/health', label: 'System health' },
 ];
 
 export function AppShell({ children }: { children: ReactNode }): React.JSX.Element {

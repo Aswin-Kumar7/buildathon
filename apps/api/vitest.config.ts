@@ -17,6 +17,12 @@ export const TEST_ENV = {
   DATABASE_URL: '',
   PSEUDONYM_KEY_V1: 'test-only-pseudonym-key-0000000000000000000000000000',
   PSEUDONYM_KEY_VERSION: '1',
+  RAZORPAY_WEBHOOK_SECRET: 'whsec_test_only_do_not_use',
+  PAYLOAD_KEY_V1: '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff',
+  PAYLOAD_KEY_VERSION: '1',
+  // No background drain timer. Otherwise "did the drain process this row?" becomes a race
+  // against a tick that may or may not have fired, and the suite goes intermittent.
+  INBOX_DRAIN_INTERVAL_MS: '0',
 } as const;
 
 // Vitest transforms with esbuild, which does not emit decorator metadata, so Nest's

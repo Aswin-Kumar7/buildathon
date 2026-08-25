@@ -11,6 +11,7 @@ import { SESSION_KEY } from './auth/useSession.js';
 import { Landing } from './landing/Landing.js';
 import { LoginPage } from './routes/LoginPage.js';
 import { OverviewPage } from './routes/OverviewPage.js';
+import { HealthPage } from './routes/HealthPage.js';
 import { AppShell } from './shell/AppShell.js';
 
 export const queryClient = new QueryClient({
@@ -64,10 +65,16 @@ const overviewRoute = createRoute({
   component: OverviewPage,
 });
 
+const healthRoute = createRoute({
+  getParentRoute: () => consoleRoute,
+  path: '/health',
+  component: HealthPage,
+});
+
 const routeTree = rootRoute.addChildren([
   landingRoute,
   loginRoute,
-  consoleRoute.addChildren([overviewRoute]),
+  consoleRoute.addChildren([overviewRoute, healthRoute]),
 ]);
 
 export const router = createRouter({ routeTree });

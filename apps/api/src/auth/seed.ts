@@ -30,13 +30,12 @@ export const DEMO_USERS = [
  * run wrote its fixture users into the shared database. Sign-in then failed with
  * "Email or password is incorrect" — an answer that gives no hint the account was never
  * created. Inserting each account on its own conflict clause has no such failure mode.
+ *
+ * Whether to call this at all is the caller's decision, governed by SEED_DEMO_USERS. One
+ * control point rather than two: a guard here *and* a flag there means reasoning about
+ * which one is in force, and the answer would be wrong exactly once.
  */
-export async function seedDemoUsers(
-  auth: AuthService,
-  environment: string = process.env.NODE_ENV ?? 'development',
-): Promise<void> {
-  if (environment === 'production') return;
-
+export async function seedDemoUsers(auth: AuthService): Promise<void> {
   for (const user of DEMO_USERS) {
     await auth.createUser(user);
   }

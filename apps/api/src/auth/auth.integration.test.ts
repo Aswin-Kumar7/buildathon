@@ -161,7 +161,7 @@ describe('auth', () => {
     // non-empty, so a single unrelated row left the demo accounts uncreated and sign-in
     // answered "Email or password is incorrect" — indistinguishable from a typo. This
     // suite has already inserted two users by the time it runs, which is that state.
-    await seedDemoUsers(app.get(AuthService), 'development');
+    await seedDemoUsers(app.get(AuthService));
 
     const demo = DEMO_USERS[0]!;
     const response = await login(demo.email, demo.password);
@@ -169,12 +169,20 @@ describe('auth', () => {
     expect(response.body.user.email).toBe(demo.email);
   });
 
-  it('seeds no demo accounts in production', async () => {
-    await seedDemoUsers(app.get(AuthService), 'production');
-    // Nothing to assert beyond it not throwing and not creating anything new; the guard
-    // exists so a deployed instance never ships with a published password.
+  it('creates nothing beyond the demo accounts', async () => {
+    // Whether to seed at all is governed by SEED_DEMO_USERS at boot; what this asserts is
+    // that seeding never invents an account nobody asked for.
+    await seedDemoUsers(app.get(AuthService));
     const response = await login('never-seeded@sentinel.local', 'sentinel-demo');
     expect(response.status).toBe(401);
+  });
+
+  it('can be run twice without creating duplicates or changing a password', async () => {
+    await seedDemoUsers(app.get(AuthService));
+    await seedDemoUsers(app.get(AuthService));
+
+    const demo = DEMO_USERS[0]!;
+    expect((await login(demo.email, demo.password)).status).toBe(200);
   });
 
   it('revokes the session on logout', async () => {
