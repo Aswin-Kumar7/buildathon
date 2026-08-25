@@ -41,6 +41,11 @@ jobs:
       - name: payload leak check
         run: pnpm check:payload
 
+      # Cheap, and it catches the class of failure that otherwise only shows up when an image
+      # is built: a workspace package the Dockerfiles never learned about.
+      - name: docker manifest check
+        run: pnpm check:docker
+
       - name: assert nothing changed
         run: |
           pnpm format

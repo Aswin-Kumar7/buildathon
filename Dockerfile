@@ -13,6 +13,13 @@ WORKDIR /repo
 
 # Manifests only, so this layer is cached until a dependency actually changes. Copying the
 # source first would reinstall the whole tree on every edit.
+#
+# Every workspace package has to be listed, not just the ones this image ships. `pnpm install`
+# runs before the source arrives, so a package missing here gets no node_modules — and then
+# `pnpm build`, which builds the whole workspace, compiles it without its own TypeScript or
+# type definitions. That is exactly how `packages/corpus` broke both images: `Cannot find type
+# definition file for 'node'`, from a package neither image ships. `scripts/check-docker.mjs`
+# now fails the gate rather than letting the next new package do it again.
 FROM base AS manifests
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/
@@ -21,6 +28,8 @@ COPY apps/storefront/package.json apps/storefront/
 COPY packages/contracts/package.json packages/contracts/
 COPY packages/db/package.json packages/db/
 COPY packages/ui/package.json packages/ui/
+COPY packages/corpus/package.json packages/corpus/
+COPY packages/detect/package.json packages/detect/
 
 FROM manifests AS deps
 RUN pnpm install --frozen-lockfile
@@ -45,8 +54,13 @@ ENV NODE_ENV=production
 RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 COPY --from=build /repo/apps/api/dist apps/api/dist
+# Every workspace package the API imports at runtime. `pnpm install --prod` creates the
+# symlinks; without the compiled output behind them the container starts and then dies on
+# "cannot find module", which is a far worse failure than not building at all.
 COPY --from=build /repo/packages/contracts/dist packages/contracts/dist
 COPY --from=build /repo/packages/db/dist packages/db/dist
+COPY --from=build /repo/packages/corpus/dist packages/corpus/dist
+COPY --from=build /repo/packages/detect/dist packages/detect/dist
 
 # The console, served from the same origin as the API that authenticates it. main.ts looks
 # for this directory relative to the working directory and simply serves nothing if it is

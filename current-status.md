@@ -2,9 +2,9 @@
 
 Single source of truth for where Sentinel actually stands. Updated with every change.
 
-**Last updated:** 2026-08-24
-**Current slice:** 6 — Scenario corpus and replay (complete, awaiting tag)
-**Latest tag:** `v0.5.0` → `v0.6.0` pending
+**Last updated:** 2026-08-25
+**Current slice:** 7 — Features, tiles and sketches (complete, awaiting tag)
+**Latest tag:** `v0.6.0` → `v0.7.0` pending
 
 ## Slice progress
 
@@ -17,8 +17,8 @@ Single source of truth for where Sentinel actually stands. Updated with every ch
 | 4 | Webhook ingestion | `v0.4.0` | **done** |
 | 5 | Canonical state | `v0.5.0` | **done** |
 | 6 | Scenario corpus and replay | `v0.6.0` | **done** |
-| 7 | Features, tiles and sketches | `v0.7.0` | **next** |
-| 8 | Rules to incidents | `v0.8.0` | not started |
+| 7 | Features, tiles and sketches | `v0.7.0` | **done** |
+| 8 | Rules to incidents | `v0.8.0` | **next** |
 | 9 | Arbitration and suppression | `v0.9.0` | not started |
 | 10 | Policy, approval and containment | `v0.10.0` | not started |
 | 11 | Audit chain | `v0.11.0` | not started |
@@ -33,7 +33,9 @@ Single source of truth for where Sentinel actually stands. Updated with every ch
 **Workspace** — pnpm + Turborepo monorepo. `apps/api` (NestJS, ESM), `apps/web` (React 19 +
 Vite, the analyst console), `apps/storefront` (React 19 + Vite, the demo shop that generates
 payment events), `packages/contracts` (shared Zod schemas), `packages/ui` (design tokens and
-primitives), `packages/db` (Drizzle schema and dual-driver client).
+primitives), `packages/db` (Drizzle schema and dual-driver client), `packages/corpus`
+(seeded scenario generation), `packages/detect` (pure feature computation, decay, tiles and
+sketches).
 
 `pnpm dev` runs all three: API on 3001, console on 5173, storefront on 5174.
 
@@ -147,6 +149,36 @@ Replayed rows carry `source = 'replay'` from the inbox through to the canonical 
 the health page reports them beside the real figure rather than folded into it. Refused
 outright when `NODE_ENV=production`.
 
+**Features** — `packages/detect` holds the computation, with no database, no clock and no
+framework in it. `computeFeatures` takes the observations, the entity and an explicit `asOf`,
+and returns a vector; a function that asked the system what time it was could not be replayed,
+and a decision that cannot be replayed cannot be explained.
+
+Rates decay by half-life rather than sliding over a window. A window has a cliff — the same
+traffic reads differently either side of an arbitrary boundary — and decayed counters merge,
+which is what makes minute tiles work at all.
+
+Distinct counts come from a HyperLogLog at precision 12: 4 KB, 1.6% standard error. It is
+used for **candidate discovery only**. The API computes twice on purpose — once without
+confirming, cheaply, to rank every entity; then again for the survivors with the counts
+re-derived exactly. Every sketch value carries its own error bound and its confirmation, so
+nothing can reach a decision as an estimate that looked like a fact.
+
+Minute tiles make the same numbers computable incrementally. The property that matters is
+that merging tiles equals folding the events directly — asserted per scenario family against
+the committed corpus, not against data written to make it easy — and that the online and
+offline paths stay within the skew bucketing implies (under 7%, measured).
+
+**Feature inspector** — `/console/features`. For each entity it shows every feature, the
+window and half-life it was computed over, how fresh it is, and for the sketch-derived counts
+the estimate with its bound *beside* the exact confirmed figure, never instead of it. Real and
+replayed traffic are selectable and separate, for the same reason the health page keeps them
+apart.
+
+When nothing has arrived within a whole window, it evaluates as of the last thing that did and
+says so on the page. A replayed scenario carries the timestamps it was recorded with, so its
+rates are real but historical; presenting them as live would be a lie by omission.
+
 **System health page** — ingestion rate, duplicate rate, queue depth, oldest waiting event,
 dead-letter depth, late-event count, and the watermark. It states whether ingestion is
 configured *before* showing any number, because an unconfigured webhook and a healthy idle
@@ -157,8 +189,9 @@ Badge, Card, Callout, Table. Semantic colour is kept separate from the accent so
 attention" never reads as "branded".
 
 **Gates** — lint, typecheck, unit tests, format check, data-size guard, gitleaks, and
-end-to-end, plus a payload-leak guard. **307 unit tests** (api 215, web 40, corpus 20,
-contracts 13, storefront 10, ui 9) and **24 Playwright tests**.
+end-to-end, plus a payload-leak guard. **373 unit tests** (api 231, web 52, detect 38,
+corpus 20, contracts 13, storefront 10, ui 9), **109 integration tests** and **29 Playwright
+tests**.
 
 ## Security decisions in place
 
@@ -273,7 +306,8 @@ problems. It is now a real trace rather than a fixture.
 
 ## Verified by running, not assumed
 
-- `pnpm lint`, `pnpm typecheck`, `pnpm test:unit`, `pnpm check:format`, `pnpm build` — all pass
+- `pnpm lint`, `pnpm typecheck`, `pnpm test:unit`, `pnpm check:format`, `pnpm check:docker`,
+  `pnpm build` — all pass
 - The 16 auth tests pass against **both** PGlite and real Supabase Postgres 17.6
 - Both test configs were run with a hostile `DATABASE_URL` exported in the shell and stayed
   on embedded Postgres — the isolation is demonstrated, not assumed
@@ -291,8 +325,64 @@ problems. It is now a real trace rather than a fixture.
 - The payload-leak guard was verified by planting a leak and watching it fail
 - Supabase `public` schema contains zero tables
 - Data guard rejects a 10.5 MB staged file and any path under `data/raw/`
+- Tile-merge equals the naive computation for four scenario families drawn from the committed
+  corpus, and the online/offline decay skew stays under 7%
+- The HyperLogLog was caught reporting 34 distinct values for 100. FNV-1a does not avalanche
+  in its high bits for short similar strings — `card_1`, `card_2` — and the register index is
+  taken from exactly those bits. Fixed with a murmur3 finaliser and held to its error bound
+  against the corpus
+- The features integration suite drains the inbox to exhaustion rather than once. A single
+  pass claims 50 events, fewer than three scenarios write, and the inbox drains in arrival
+  order — so the first version tested one session and reported green
 
 ## Corrections
+
+**`bank` is not an infrastructure failure.** `infrastructureFailureShare` — the feature whose
+whole job is telling an acquirer outage apart from an attack — originally counted failures
+Razorpay attributed to either the gateway *or* the bank. But Razorpay attributes an issuer
+refusing a card to the bank, so `bank` is the dominant source in every attack family in the
+corpus: 39 of 61 failures in `attack_loud`, all 36 in `retry_storm`. The feature read 1.0 for
+a dunning run, which is precisely the confusion it exists to prevent. Only `gateway` names a
+component that failed rather than a card that was refused.
+
+It survived the unit tests because they compared the two extremes — `gateway` against
+`customer` — and never the ambiguous middle. It is now asserted across six scenario families
+against the corpus, so widening the definition fails there rather than in a console later.
+
+**Both container images had been unbuildable since Slice 6.** The Dockerfiles copy workspace
+manifests one line at a time, before the source arrives, so that `pnpm install` caches against
+dependency changes rather than every edit. `packages/corpus` was never added to that list, so
+it got no `node_modules` — and then `pnpm build`, which built the whole workspace, compiled it
+anyway and died on `Cannot find type definition file for 'node'`. The storefront image failed
+on a package it does not even ship. `packages/detect` would have done it again.
+
+Three fixes, and a check so it cannot recur silently. Both images now copy every workspace
+manifest. The storefront builds only its own dependency graph — contracts, ui, storefront —
+instead of the entire monorepo. The API's runtime stage copies the compiled output of
+`corpus` and `detect`, which it imports and previously would not have found: `pnpm install
+--prod` creates the symlink, so that failure survives the build and appears as "cannot find
+module" when the container starts. `scripts/check-docker.mjs` now fails the gate for either
+mistake, in milliseconds and without Docker.
+
+Verified by reproducing both image builds locally stage by stage — manifests only, install,
+source, build — since Docker is not available on this machine. Both now build, and the
+compiled API resolves `@sentinel/detect` and `@sentinel/corpus` from their `dist`.
+
+**Three packages were shipping their tests into production.** `corpus`, `db` and `detect`
+compiled `*.test.ts` into `dist`; `contracts` had always excluded them. Mostly dead weight,
+except that `detect`'s tile test imports `@sentinel/corpus` — a devDependency a `--prod`
+install does not put in the image — so it was a file in a production container that would
+throw if anything ever loaded it.
+
+**The payload-leak guard was reporting leaks that were not leaks.** It read Playwright trace
+zips as UTF-8 and ran regexes over them, which matched the uncompressed filename table:
+`page@<hash>-<ms>.jpeg` is not an email address and a millisecond timestamp is not a card
+number. Meanwhile the actual entries are deflated, so anything real inside was invisible —
+the check was failing the gate on noise while providing none of the protection it claimed.
+Zips are no longer scanned as text, and card numbers are now confirmed by Luhn rather than by
+shape. Verified in both directions: a planted `4111 1111 1111 1111` still fails the gate, a
+13-digit timestamp no longer does.
+
 
 **`payment.failed` does fire on a first-attempt failure.** Recorded from research as a
 constraint, and used as part of the justification for the storefront sensor. The deployed
@@ -391,6 +481,23 @@ explicit set, and an unrecognised value is rejected at startup rather than guess
 
 ## Recent decisions
 
+**No Redis, though the plan calls for it.** Rolling counters in Redis buy latency, not
+correctness, and every property that makes this slice worth having — tile-merge equalling the
+naive computation, sketch error bounds, online/offline parity — holds without it. It would
+also add roughly $16 a month to a $100 budget. The tile structure is the part that would have
+to be right for Redis to help later; that part exists and is tested.
+
+**Features are computed as of a moment, never from a clock.** `asOf` is a parameter, and
+observations after it are dropped. It is the difference between a decision that can be
+explained six weeks later and one that can only be re-asserted.
+
+**The inspector separates real traffic from replayed traffic.** Found by running the E2E
+suite: the storefront specs put live payments through the same server, and because the corpus
+carries timestamps from months ago, a single live attempt anchored the window to now and hid
+every replayed scenario behind it. Merging the two was also inconsistent with the health page,
+which has always counted them apart.
+
+
 - `README.md` removed for now; it will be written at the end, once every claim it makes is
   true. The landing page carries the front-door content meanwhile.
 - `docs/` is gitignored, so the architecture and delivery plans live outside the repository.
@@ -487,9 +594,15 @@ still failing beside it.
 
 ## Next
 
-Slice 7 — features, tiles and sketches. The first layer that reads the canonical events for
-something other than display: rolling counters keyed on the correlations the sensor provides,
-computed as of decision time so a decision can be replayed and reproduced.
+Slice 8 — rules to incidents. The first layer that reaches a conclusion rather than presenting
+a number: thresholds over the feature vectors, grouped into an incident with the evidence that
+produced it attached, so a reader can see why it fired and not only that it did.
+
+Previously: Slice 7 — features, tiles and sketches. The first layer that reads the canonical
+events for something other than display: decayed counters keyed on the correlations the sensor
+provides, computed as of decision time so a decision can be replayed and reproduced. Sketches
+find candidates, exact counts confirm them, and the inspector shows both so nobody mistakes
+one for the other.
 
 Previously: Slice 6 — scenario corpus and replay. Seeded generation of the eight scenario families, so
 the detector can be exercised at volume without touching the network, and the credential-free

@@ -12,6 +12,9 @@ ENV PNPM_HOME=/pnpm \
 RUN corepack enable
 WORKDIR /repo
 
+# Every workspace manifest, including packages this image does not ship: `pnpm install` runs
+# before the source arrives, and a package missing here gets no node_modules. See the note in
+# `Dockerfile`, and `scripts/check-docker.mjs`, which checks it.
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/
@@ -20,11 +23,18 @@ COPY apps/storefront/package.json apps/storefront/
 COPY packages/contracts/package.json packages/contracts/
 COPY packages/db/package.json packages/db/
 COPY packages/ui/package.json packages/ui/
+COPY packages/corpus/package.json packages/corpus/
+COPY packages/detect/package.json packages/detect/
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
 COPY . .
-RUN pnpm build
+# Scoped to the storefront's own dependency graph — the shop, the contracts and the design
+# system. Turbo derives that graph from the declared dependencies, so it cannot miss one that
+# is actually used. Building the whole workspace here meant this image compiled the API, the
+# console and the scenario corpus purely to throw them away, and a failure in any of them
+# failed the shop.
+RUN pnpm turbo build --filter=@sentinel/storefront...
 
 # No node_modules at all. `serve.mjs` uses only Node built-ins, so the runtime image is the
 # base plus a few hundred kilobytes of assets, and there is nothing in it to patch.
