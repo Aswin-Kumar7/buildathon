@@ -181,3 +181,97 @@ test.describe('console shell', () => {
     await expect(page).toHaveURL(/\/login/);
   });
 });
+
+test.describe('feature inspector', () => {
+  /**
+   * Replays a scenario first, because the inspector has nothing to show without one. The whole
+   * chain runs for real here: storefront-shaped checkout context, webhook ingestion, redaction,
+   * then the two-pass feature computation.
+   */
+  async function replayAndInspect(page: Page): Promise<void> {
+    await signIn(page);
+    await page.goto('/console/scenarios');
+
+    // Waited for explicitly. On the first test of a run the dev server is still compiling the
+    // route, and clicking a button that has not rendered yet fails as a missing feature rather
+    // than as the cold start it is.
+    await expect(page.getByRole('heading', { level: 1, name: 'Scenarios' })).toBeVisible({
+      timeout: 60_000,
+    });
+    const replay = page.getByRole('button', { name: 'Replay Card enumeration, undisguised' });
+    await expect(replay).toBeVisible({ timeout: 60_000 });
+    await replay.click();
+    await expect(page.getByText(/events and \d+ checkouts written/)).toBeVisible({
+      timeout: 30_000,
+    });
+
+    await page.getByRole('link', { name: 'Features' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Feature inspector' })).toBeVisible();
+
+    // Pinned to replayed traffic. The storefront specs put real payments through the same
+    // server, and because the corpus carries timestamps from months ago, one live attempt is
+    // enough to anchor the window to now and hide the whole scenario behind it.
+    await page.getByRole('button', { name: 'Replayed' }).click();
+  }
+
+  test('shows the sketch estimate beside the confirmed count', async ({ page }) => {
+    await replayAndInspect(page);
+
+    // The property the slice is judged on. Never one number: the exact figure a decision may
+    // rest on, and the estimate with its bound, visible together.
+    await expect(page.getByText('Distinct cards').first()).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/sketch \d+ ±\d+/).first()).toBeVisible();
+    await expect(
+      page.getByText(/Sketch (agreed with the exact count|was (over|under) by)/).first(),
+    ).toBeVisible();
+  });
+
+  test('states the window, the half-life and how fresh the numbers are', async ({ page }) => {
+    await replayAndInspect(page);
+
+    await expect(page.getByText(/30-minute window, 5-minute half-life/).first()).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByText(/Last attempt .+ ago\./).first()).toBeVisible();
+  });
+
+  test('admits that a replayed scenario describes a past moment', async ({ page }) => {
+    await replayAndInspect(page);
+
+    // The corpus carries the timestamps it was recorded with. Its rates are real and
+    // historical, and a console that showed them as live would be misrepresenting evidence.
+    await expect(page.getByText('Evaluated as of the last activity, not now')).toBeVisible({
+      timeout: 30_000,
+    });
+  });
+
+  test('switches the entity a decision would act on', async ({ page }) => {
+    await replayAndInspect(page);
+    await expect(page.getByText('Distinct cards').first()).toBeVisible({ timeout: 30_000 });
+
+    await page.getByRole('button', { name: 'network' }).click();
+    await expect(page.getByRole('button', { name: 'network' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(page.getByText('network', { exact: true }).first()).toBeVisible();
+  });
+
+  test('keeps replayed traffic separable from real traffic', async ({ page }) => {
+    // The same separation the health page insists on. A console that pooled them would let
+    // invented events count as evidence the system works against Razorpay.
+    await replayAndInspect(page);
+    await expect(page.getByText('Distinct cards').first()).toBeVisible({ timeout: 30_000 });
+
+    await page.getByRole('button', { name: 'Real traffic' }).click();
+    await expect(page.getByRole('button', { name: 'Real traffic' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    // Either there is real traffic or the page says there is none — never the replayed
+    // scenario relabelled as real.
+    await expect(
+      page.getByText(/No real payment events|Estimated to find, exact to decide/).first(),
+    ).toBeVisible();
+  });
+});

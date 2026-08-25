@@ -23,16 +23,20 @@ const SCAN_DIRS = [
   'playwright-report',
   'ml/corpus/out',
 ];
-const SCAN_EXTENSIONS = new Set([
-  '.json',
-  '.ndjson',
-  '.jsonl',
-  '.log',
-  '.txt',
-  '.csv',
-  '.md',
-  '.zip',
-]);
+const SCAN_EXTENSIONS = new Set(['.json', '.ndjson', '.jsonl', '.log', '.txt', '.csv', '.md']);
+
+/**
+ * `.zip` is deliberately absent.
+ *
+ * A Playwright trace is a zip, and reading one as UTF-8 and running a regex over it is worse
+ * than not checking: the entries are deflated, so real content is invisible, while the
+ * uncompressed filename table matches everything. It reported `page@<hash>-<ms>.jpeg` as an
+ * email address and a millisecond timestamp as a card number, failing the gate on every run
+ * that retained a trace. A check that cries wolf gets ignored, which is how the real one gets
+ * missed. Traces are gitignored and produced only on failure; the text artefacts beside them
+ * — `error-context.md` and the JSON reports — are scanned, and those are where a payload
+ * would actually be legible.
+ */
 const MAX_BYTES = 32 * 1024 * 1024;
 
 /**
@@ -60,8 +64,30 @@ const ALLOWED_DOMAINS = ['@sentinel.local', '@test.local', '@example.com', '@exa
 const FORBIDDEN_VALUES = [
   { name: 'an email address', pattern: /[\w.+-]+@[\w-]+\.[\w.]{2,}/ },
   { name: 'an Indian phone number', pattern: /\+91\d{10}/ },
-  { name: 'a card number', pattern: /\b(?:\d[ -]?){13,19}\b/ },
+  // Confirmed by checksum rather than by shape. Any 13-to-19 digit run looks like a card,
+  // including every millisecond timestamp ever written to a log, and a check that fires on
+  // those teaches everyone to skip past it.
+  { name: 'a card number', pattern: /\b(?:\d[ -]?){13,19}\b/, confirm: luhn },
 ];
+
+/** The checksum every real card number satisfies and almost no other digit run does. */
+function luhn(candidate) {
+  const digits = candidate.replace(/\D/g, '');
+  if (digits.length < 13 || digits.length > 19) return false;
+
+  let sum = 0;
+  let double = false;
+  for (let i = digits.length - 1; i >= 0; i -= 1) {
+    let value = Number(digits[i]);
+    if (double) {
+      value *= 2;
+      if (value > 9) value -= 9;
+    }
+    sum += value;
+    double = !double;
+  }
+  return sum % 10 === 0;
+}
 
 function* walk(dir) {
   if (!existsSync(dir)) return;
@@ -87,10 +113,11 @@ for (const dir of SCAN_DIRS) {
     for (const key of FORBIDDEN_KEYS) {
       if (content.includes(key)) problems.push(`${file} — contains the payload field ${key}`);
     }
-    for (const { name, pattern } of FORBIDDEN_VALUES) {
+    for (const { name, pattern, confirm } of FORBIDDEN_VALUES) {
       const global = new RegExp(pattern.source, 'g');
       for (const match of content.matchAll(global)) {
         if (ALLOWED_DOMAINS.some((domain) => match[0].endsWith(domain))) continue;
+        if (confirm !== undefined && !confirm(match[0])) continue;
         // The match itself is never printed: a leak report that quotes the leak is a leak.
         problems.push(`${file} — contains something shaped like ${name}`);
         break;

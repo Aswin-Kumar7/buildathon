@@ -1,0 +1,113 @@
+.pickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+
+.kinds {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.kinds button {
+  font: inherit;
+  font-size: var(--s-text-sm);
+  text-transform: capitalize;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--s-line);
+  border-radius: var(--s-radius);
+  background: var(--s-surface);
+  color: var(--s-ink-2);
+  cursor: pointer;
+}
+
+.kinds button:hover {
+  border-color: var(--s-line-strong);
+  color: var(--s-ink);
+}
+
+.kinds button.is-current {
+  border-color: var(--s-accent);
+  background: var(--s-accent-soft);
+  color: var(--s-accent-ink);
+}
+
+.vectors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(26rem, 1fr));
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+}
+
+.vector__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+}
+
+.vector__head code {
+  font-family: var(--s-mono);
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+}
+
+.vector__badges {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.vector__window {
+  margin: 0 0 var(--s-3);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-2);
+}
+
+.features {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--s-3);
+}
+
+.feature dt {
+  font-size: var(--s-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-ink-2);
+}
+
+.feature dd {
+  margin: 2px 0 0;
+  font-size: var(--s-text-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.feature__note {
+  margin: 2px 0 0;
+  font-size: var(--s-text-xs);
+  line-height: 1.4;
+  color: var(--s-ink-3, var(--s-ink-2));
+}
+
+/* A sketch value gets its own treatment so the eye can tell at a glance which number is
+   confirmed and which is only an estimate. They must never look alike. */
+.feature--sketch {
+  grid-column: span 1;
+  padding-left: var(--s-2);
+  border-left: 2px solid var(--s-line);
+}
+
+.feature__exact {
+  font-size: var(--s-text-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.feature__estimate {
+  display: block;
+  font-family: var(--s-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-2);
+}

@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src"],
+  // Tests are not part of what this package ships. `detect`'s tiles test imports
+  // `@sentinel/corpus`, a devDependency that a `--prod` install does not put in the image, so
+  // compiling it into dist puts a file in production that would throw if anything ever loaded
+  // it. `contracts` has always excluded them; the rest did not.
+  "exclude": ["**/*.test.ts"]
+}

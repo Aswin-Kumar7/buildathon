@@ -14,6 +14,7 @@ import { OverviewPage } from './routes/OverviewPage.js';
 import { HealthPage } from './routes/HealthPage.js';
 import { AttemptsPage } from './routes/AttemptsPage.js';
 import { ScenariosPage } from './routes/ScenariosPage.js';
+import { FeaturesPage } from './routes/FeaturesPage.js';
 import { AppShell } from './shell/AppShell.js';
 
 export const queryClient = new QueryClient({
@@ -79,6 +80,12 @@ const attemptsRoute = createRoute({
   component: AttemptsPage,
 });
 
+const featuresRoute = createRoute({
+  getParentRoute: () => consoleRoute,
+  path: '/features',
+  component: FeaturesPage,
+});
+
 const scenariosRoute = createRoute({
   getParentRoute: () => consoleRoute,
   path: '/scenarios',
@@ -88,7 +95,13 @@ const scenariosRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   landingRoute,
   loginRoute,
-  consoleRoute.addChildren([overviewRoute, attemptsRoute, scenariosRoute, healthRoute]),
+  consoleRoute.addChildren([
+    overviewRoute,
+    attemptsRoute,
+    featuresRoute,
+    scenariosRoute,
+    healthRoute,
+  ]),
 ]);
 
 export const router = createRouter({ routeTree });

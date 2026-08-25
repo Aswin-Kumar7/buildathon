@@ -39,5 +39,17 @@ async function waitFor(name: string, url: string, timeoutMs = 90_000): Promise<v
  * fraction of a second and removes that whole class of false negative.
  */
 export default async function globalSetup(): Promise<void> {
+  // Checked before waiting, not after. An API already answering means Playwright reused a
+  // server it did not start and therefore never ran `pnpm dev`, so the Vite servers are not
+  // coming — waiting ninety seconds to discover that wastes ninety seconds every time.
+  if ((await reachable(API)) && !(await reachable(PORTS.console))) {
+    throw new Error(
+      'An API is already listening on port 3001, so Playwright reused it and never started ' +
+        'the web servers. It is usually a leftover from an interrupted run — Turbo does not ' +
+        'always take its children down with it on Windows. ' +
+        'Stop it with:  npx kill-port 3001 5173 5174',
+    );
+  }
+
   await Promise.all(Object.entries(PORTS).map(([name, url]) => waitFor(name, url)));
 }

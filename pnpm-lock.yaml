@@ -74,6 +74,9 @@ importers:
       '@sentinel/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@sentinel/detect':
+        specifier: workspace:*
+        version: link:../../packages/detect
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
@@ -287,6 +290,21 @@ importers:
       drizzle-kit:
         specifier: ^0.31.6
         version: 0.31.10
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.1)(jsdom@25.0.1)(tsx@4.23.12)(yaml@2.9.0)
+
+  packages/detect:
+    devDependencies:
+      '@sentinel/corpus':
+        specifier: workspace:*
+        version: link:../corpus
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
