@@ -1,0 +1,193 @@
+# One-time Azure setup, and the place configuration lives.
+#
+# Authentication is OpenID Connect: GitHub presents a signed claim about which repository
+# and branch is running, and Azure trusts that directly. No secret exists to leak or rotate
+# — which matters, because the first attempt at this project put a Google service-account
+# key through a chat transcript and a Downloads folder.
+#
+#   provision  — creates the Container Apps environment and both apps, fully configured,
+#                running a placeholder image. Run once, before the first deploy.
+#
+#   configure  — re-applies environment variables and re-links the two services. Run
+#                whenever a value changes.
+#
+# Provisioning creates the apps *with* their configuration rather than leaving that to the
+# first deploy. The reverse order meant the first deploy always failed its health check,
+# because the API refuses to start without a database — a red run that had to be explained
+# away every time.
+
+name: Azure setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: What to run
+        required: true
+        type: choice
+        options: [provision, configure]
+
+env:
+  RESOURCE_GROUP: sentinel
+  LOCATION: centralindia
+  ENVIRONMENT: sentinel-env
+  API_APP: sentinel-api
+  SHOP_APP: sentinel-shop
+  APP_PORT: '8080'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  provision:
+    if: inputs.step == 'provision'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install the Container Apps extension
+        run: az extension add --name containerapp --upgrade --allow-preview true
+
+      - name: Create the Container Apps environment
+        run: |
+          az containerapp env create \
+            --name "${ENVIRONMENT}" \
+            --resource-group "${RESOURCE_GROUP}" \
+            --location "${LOCATION}" \
+            --output table || echo "environment already exists"
+
+      # Both apps are created with a placeholder image and their registry credentials. The
+      # deploy workflow only ever swaps the image; everything else about an app is set here
+      # and a push cannot change it.
+      #
+      # Registry access uses the ACR admin user rather than a managed identity, because
+      # granting an identity AcrPull needs role-assignment rights, and the Contributor role
+      # this workflow runs as deliberately excludes those. Reading the admin password needs
+      # only Contributor, so this stays inside the privilege we already have.
+      - name: Create the apps
+        run: |
+          ACR="${{ secrets.AZURE_ACR_NAME }}"
+          ACR_PASSWORD=$(az acr credential show --name "$ACR" --query "passwords[0].value" -o tsv)
+
+          create() {
+            local NAME=$1 CPU=$2 MEMORY=$3 MIN=$4 MAX=$5
+
+            if az containerapp show --name "$NAME" --resource-group "${RESOURCE_GROUP}" >/dev/null 2>&1; then
+              echo "$NAME already exists — leaving it alone"
+              return
+            fi
+
+            az containerapp create \
+              --name "$NAME" \
+              --resource-group "${RESOURCE_GROUP}" \
+              --environment "${ENVIRONMENT}" \
+              --image mcr.microsoft.com/k8se/quickstart:latest \
+              --target-port "${APP_PORT}" \
+              --ingress external \
+              --cpu "$CPU" --memory "$MEMORY" \
+              --min-replicas "$MIN" --max-replicas "$MAX" \
+              --registry-server "$ACR.azurecr.io" \
+              --registry-username "$ACR" \
+              --registry-password "$ACR_PASSWORD" \
+              --output none
+
+            echo "created $NAME"
+          }
+
+          # The API holds a replica open because the inbox drain is a timer and a stopped
+          # replica has no CPU to run it. The shop is a static file server with no background
+          # work, so it scales to zero and costs nothing while idle.
+          #
+          # 0.25 vCPU / 0.5 GiB is the smallest Container Apps offers, and it halves the only
+          # line on the bill that runs continuously. It fits because the container holds a
+          # Node process and nothing else: PGlite's WebAssembly Postgres is imported lazily
+          # and never loads when DATABASE_URL is set. If the API starts being OOM-killed,
+          # 0.5 / 1.0Gi is the next step up and roughly doubles that line.
+          create "${API_APP}"  0.25 0.5Gi 1 1
+          create "${SHOP_APP}" 0.25 0.5Gi 0 2
+
+      - name: Report
+        run: echo "Provisioned. Run **Deploy** next, then this workflow again with step=configure." >> $GITHUB_STEP_SUMMARY
+
+  configure:
+    if: inputs.step == 'configure'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install the Container Apps extension
+        run: az extension add --name containerapp --upgrade --allow-preview true
+
+      # Read back rather than hardcoded, so this keeps working if an app is recreated with a
+      # different hostname.
+      - name: Resolve both URLs
+        run: |
+          API_FQDN=$(az containerapp show --name "${API_APP}" --resource-group "${RESOURCE_GROUP}" --query properties.configuration.ingress.fqdn -o tsv)
+          SHOP_FQDN=$(az containerapp show --name "${SHOP_APP}" --resource-group "${RESOURCE_GROUP}" --query properties.configuration.ingress.fqdn -o tsv)
+          echo "API_URL=https://${API_FQDN}" >> $GITHUB_ENV
+          echo "SHOP_URL=https://${SHOP_FQDN}" >> $GITHUB_ENV
+
+      # Values arrive through the step environment rather than being written into the command
+      # text, so nothing lands in a log line that GitHub's masking has to catch.
+      #
+      # TRUST_PROXY is true because Container Apps terminates TLS and forwards the client
+      # address. Without it every request looks like it came from the ingress, the IP
+      # pseudonym collapses to one constant, and per-network velocity silently stops working.
+      #
+      # INBOX_DRAIN_INTERVAL_MS is 5000 rather than the local 1000: Container Apps bills a
+      # replica at the active rate whenever it exceeds 0.01 vCPU or receives more than 1 KB/s,
+      # and a drain waking every second keeps tripping that. Five seconds keeps the replica
+      # idle most of the time, and nothing downstream depends on redaction lag.
+      - name: Configure the API
+        env:
+          DATABASE_URL: ${{ secrets.APP_DATABASE_URL }}
+          PSEUDONYM_KEY_V1: ${{ secrets.APP_PSEUDONYM_KEY }}
+          PAYLOAD_KEY_V1: ${{ secrets.APP_PAYLOAD_KEY }}
+          RAZORPAY_KEY_ID: ${{ secrets.APP_RAZORPAY_KEY_ID }}
+          RAZORPAY_KEY_SECRET: ${{ secrets.APP_RAZORPAY_KEY_SECRET }}
+          RAZORPAY_WEBHOOK_SECRET: ${{ secrets.APP_RAZORPAY_WEBHOOK_SECRET }}
+        run: |
+          az containerapp update \
+            --name "${API_APP}" \
+            --resource-group "${RESOURCE_GROUP}" \
+            --set-env-vars \
+              NODE_ENV=production \
+              PORT="${APP_PORT}" \
+              TRUST_PROXY=true \
+              SEED_DEMO_USERS=true \
+              INBOX_DRAIN_INTERVAL_MS=5000 \
+              WEB_ORIGIN="${API_URL},${SHOP_URL}" \
+              DATABASE_URL="${DATABASE_URL}" \
+              PSEUDONYM_KEY_V1="${PSEUDONYM_KEY_V1}" \
+              PAYLOAD_KEY_V1="${PAYLOAD_KEY_V1}" \
+              RAZORPAY_KEY_ID="${RAZORPAY_KEY_ID}" \
+              RAZORPAY_KEY_SECRET="${RAZORPAY_KEY_SECRET}" \
+              RAZORPAY_WEBHOOK_SECRET="${RAZORPAY_WEBHOOK_SECRET}" \
+            --output none
+
+      - name: Configure the storefront
+        run: |
+          az containerapp update \
+            --name "${SHOP_APP}" \
+            --resource-group "${RESOURCE_GROUP}" \
+            --set-env-vars PORT="${APP_PORT}" API_BASE_URL="${API_URL}" \
+            --output none
+
+      - name: Report
+        run: |
+          {
+            echo "### Live"
+            echo ""
+            echo "- Console: ${API_URL}"
+            echo "- Storefront: ${SHOP_URL}"
+            echo "- Webhook: ${API_URL}/api/webhooks/razorpay"
+          } >> $GITHUB_STEP_SUMMARY

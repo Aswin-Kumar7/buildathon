@@ -336,24 +336,32 @@ explicit set, and an unrecognised value is rejected at startup rather than guess
 
 ## Deployment
 
-Two Cloud Run services in `asia-south1`: `sentinel-api` (API + console, same origin as the
-session cookie it issues) and `sentinel-shop` (the storefront, deliberately on its own
-origin — an anonymous public page must not share a security boundary with an authenticated
-session). Runbook in [`infra/README.md`](infra/README.md); nothing has to be installed
-locally, because Cloud Shell provides the terminal.
+Two Azure Container Apps in `centralindia`: `sentinel-api` (API + console, same origin as the
+session cookie it issues) and `sentinel-shop` (the storefront, deliberately on its own origin
+— an anonymous public page must not share a security boundary with an authenticated
+session). Runbook in [`infra/README.md`](infra/README.md).
 
-**Everything runs from GitHub Actions**, because there is nowhere else to run it: the
-project belongs to somebody else, so there is no Cloud console available and nothing may be
-installed locally. `deploy.yml` builds and deploys on every push to `main`; `gcp-setup.yml`
-is dispatched by hand to do the one-time provisioning and the service configuration that
-would normally be a terminal session.
+**Azure, after Google Cloud proved unavailable.** The GCP project belonged to someone else
+and its billing account turned out to be closed — `billingEnabled: true` on the project while
+`open: false` on the account, so every free call succeeded and everything that provisioned
+failed. Azure for Students gave a subscription with $100 of credit and no card requirement,
+which removed the dependency on somebody else's payment method entirely.
 
-Authentication is a service-account key in a GitHub secret. Workload Identity Federation
-would be better — no long-lived credential anywhere — but it needs IAM admin on the project,
-which we do not have. The migration is two lines per workflow and is written down in the
-runbook.
+It is also far cheaper. Container Apps bills an idle replica at roughly a third of the active
+rate and allows 0.25 vCPU; Cloud Run with CPU always allocated bills the full rate regardless
+and forces a minimum of one vCPU. **Roughly $10–19 a month including the registry, against
+$45–55 on Cloud Run**, for the same always-on shape.
 
-`deploy.yml` passes only `--image`. Configuration lives on the service and is set by the
+PGlite is now imported lazily rather than at module load. It carries a WebAssembly build of
+Postgres, and a production container that only ever talks to a real server has no reason to
+hold it in memory — which is what makes 0.5 GiB a reasonable size to run in.
+
+**GitHub deploys to Azure, authenticated by OpenID Connect** — GitHub presents a signed claim
+naming this repository and branch, Azure trusts it directly, and no long-lived credential
+exists. The Google attempt used a service-account key, which passed through a chat transcript
+and a Downloads folder before it was ever used; this arrangement has nothing to leak.
+
+`deploy.yml` passes only `--image`. Configuration lives on the app and is set by the
 dispatched `configure` step, so a push to `main` can never quietly change how production is
 configured.
 
@@ -361,26 +369,6 @@ The gate lives in `verify.yml` and is called by both `fast.yml` and `deploy.yml`
 deploy job waiting on it. The first version did not do this: both workflows fired on a push
 to main and neither waited for the other, so a commit could deploy while its own tests were
 still failing beside it.
-
-The shop reads the API's address from `API_BASE_URL` at start-up and injects it into
-index.html, rather than having it compiled into the bundle. That was a deliberate change:
-a build-time value makes the shop's image depend on an address that only exists once the
-API is deployed, so neither service could build itself from the repository. As a runtime
-value each one builds independently and they are pointed at each other afterwards.
-
-Three settings there are load-bearing rather than cosmetic:
-
-- **`TRUST_PROXY=true`** — Cloud Run forwards the client address in `X-Forwarded-For`.
-  Without it every request looks like it came from Google's frontend, the IP pseudonym
-  collapses to one constant, and per-network velocity silently stops working.
-- **`--no-cpu-throttling`** — Cloud Run allocates CPU only during a request by default, and
-  the drain is a timer. Without it, events are processed when traffic happens to arrive.
-- **`--max-instances=1`** — the drain polls from inside the API process. Two instances poll
-  the same rows: nothing corrupts, but the attempt counter inflates and rows dead-letter
-  early. Lifting it needs `FOR UPDATE SKIP LOCKED` or a separate worker service.
-
-Secrets go through Secret Manager, never `--set-env-vars`: a revision's environment is
-readable by anyone with Viewer on the project.
 
 ## Next
 

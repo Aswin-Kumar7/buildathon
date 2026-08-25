@@ -1,4 +1,3 @@
-import { PGlite } from '@electric-sql/pglite';
 import { drizzle as drizzlePglite } from 'drizzle-orm/pglite';
 import { drizzle as drizzlePostgres } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
@@ -39,6 +38,11 @@ export async function createDb(url?: string | undefined): Promise<DbHandle> {
       },
     };
   }
+
+  // Imported here rather than at the top of the file. PGlite carries a WebAssembly build of
+  // Postgres, and a production container that will only ever talk to a real server has no
+  // reason to load it — which matters when the container is sized at half a gigabyte.
+  const { PGlite } = await import('@electric-sql/pglite');
 
   const dataDir = process.env.PGLITE_DIR ?? 'memory://';
   const client = await PGlite.create(dataDir);

@@ -1,53 +1,38 @@
-# Builds and deploys both services from GitHub, without connecting the repository inside
-# the Google Cloud console.
+# Builds both images and rolls them out to Azure Container Apps.
 #
-# The console route needs someone signed in to GCP to authorise the Cloud Build GitHub App.
-# When the project belongs to somebody else that is a dead end, so the direction is
-# reversed: GitHub holds the credentials and pushes to Cloud Run, rather than Google pulling
-# from GitHub.
+# Nothing here configures anything. Only `--image` changes, so a push to main can alter what
+# runs and never how it is configured — that lives in azure-setup.yml and is applied by hand.
 #
-# Authentication is a service-account key held in a GitHub secret. Workload Identity
-# Federation would be better — it mints a short-lived token from GitHub's own signed claim,
-# so no long-lived credential exists anywhere — but it has to be configured by someone with
-# IAM admin on the project, and a key is what we have. The migration is two lines in this
-# file plus one setup command; infra/README.md has both.
-#
-# What that choice costs: this key does not expire, and anyone who can read the repository
-# secret, or any workflow that runs in this repository, can deploy to the project. Keep the
-# secret out of pull-request workflows and rotate the key when the project is handed back.
-#
-# Setup and the two repository secrets are in infra/README.md.
+# Authentication is OpenID Connect. GitHub presents a signed claim naming this repository and
+# branch, Azure trusts it directly, and no long-lived credential exists to leak or rotate.
 
 name: Deploy
 
 on:
   push:
     branches: [main]
-  # Deploy without a commit — useful when a build failed for a reason that was not the code.
   workflow_dispatch:
 
 env:
-  REGION: asia-south1
-  REPOSITORY: sentinel
+  RESOURCE_GROUP: sentinel
+  API_APP: sentinel-api
+  SHOP_APP: sentinel-shop
 
-# Only what the jobs actually use. `id-token: write` would be needed for Workload Identity
-# Federation and is deliberately absent, so nothing here can mint an OIDC token it has no
-# use for.
 permissions:
   contents: read
+  id-token: write
 
-# A second push while the first is deploying should supersede it, not race it. The
-# in-progress run is not cancelled, because stopping halfway through a Cloud Run rollout
-# leaves the traffic split somewhere nobody chose.
+# A second push supersedes this one rather than racing it. The in-progress run is not
+# cancelled, because stopping halfway through a rollout leaves the revision split somewhere
+# nobody chose.
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  # Nothing reaches Cloud Run that has not passed the same gate a pull request passes.
-  # Before this, `fast` and `deploy` both fired on a push to main and neither waited for the
-  # other, so a commit with failing tests or a leaked secret deployed anyway while the red
-  # tick appeared beside it.
+  # Nothing reaches production that has not passed the same gate a pull request passes.
+  # These two workflows once both fired on a push and neither waited for the other, so a
+  # commit could deploy while its own tests failed beside it.
   verify:
     uses: ./.github/workflows/verify.yml
 
@@ -82,31 +67,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: google-github-actions/auth@v2
+      - uses: azure/login@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - uses: google-github-actions/setup-gcloud@v2
-
-      - name: Authorise docker against Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Build and push
         run: |
-          IMAGE="${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/api"
+          ACR="${{ secrets.AZURE_ACR_NAME }}"
+          az acr login --name "$ACR"
+
+          IMAGE="$ACR.azurecr.io/sentinel-api"
           docker build --file Dockerfile --tag "$IMAGE:${{ github.sha }}" --tag "$IMAGE:latest" .
           docker push "$IMAGE:${{ github.sha }}"
           docker push "$IMAGE:latest"
 
-      # Only the image. Environment variables and secrets live on the service, set once by
-      # hand, and Cloud Run keeps anything a deploy does not mention — so a push to main can
-      # never quietly change how production is configured.
+      # Updates the existing app in place — same name, same URL, a new revision taking the
+      # traffic. A second app is never created: the name is a constant.
       - name: Deploy
         run: |
-          gcloud run deploy sentinel-api \
-            --image="${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/api:${{ github.sha }}" \
-            --region="${REGION}" \
-            --project="${{ secrets.GCP_PROJECT_ID }}"
+          az containerapp update \
+            --name "${API_APP}" \
+            --resource-group "${RESOURCE_GROUP}" \
+            --image "${{ secrets.AZURE_ACR_NAME }}.azurecr.io/sentinel-api:${{ github.sha }}" \
+            --output none
+
+          FQDN=$(az containerapp show --name "${API_APP}" --resource-group "${RESOURCE_GROUP}" --query properties.configuration.ingress.fqdn -o tsv)
+          echo "- API: https://${FQDN}" >> $GITHUB_STEP_SUMMARY
 
   storefront:
     needs: [verify, changes]
@@ -115,27 +103,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: google-github-actions/auth@v2
+      - uses: azure/login@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - uses: google-github-actions/setup-gcloud@v2
-
-      - name: Authorise docker against Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
-
-      # No build argument for the API's address: the shop reads it from API_BASE_URL at
-      # start-up, which is what lets this image be built without knowing where the API is.
+      # No build argument for the API's address: the shop reads API_BASE_URL at start-up and
+      # injects it into index.html, so this image is built without knowing where the API is.
       - name: Build and push
         run: |
-          IMAGE="${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/storefront"
+          ACR="${{ secrets.AZURE_ACR_NAME }}"
+          az acr login --name "$ACR"
+
+          IMAGE="$ACR.azurecr.io/sentinel-storefront"
           docker build --file Dockerfile.storefront --tag "$IMAGE:${{ github.sha }}" --tag "$IMAGE:latest" .
           docker push "$IMAGE:${{ github.sha }}"
           docker push "$IMAGE:latest"
 
       - name: Deploy
         run: |
-          gcloud run deploy sentinel-shop \
-            --image="${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/storefront:${{ github.sha }}" \
-            --region="${REGION}" \
-            --project="${{ secrets.GCP_PROJECT_ID }}"
+          az containerapp update \
+            --name "${SHOP_APP}" \
+            --resource-group "${RESOURCE_GROUP}" \
+            --image "${{ secrets.AZURE_ACR_NAME }}.azurecr.io/sentinel-storefront:${{ github.sha }}" \
+            --output none
+
+          FQDN=$(az containerapp show --name "${SHOP_APP}" --resource-group "${RESOURCE_GROUP}" --query properties.configuration.ingress.fqdn -o tsv)
+          echo "- Storefront: https://${FQDN}" >> $GITHUB_STEP_SUMMARY
