@@ -29,6 +29,7 @@ export async function applySchema(handle: DbHandle): Promise<void> {
   await createIngestionTables(handle);
   await createIncidentTables(handle);
   await createContainmentTables(handle);
+  await createAuditTable(handle);
 }
 
 /**
@@ -140,6 +141,42 @@ async function createContainmentTables(handle: DbHandle): Promise<void> {
   await handle.db.execute(sql`
     CREATE INDEX IF NOT EXISTS containment_events_containment_idx
       ON sentinel.containment_events (containment_id, at);
+  `);
+}
+
+/**
+ * The audit chain. Append-only, hash-linked, and never updated in place.
+ *
+ * `prev_hash` and `hash` are unique: the first stops two concurrent appends forking the chain,
+ * the second rejects an exact duplicate. `seq` is a bigserial so a deleted row leaves a visible
+ * gap. Created after the tables it references so the actor foreign key resolves.
+ */
+async function createAuditTable(handle: DbHandle): Promise<void> {
+  await handle.db.execute(sql`
+    CREATE TABLE IF NOT EXISTS sentinel.audit_log (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      seq bigserial NOT NULL UNIQUE,
+      at timestamptz NOT NULL,
+      actor_id uuid REFERENCES sentinel.users(id) ON DELETE SET NULL,
+      kind text NOT NULL,
+      subject_type text NOT NULL,
+      subject_id uuid NOT NULL,
+      payload jsonb NOT NULL,
+      policy_version integer,
+      policy_hash text,
+      feature_snapshot_hash text,
+      model_version text,
+      prev_hash text NOT NULL UNIQUE,
+      hash text NOT NULL UNIQUE
+    );
+  `);
+
+  await handle.db.execute(sql`
+    CREATE INDEX IF NOT EXISTS audit_log_subject_idx
+      ON sentinel.audit_log (subject_type, subject_id);
+  `);
+  await handle.db.execute(sql`
+    CREATE INDEX IF NOT EXISTS audit_log_seq_idx ON sentinel.audit_log (seq);
   `);
 }
 

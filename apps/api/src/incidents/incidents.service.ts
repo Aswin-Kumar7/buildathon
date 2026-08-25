@@ -26,6 +26,7 @@ import {
 import type { EvaluateResponse, IncidentDetail, IncidentSummary } from '@sentinel/contracts';
 import { DB } from '../db/db.module.js';
 import { FeaturesService, type EventSource } from '../features/features.service.js';
+import { AuditService } from '../audit/audit.service.js';
 
 /** Entity kinds evaluated on every pass. An attacker rotating one is caught by another. */
 const KINDS: readonly EntityKind[] = ['session', 'device', 'network'];
@@ -41,6 +42,7 @@ export class IncidentsService {
   constructor(
     @Inject(DB) private readonly handle: DbHandle,
     private readonly features: FeaturesService,
+    private readonly audit: AuditService,
   ) {}
 
   /**
@@ -273,7 +275,11 @@ export class IncidentsService {
         : eq(incidents.source, source === 'replay' ? 'replay' : 'razorpay');
 
     const stale = await this.handle.db
-      .select({ id: incidents.id, status: incidents.status })
+      .select({
+        id: incidents.id,
+        status: incidents.status,
+        thresholdHash: incidents.thresholdHash,
+      })
       .from(incidents)
       .where(
         and(
@@ -294,6 +300,15 @@ export class IncidentsService {
         fromStatus: row.status,
         toStatus: 'expired',
         note: 'no activity within the idle window',
+      });
+
+      await this.audit.append({
+        actorId: null,
+        kind: 'incident.transition',
+        subjectType: 'incident',
+        subjectId: row.id,
+        payload: { from: row.status, to: 'expired', note: 'no activity within the idle window' },
+        featureSnapshotHash: row.thresholdHash,
       });
     }
 
@@ -408,6 +423,15 @@ export class IncidentsService {
       toStatus: to,
       actorId,
       ...(note !== undefined && { note }),
+    });
+
+    await this.audit.append({
+      actorId,
+      kind: 'incident.transition',
+      subjectType: 'incident',
+      subjectId: id,
+      payload: { from: row.status, to, note: note ?? null },
+      featureSnapshotHash: row.thresholdHash,
     });
 
     return this.detail(id);

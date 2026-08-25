@@ -1,0 +1,36 @@
+@import './IncidentsPage.css';
+
+.audit-table-wrap {
+  overflow-x: auto;
+}
+
+.audit-table {
+  width: 100%;
+  margin-top: var(--s-3);
+  border-collapse: collapse;
+  font-size: var(--s-text-sm);
+}
+
+.audit-table th,
+.audit-table td {
+  text-align: left;
+  padding: var(--s-2);
+  border-bottom: 1px solid var(--s-line);
+  white-space: nowrap;
+}
+
+.audit-table th {
+  font-size: var(--s-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-ink-2);
+}
+
+.audit-table code {
+  font-family: var(--s-mono);
+}
+
+.audit-detail {
+  white-space: normal;
+  max-width: 22rem;
+}

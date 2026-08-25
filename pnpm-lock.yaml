@@ -65,6 +65,9 @@ importers:
       '@node-rs/argon2':
         specifier: ^2.1.0
         version: 2.1.0
+      '@sentinel/audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
       '@sentinel/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -236,6 +239,18 @@ importers:
       vite:
         specifier: ^6.0.7
         version: 6.4.3(@types/node@22.20.1)(tsx@4.23.12)(yaml@2.9.0)
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.1)(jsdom@25.0.1)(tsx@4.23.12)(yaml@2.9.0)
+
+  packages/audit:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
       vitest:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@22.20.1)(jsdom@25.0.1)(tsx@4.23.12)(yaml@2.9.0)

@@ -31,6 +31,7 @@ COPY packages/ui/package.json packages/ui/
 COPY packages/corpus/package.json packages/corpus/
 COPY packages/detect/package.json packages/detect/
 COPY packages/policy/package.json packages/policy/
+COPY packages/audit/package.json packages/audit/
 
 FROM manifests AS deps
 RUN pnpm install --frozen-lockfile
@@ -63,6 +64,7 @@ COPY --from=build /repo/packages/db/dist packages/db/dist
 COPY --from=build /repo/packages/corpus/dist packages/corpus/dist
 COPY --from=build /repo/packages/detect/dist packages/detect/dist
 COPY --from=build /repo/packages/policy/dist packages/policy/dist
+COPY --from=build /repo/packages/audit/dist packages/audit/dist
 
 # The policy itself, not just the code that reads it. The API refuses to start without it — the
 # alternative is running on defaults nobody chose — so an image that ships the parser and not the

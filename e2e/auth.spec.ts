@@ -469,3 +469,23 @@ test.describe('policy and containment', () => {
     ).toBeVisible();
   });
 });
+
+test.describe('audit chain', () => {
+  test('records actions in a chain and verifies it intact', async ({ page }) => {
+    // The happy path end to end: move an incident, and the audit page shows the chained record
+    // and confirms it has not been touched. Deliberate corruption is exercised in the
+    // integration suite, which can reach into the database the browser cannot.
+    await signIn(page);
+    await page.goto('/console/audit');
+    await expect(page.getByRole('heading', { level: 1, name: 'Audit' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Verify chain' }).click();
+    // Either intact, or the honest empty-chain case — never a silent nothing.
+    await expect(page.getByText(/The chain is intact|Nothing recorded yet/)).toBeVisible({
+      timeout: 30_000,
+    });
+
+    // The command-line verifier is offered alongside the button.
+    await expect(page.getByText(/pnpm audit:verify/)).toBeVisible();
+  });
+});

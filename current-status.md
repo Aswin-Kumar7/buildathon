@@ -3,8 +3,8 @@
 Single source of truth for where Sentinel actually stands. Updated with every change.
 
 **Last updated:** 2026-08-25
-**Current slice:** 10 — Policy, approval and containment (complete, awaiting tag)
-**Latest tag:** `v0.9.1` → `v0.10.0` pending
+**Current slice:** 11 — Audit chain (built; suites written, not yet run)
+**Latest tag:** `v0.10.1` → `v0.11.0` pending
 
 ## Slice progress
 
@@ -21,8 +21,8 @@ Single source of truth for where Sentinel actually stands. Updated with every ch
 | 8 | Rules to incidents | `v0.8.0` | **done** |
 | 9 | Arbitration and suppression | `v0.9.0` | **done** |
 | 10 | Policy, approval and containment | `v0.10.0` | **done** |
-| 11 | Audit chain | `v0.11.0` | **next** |
-| 12 | Model A — real labelled benchmark | `v0.12.0` | not started |
+| 11 | Audit chain | `v0.11.0` | **built (tests pending run)** |
+| 12 | Model A — real labelled benchmark | `v0.12.0` | **next** |
 | 13 | Model B and ONNX serving | `v0.13.0` | not started |
 | 14 | Narration | `v0.14.0` | not started |
 | 15 | Performance and degradation | `v0.15.0` | not started |
@@ -303,6 +303,26 @@ console acts yet. The detail view shows the score as the sum it actually is, eve
 with mitigating evidence in the same list rather than a panel away — a reader deciding whether to
 act on somebody needs to see what argued against it in the same glance.
 
+**Audit chain** — `packages/audit`, and a `sentinel.audit_log` table. Every decision and every
+hand that touched one is appended as an entry carrying the hash of the entry before it, so
+changing any past row changes its hash, which breaks the link the next row recorded. `verifyChain`
+walks the whole thing and reports the **first place it stops adding up** — a mutated field, a
+deleted row, or a reordered pair, each with a reason a person can act on.
+
+The sequence number is a `bigserial` (a deleted row leaves a visible gap) and `prev_hash` is
+unique (two concurrent appends cannot fork the chain — the loser retries against the new head).
+Appends are mirrored from the single choke points the working records already pass through —
+containment events and incident transitions — so no path changes state without leaving a link.
+
+**What it does not claim.** A hash chain alone does not stop a determined attacker with write
+access from rewriting the entire tail consistently; for that the head hash must be anchored
+outside this database. That anchoring is stated as out of scope rather than implied, and the head
+hash the verifier returns is exactly what such an anchor would pin.
+
+**Audit page and per-incident trail** — `/console/audit` lists the chain and carries the **Verify
+chain** button, and the incident detail page shows that incident's own trail. The same walk runs
+from the command line as `pnpm audit:verify`, which exits non-zero on a broken chain.
+
 **System health page** — ingestion rate, duplicate rate, queue depth, oldest waiting event,
 dead-letter depth, late-event count, and the watermark. It states whether ingestion is
 configured *before* showing any number, because an unconfigured webhook and a healthy idle
@@ -315,7 +335,12 @@ attention" never reads as "branded".
 **Gates** — lint, typecheck, unit tests, format check, data-size guard, gitleaks, a payload-leak
 guard, a Docker manifest check, a metrics-freshness check, and end-to-end. **565 unit tests** (api 277, detect 118, web 96,
 policy 31, corpus 20, contracts 13, storefront 10, ui 9), **157 integration tests** and **38
-Playwright tests**.
+Playwright tests** — the last figure verified at slice 10 plus the containment-enforcement pair.
+
+Slice 11 adds an `@sentinel/audit` unit suite, an audit integration suite (including the
+corrupt-and-catch demo), an `AuditPage` web suite, and an E2E case. These are **written but not
+yet executed** — the run is deferred until asked, and the counts above will be updated once it
+has happened rather than before.
 
 ## Security decisions in place
 
@@ -884,7 +909,12 @@ still failing beside it.
 
 ## Next
 
-Slice 11 — the audit chain. Every decision and every hand that touched one, in a tamper-evident
+Slice 11's suites still need a run — unit, integration, and end-to-end — before the slice is
+tagged. After that, Slice 12: Model A, a real labelled benchmark. The detector's rules and
+arbitration are the baseline a learned model has to beat, and this is where that measurement is
+made rather than assumed.
+
+Previously: Slice 11 — the audit chain. Every decision and every hand that touched one, in a tamper-evident
 sequence: containment already records who did what and when, and this makes that record
 impossible to edit after the fact rather than merely inconvenient.
 

@@ -23,6 +23,7 @@ import type { ContainmentDto, PolicyDecisionDto } from '@sentinel/contracts';
 import { DB } from '../db/db.module.js';
 import { FeaturesService } from '../features/features.service.js';
 import { PolicyService } from '../policy/policy.service.js';
+import { AuditService } from '../audit/audit.service.js';
 
 type Row = typeof containments.$inferSelect;
 
@@ -35,6 +36,7 @@ export class ContainmentService {
     @Inject(DB) private readonly handle: DbHandle,
     private readonly features: FeaturesService,
     private readonly policy: PolicyService,
+    private readonly audit: AuditService,
   ) {}
 
   /**
@@ -403,6 +405,15 @@ export class ContainmentService {
     return rows.map((row) => row.actorId).filter((id): id is string => id !== null);
   }
 
+  /**
+   * Writes a containment event, and mirrors it into the tamper-evident audit chain.
+   *
+   * The working record the console reads and the audit entry are written together here, at the
+   * single point every containment event passes through, so there is no path that changes a
+   * containment without leaving a link in the chain. The policy that governed the action rides
+   * along, because "who approved this and under which policy" is the question the audit exists to
+   * answer.
+   */
   private async record(
     containmentId: string,
     kind: string,
@@ -414,6 +425,22 @@ export class ContainmentService {
       kind,
       ...(actorId === null ? {} : { actorId }),
       ...(note === null || note === undefined ? {} : { note }),
+    });
+
+    const [row] = await this.handle.db
+      .select({ pv: containments.policyVersion, ph: containments.policyHash })
+      .from(containments)
+      .where(eq(containments.id, containmentId))
+      .limit(1);
+
+    await this.audit.append({
+      actorId,
+      kind: `containment.${kind}`,
+      subjectType: 'containment',
+      subjectId: containmentId,
+      payload: { note: note ?? null },
+      policyVersion: row?.pv ?? null,
+      policyHash: row?.ph ?? null,
     });
   }
 

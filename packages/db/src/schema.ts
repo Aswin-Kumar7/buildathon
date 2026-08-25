@@ -1,4 +1,5 @@
 import {
+  bigserial,
   boolean,
   doublePrecision,
   index,
@@ -448,3 +449,44 @@ export const containmentEvents = sentinel.table(
   (table) => [index('containment_events_containment_idx').on(table.containmentId, table.at)],
 );
 export type ContainmentEvent = typeof containmentEvents.$inferSelect;
+
+/**
+ * The audit chain: an append-only, hash-linked record of everything decided or done.
+ *
+ * `seq` is a bigserial, so the database assigns a gap-free order and a deleted row leaves a hole
+ * the verifier can see. `prevHash` is unique, which is what stops two concurrent appends from
+ * both linking to the same predecessor and forking the chain — the second insert loses the race
+ * and retries against the new head. `hash` is unique too, as a cheap backstop against an exact
+ * duplicate entry.
+ *
+ * Nothing updates or deletes here. The whole value of the table is that its history cannot be
+ * rewritten without leaving the evidence the verifier is built to find.
+ */
+export const auditLog = sentinel.table(
+  'audit_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    seq: bigserial('seq', { mode: 'number' }).notNull().unique(),
+
+    at: timestamp('at', { withTimezone: true }).notNull(),
+    actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
+
+    kind: text('kind').notNull(),
+    subjectType: text('subject_type').notNull(),
+    subjectId: uuid('subject_id').notNull(),
+    payload: jsonb('payload').notNull(),
+
+    policyVersion: integer('policy_version'),
+    policyHash: text('policy_hash'),
+    featureSnapshotHash: text('feature_snapshot_hash'),
+    modelVersion: text('model_version'),
+
+    prevHash: text('prev_hash').notNull().unique(),
+    hash: text('hash').notNull().unique(),
+  },
+  (table) => [
+    index('audit_log_subject_idx').on(table.subjectType, table.subjectId),
+    index('audit_log_seq_idx').on(table.seq),
+  ],
+);
+export type AuditLogRow = typeof auditLog.$inferSelect;

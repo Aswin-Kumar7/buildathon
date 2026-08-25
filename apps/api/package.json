@@ -30,7 +30,8 @@
     "zod": "^3.24.1",
     "@sentinel/corpus": "workspace:*",
     "@sentinel/detect": "workspace:*",
-    "@sentinel/policy": "workspace:*"
+    "@sentinel/policy": "workspace:*",
+    "@sentinel/audit": "workspace:*"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.2.1",

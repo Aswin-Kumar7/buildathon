@@ -19,7 +19,7 @@ const NAV: NavItem[] = [
   { to: '/console/compare', label: 'Three that look alike' },
   { to: '/console/scenarios', label: 'Scenarios' },
   { to: '/console/policy', label: 'Policy' },
-  { to: '/console/audit', label: 'Audit', arrivesIn: 'Slice 11' },
+  { to: '/console/audit', label: 'Audit' },
   { to: '/console/metrics', label: 'Metrics', arrivesIn: 'Slice 12' },
   { to: '/console/health', label: 'System health' },
 ];

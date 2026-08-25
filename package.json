@@ -22,7 +22,8 @@
     "test:e2e:ui": "playwright test --ui",
     "check:docker": "node scripts/check-docker.mjs",
     "metrics": "pnpm --filter @sentinel/detect metrics",
-    "check:metrics": "pnpm --filter @sentinel/detect check:metrics"
+    "check:metrics": "pnpm --filter @sentinel/detect check:metrics",
+    "audit:verify": "node scripts/audit-verify.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
