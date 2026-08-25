@@ -1,0 +1,59 @@
+@import './IncidentsPage.css';
+
+.policy-editor {
+  display: block;
+  margin: var(--s-3) 0;
+}
+
+.policy-editor span {
+  display: block;
+  font-size: var(--s-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-ink-2);
+  margin-bottom: var(--s-2);
+}
+
+.policy-editor textarea {
+  width: 100%;
+  font-family: var(--s-mono);
+  font-size: var(--s-text-sm);
+  line-height: 1.5;
+  padding: var(--s-2);
+  border: 1px solid var(--s-line);
+  border-radius: var(--s-radius);
+  background: var(--s-surface);
+  color: var(--s-ink);
+  resize: vertical;
+}
+
+.simulation {
+  width: 100%;
+  margin-top: var(--s-3);
+  border-collapse: collapse;
+  font-size: var(--s-text-sm);
+}
+
+.simulation th,
+.simulation td {
+  text-align: left;
+  padding: var(--s-2);
+  border-bottom: 1px solid var(--s-line);
+}
+
+.simulation th {
+  font-size: var(--s-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--s-ink-2);
+}
+
+.simulation .is-changed {
+  background: var(--s-accent-soft, transparent);
+}
+
+/* The direction that costs somebody their checkout, marked so the eye lands on it. */
+.is-nervous {
+  color: var(--s-critical-ink, var(--s-ink));
+  font-weight: 600;
+}

@@ -30,6 +30,7 @@ COPY packages/db/package.json packages/db/
 COPY packages/ui/package.json packages/ui/
 COPY packages/corpus/package.json packages/corpus/
 COPY packages/detect/package.json packages/detect/
+COPY packages/policy/package.json packages/policy/
 
 FROM manifests AS deps
 RUN pnpm install --frozen-lockfile
@@ -61,6 +62,12 @@ COPY --from=build /repo/packages/contracts/dist packages/contracts/dist
 COPY --from=build /repo/packages/db/dist packages/db/dist
 COPY --from=build /repo/packages/corpus/dist packages/corpus/dist
 COPY --from=build /repo/packages/detect/dist packages/detect/dist
+COPY --from=build /repo/packages/policy/dist packages/policy/dist
+
+# The policy itself, not just the code that reads it. The API refuses to start without it — the
+# alternative is running on defaults nobody chose — so an image that ships the parser and not the
+# file is an image that cannot boot.
+COPY --from=build /repo/policy.yaml policy.yaml
 
 # The console, served from the same origin as the API that authenticates it. main.ts looks
 # for this directory relative to the working directory and simply serves nothing if it is

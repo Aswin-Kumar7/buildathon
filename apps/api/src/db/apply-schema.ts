@@ -28,6 +28,7 @@ export async function applySchema(handle: DbHandle): Promise<void> {
   await createTelemetryTables(handle);
   await createIngestionTables(handle);
   await createIncidentTables(handle);
+  await createContainmentTables(handle);
 }
 
 /**
@@ -73,6 +74,72 @@ async function createTypes(handle: DbHandle): Promise<void> {
       CREATE TYPE sentinel.incident_severity AS ENUM ('low', 'medium', 'high');
     EXCEPTION WHEN duplicate_object THEN NULL;
     END $$;
+  `);
+
+  await handle.db.execute(sql`
+    DO $$ BEGIN
+      CREATE TYPE sentinel.containment_status AS ENUM
+        ('proposed', 'active', 'rejected', 'expired', 'released');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+  `);
+}
+
+/**
+ * What was done about an incident, and every hand that touched it.
+ *
+ * The events table is append-only: the sequence is the record, and the slice's exit condition is
+ * that a containment can be proposed, approved, applied and expire with every step attributable.
+ */
+async function createContainmentTables(handle: DbHandle): Promise<void> {
+  await handle.db.execute(sql`
+    CREATE TABLE IF NOT EXISTS sentinel.containments (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      incident_id uuid NOT NULL REFERENCES sentinel.incidents(id) ON DELETE CASCADE,
+      entity_kind text NOT NULL,
+      entity_key text NOT NULL,
+      action text NOT NULL,
+      status sentinel.containment_status NOT NULL DEFAULT 'proposed',
+      approvals_required integer NOT NULL DEFAULT 1,
+      decision jsonb NOT NULL,
+      policy_version integer NOT NULL,
+      policy_hash text NOT NULL,
+      proposed_by uuid REFERENCES sentinel.users(id) ON DELETE SET NULL,
+      proposed_at timestamptz NOT NULL DEFAULT now(),
+      activated_at timestamptz,
+      expires_at timestamptz,
+      ended_at timestamptz,
+      extensions integer NOT NULL DEFAULT 0
+    );
+  `);
+
+  await handle.db.execute(sql`
+    CREATE INDEX IF NOT EXISTS containments_incident_idx
+      ON sentinel.containments (incident_id);
+  `);
+  await handle.db.execute(sql`
+    CREATE INDEX IF NOT EXISTS containments_status_idx
+      ON sentinel.containments (status, expires_at);
+  `);
+  await handle.db.execute(sql`
+    CREATE INDEX IF NOT EXISTS containments_entity_idx
+      ON sentinel.containments (entity_kind, entity_key);
+  `);
+
+  await handle.db.execute(sql`
+    CREATE TABLE IF NOT EXISTS sentinel.containment_events (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      containment_id uuid NOT NULL REFERENCES sentinel.containments(id) ON DELETE CASCADE,
+      kind text NOT NULL,
+      actor_id uuid REFERENCES sentinel.users(id) ON DELETE SET NULL,
+      note text,
+      at timestamptz NOT NULL DEFAULT now()
+    );
+  `);
+
+  await handle.db.execute(sql`
+    CREATE INDEX IF NOT EXISTS containment_events_containment_idx
+      ON sentinel.containment_events (containment_id, at);
   `);
 }
 

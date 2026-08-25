@@ -83,6 +83,23 @@ for (const dependency of runtimeClosure('@sentinel/api', byName)) {
   }
 }
 
+/**
+ * Runtime files that are not code and would therefore be missed by every check above.
+ *
+ * `policy.yaml` is the one that matters: the API refuses to start without it, deliberately,
+ * because the alternative is acting on defaults nobody chose. An image that shipped the parser
+ * and not the file would build cleanly and then fail to boot.
+ */
+const RUNTIME_FILES = ['policy.yaml'];
+
+for (const file of RUNTIME_FILES) {
+  if (!api.includes(`COPY --from=build /repo/${file}`)) {
+    problems.push(
+      `Dockerfile — ${file} is read at startup but never copied into the runtime image; the container would not boot`,
+    );
+  }
+}
+
 if (problems.length > 0) {
   console.error('check:docker failed — an image would not build, or would not run\n');
   for (const problem of problems) console.error(`  ${problem}`);

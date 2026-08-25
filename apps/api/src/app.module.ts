@@ -10,6 +10,8 @@ import { AttemptsModule } from './attempts/attempts.module.js';
 import { ReplayModule } from './replay/replay.module.js';
 import { FeaturesModule } from './features/features.module.js';
 import { IncidentsModule } from './incidents/incidents.module.js';
+import { PolicyModule } from './policy/policy.module.js';
+import { ContainmentModule } from './containment/containment.module.js';
 import { ZodExceptionFilter } from './common/zod-exception.filter.js';
 
 // The filter is registered here rather than in main.ts so tests boot the same wiring the
@@ -27,6 +29,8 @@ import { ZodExceptionFilter } from './common/zod-exception.filter.js';
     ReplayModule,
     FeaturesModule,
     IncidentsModule,
+    PolicyModule,
+    ContainmentModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: ZodExceptionFilter }],
 })

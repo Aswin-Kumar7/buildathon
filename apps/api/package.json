@@ -29,7 +29,8 @@
     "rxjs": "^7.8.1",
     "zod": "^3.24.1",
     "@sentinel/corpus": "workspace:*",
-    "@sentinel/detect": "workspace:*"
+    "@sentinel/detect": "workspace:*",
+    "@sentinel/policy": "workspace:*"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.2.1",

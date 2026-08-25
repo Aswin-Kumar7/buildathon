@@ -1,0 +1,89 @@
+# Sentinel policy
+#
+# Everything the system is allowed to do to a shopper, in one file a person can read and a
+# reviewer can diff. Nothing below is inferred, defaulted in code, or adjustable at runtime by
+# anything other than editing this file — a policy that can be changed from a console is a
+# policy nobody can reconstruct afterwards.
+#
+# `version` is bumped by hand. Every decision records the version and the hash of this file that
+# produced it, so "why did it do that in March" has an answer that does not depend on what the
+# file says today.
+
+version: 1
+
+# Stops everything, immediately, without a deploy. Nothing customer-impacting happens while this
+# is true — not containment, not step-up, not an approval already granted. The one control that
+# has to work when nothing else does, so it is checked first and its refusal is unconditional.
+killSwitch: false
+
+# How well the attack hypothesis must fit before each action is even proposed. These sit above
+# the detector's own containment floor: the detector decides what something *is*, and this
+# decides what may be *done* about it, which is a higher bar.
+thresholds:
+  # Ask the shopper for another factor. Visible to them, but nothing is refused.
+  stepUp: 0.55
+  # Refuse the attempt. The only action that stops somebody paying.
+  contain: 0.75
+
+containment:
+  # Every containment expires. There is no permanent action in this system: the failure mode of
+  # a block that never lifts is a customer who can never pay again, and nobody notices because
+  # nothing failed.
+  defaultMinutes: 30
+  # An analyst may extend, but not past this. Extending is a decision that must be made again
+  # rather than a way of arriving at a permanent block by increments.
+  maxMinutes: 120
+  maxExtensions: 2
+
+approval:
+  # Below this estimated impact one analyst may act alone. Above it, two people who are not the
+  # same person must agree — the threshold is expressed in money because that is what is at
+  # stake, not in severity, which is a label the system itself chose.
+  dualApprovalAbovePaise: 50000
+  # Containment is never automatic, whatever the score. A system that can block a paying
+  # customer without a person in the loop is one bad threshold away from an outage of its own.
+  containmentAlwaysNeedsApproval: true
+
+# Ceilings that hold regardless of how confident anything is. A detector convinced that half the
+# shop is an attack is far more likely to be wrong than right, and these are what stop a
+# confident mistake becoming a large one.
+impactCaps:
+  maxActiveContainments: 5
+  maxContainmentsPerHour: 10
+  # Share of the shop's active sessions that may be contained at once.
+  maxShareOfActiveSessions: 0.05
+  # ...but only once there are enough sessions for a share to mean anything. In a shop with
+  # three customers, containing one is a third of it, and a proportion over three samples
+  # carries no information while looking like an emergency — so below this the absolute caps
+  # above are what hold, and they still do.
+  shareAppliesAboveSessions: 20
+
+# Never acted against, whatever the evidence. Intended for known billers, load tests and
+# partners — anything whose failure pattern is legitimately indistinguishable from an attack.
+allowlist:
+  sessions: []
+  devices: []
+  networks: []
+
+# What state the system must be in before it may affect a customer.
+#
+# The rule this encodes: if we cannot see clearly, we do not act. Stale features, unconfirmed
+# counts and an arbitration that abstained are all reasons to stop short of anything the shopper
+# would notice — and each produces an operational incident rather than silence, because a
+# detector that quietly stops protecting anything is worse than one that says it has.
+degradation:
+  maxFeatureAgeMinutes: 15
+  requireConfirmedCounts: true
+  refuseWhenArbitrationAbstained: true
+
+# Declared, not inferred. The expected-cost figures shown beside a decision are only as honest as
+# these numbers, so they live where they can be argued with rather than inside a function.
+#
+# Sources: a disputed card-testing transaction costs the chargeback fee plus the disputed amount;
+# a wrongly blocked shopper costs the basket and some fraction of their future custom. Both are
+# order-of-magnitude estimates for a demo merchant and are labelled as such wherever they appear.
+costs:
+  chargebackPaise: 150000
+  blockedShopperPaise: 120000
+  # An analyst's time, for the case where the honest answer is "someone should look".
+  reviewPaise: 20000

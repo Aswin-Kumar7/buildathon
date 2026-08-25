@@ -18,6 +18,7 @@ import { FeaturesPage } from './routes/FeaturesPage.js';
 import { IncidentsPage } from './routes/IncidentsPage.js';
 import { IncidentDetailPage } from './routes/IncidentDetailPage.js';
 import { ComparePage } from './routes/ComparePage.js';
+import { PolicyPage } from './routes/PolicyPage.js';
 import { AppShell } from './shell/AppShell.js';
 
 export const queryClient = new QueryClient({
@@ -107,6 +108,12 @@ const compareRoute = createRoute({
   component: ComparePage,
 });
 
+const policyRoute = createRoute({
+  getParentRoute: () => consoleRoute,
+  path: '/policy',
+  component: PolicyPage,
+});
+
 const scenariosRoute = createRoute({
   getParentRoute: () => consoleRoute,
   path: '/scenarios',
@@ -123,6 +130,7 @@ const routeTree = rootRoute.addChildren([
     incidentsRoute,
     incidentDetailRoute,
     compareRoute,
+    policyRoute,
     scenariosRoute,
     healthRoute,
   ]),

@@ -9,6 +9,7 @@ import {
 } from '@sentinel/contracts';
 import { csrfHeaders } from '../auth/api.js';
 import { ABSTENTION_REASON, phraseFor, ruleName, suggestedAction } from '../incidents/evidence.js';
+import { ContainmentPanel } from '../incidents/ContainmentPanel.js';
 import './IncidentsPage.css';
 
 async function fetchIncident(id: string): Promise<IncidentDetail> {
@@ -276,6 +277,7 @@ export function IncidentDetailPage(): React.JSX.Element {
 
       <Breakdown incident={it} />
       <Change incident={it} />
+      <ContainmentPanel incidentId={it.id} />
 
       <History
         incident={it}

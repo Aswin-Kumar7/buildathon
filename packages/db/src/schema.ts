@@ -362,3 +362,89 @@ export const incidentTransitions = sentinel.table(
   (table) => [index('incident_transitions_incident_idx').on(table.incidentId, table.at)],
 );
 export type IncidentTransition = typeof incidentTransitions.$inferSelect;
+
+export const containmentStatusEnum = sentinel.enum('containment_status', [
+  'proposed',
+  'active',
+  'rejected',
+  'expired',
+  'released',
+]);
+
+/**
+ * A proposed or applied action against one entity.
+ *
+ * Separate from the incident because they answer different questions. An incident is what we
+ * think is happening; a containment is what was done about it, by whom, and until when. One
+ * incident can produce several over its life — a step-up that was not enough, then a block, then
+ * a release — and collapsing them into a status field on the incident would lose the sequence.
+ *
+ * `expiresAt` is not nullable for anything the shopper notices. That is enforced in the service
+ * rather than the column because `observe` and `escalate` legitimately have none, but the rule
+ * it protects is the important one: nothing this system does to a customer is permanent.
+ */
+export const containments = sentinel.table(
+  'containments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    incidentId: uuid('incident_id')
+      .notNull()
+      .references(() => incidents.id, { onDelete: 'cascade' }),
+
+    entityKind: text('entity_kind').notNull(),
+    entityKey: text('entity_key').notNull(),
+
+    action: text('action').notNull(),
+    status: containmentStatusEnum('status').notNull().default('proposed'),
+
+    /** How many distinct people must agree before it takes effect. */
+    approvalsRequired: integer('approvals_required').notNull().default(1),
+
+    /** The decision exactly as the policy produced it, including what it refused. */
+    decision: jsonb('decision').notNull(),
+    policyVersion: integer('policy_version').notNull(),
+    policyHash: text('policy_hash').notNull(),
+
+    proposedBy: uuid('proposed_by').references(() => users.id, { onDelete: 'set null' }),
+    proposedAt: timestamp('proposed_at', { withTimezone: true }).notNull().defaultNow(),
+
+    activatedAt: timestamp('activated_at', { withTimezone: true }),
+    /** Null only for actions with no customer impact. Everything else expires. */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+    extensions: integer('extensions').notNull().default(0),
+  },
+  (table) => [
+    index('containments_incident_idx').on(table.incidentId),
+    index('containments_status_idx').on(table.status, table.expiresAt),
+    index('containments_entity_idx').on(table.entityKind, table.entityKey),
+  ],
+);
+export type Containment = typeof containments.$inferSelect;
+
+/**
+ * Every hand that touched a containment, append-only.
+ *
+ * The slice's exit condition is that a containment can be proposed, approved, applied and expire
+ * on its own **with every step attributable**. This is where that lives. Nothing updates a row
+ * here; the sequence is the record, and a record that can be edited answers no questions.
+ */
+export const containmentEvents = sentinel.table(
+  'containment_events',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    containmentId: uuid('containment_id')
+      .notNull()
+      .references(() => containments.id, { onDelete: 'cascade' }),
+
+    /** `proposed`, `approved`, `rejected`, `activated`, `extended`, `released`, `expired`. */
+    kind: text('kind').notNull(),
+    /** Null when the system did it. Expiry is automatic and names nobody rather than blaming one. */
+    actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
+    note: text('note'),
+
+    at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('containment_events_containment_idx').on(table.containmentId, table.at)],
+);
+export type ContainmentEvent = typeof containmentEvents.$inferSelect;

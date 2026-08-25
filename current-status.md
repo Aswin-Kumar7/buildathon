@@ -3,8 +3,8 @@
 Single source of truth for where Sentinel actually stands. Updated with every change.
 
 **Last updated:** 2026-08-25
-**Current slice:** 9 — Arbitration and suppression (complete, awaiting tag)
-**Latest tag:** `v0.8.0` → `v0.9.0` pending
+**Current slice:** 10 — Policy, approval and containment (complete, awaiting tag)
+**Latest tag:** `v0.9.1` → `v0.10.0` pending
 
 ## Slice progress
 
@@ -20,8 +20,8 @@ Single source of truth for where Sentinel actually stands. Updated with every ch
 | 7 | Features, tiles and sketches | `v0.7.0` | **done** |
 | 8 | Rules to incidents | `v0.8.0` | **done** |
 | 9 | Arbitration and suppression | `v0.9.0` | **done** |
-| 10 | Policy, approval and containment | `v0.10.0` | **next** |
-| 11 | Audit chain | `v0.11.0` | not started |
+| 10 | Policy, approval and containment | `v0.10.0` | **done** |
+| 11 | Audit chain | `v0.11.0` | **next** |
 | 12 | Model A — real labelled benchmark | `v0.12.0` | not started |
 | 13 | Model B and ONNX serving | `v0.13.0` | not started |
 | 14 | Narration | `v0.14.0` | not started |
@@ -241,6 +241,44 @@ the threshold on rate, spread and amount alone, none of which is the count the c
 never necessary: the case is carried by `error_source` and by how far failure has spread, both
 present on every ordinary webhook.
 
+**Policy** — `policy.yaml` at the repository root, parsed at startup, and the API **refuses to
+start without it**. A threshold in a function is a decision nobody reviews; a threshold in a
+versioned file is a diff somebody has to approve, and the alternative to refusing is running on
+defaults nobody chose. Parsing is strict: a missing value is not zero, every problem is reported
+at once, and relationships between fields are checked — blocking a payment cannot need less
+evidence than asking for another factor.
+
+Every decision records the policy version and a hash of the values, so "why did it do that six
+weeks ago" has an answer that does not depend on what the file says today.
+
+**Five actions, all reversible, all expiring** — `observe`, `step_up`, `contain`, `escalate`,
+`release`. That is the constraint the list was written under rather than a property of the
+current five, and it is asserted: nothing customer-impacting may exist without an expiry. The
+failure mode of a block that never lifts is a shopper who can never pay again while nothing
+appears to have gone wrong.
+
+**Containment is never automatic**, whatever the score, and needs two people when the cost of
+being wrong is high — which rises as confidence falls, so the less sure the system is, the more
+people have to agree. The same person approving twice is refused, which is the entire content of
+dual approval.
+
+**The degradation matrix**: if we cannot see clearly, we do not touch a customer. Stale features,
+counts that were never confirmed, and an arbitration that abstained each forbid anything the
+shopper would notice — and each escalates to a person rather than falling silent, because a
+detector that quietly stops protecting anything is worse than one that says so.
+
+**Impact caps and a kill switch.** Ceilings that hold however confident anything is, and one
+control that stops everything without a deploy, checked first and unconditionally.
+
+**Expiry runs on a timer and needs nobody.** An action that has to be remembered and undone is
+one that will still be in place next month.
+
+**Policy page and simulator** — `/console/policy`. Shows the policy actually loaded, and answers
+"what would this have decided?" against incidents that already happened. It saves nothing and
+acts on nothing — a simulator with a side effect is a deploy with extra steps. What a candidate
+would **newly contain** is called out on its own, because more containment is the direction that
+costs somebody their checkout.
+
 **Three that look alike** — `/console/compare`. An attack, an outage and a dunning storm side by
 side in the same layout, with the same thresholds judging all three, reaching three different
 decisions. Each column shows the entity, the shop around it, every explanation weighed with its
@@ -269,9 +307,9 @@ Badge, Card, Callout, Table. Semantic colour is kept separate from the accent so
 attention" never reads as "branded".
 
 **Gates** — lint, typecheck, unit tests, format check, data-size guard, gitleaks, a payload-leak
-guard, a Docker manifest check, a metrics-freshness check, and end-to-end. **507 unit tests** (api 262, detect 118, web 84,
-corpus 20, contracts 13, storefront 10, ui 9), **140 integration tests** and **35 Playwright
-tests**.
+guard, a Docker manifest check, a metrics-freshness check, and end-to-end. **565 unit tests** (api 277, detect 118, web 96,
+policy 31, corpus 20, contracts 13, storefront 10, ui 9), **155 integration tests** and **38
+Playwright tests**.
 
 ## Security decisions in place
 
@@ -423,6 +461,32 @@ problems. It is now a real trace rather than a fixture.
   order — so the first version tested one session and reported green
 
 ## Corrections
+
+**The policy hash did not depend on the policy.** `JSON.stringify(policy, sortedKeys)` looks
+right and is not: an array replacer is a key *filter*, and dotted paths match none of the actual
+keys, so it hashed an almost-empty object. Every decision was recording a fingerprint that would
+not have changed if every threshold in the file had. Caught by the test that asserted a changed
+value changes the hash.
+
+**A share cap made containment impossible in a small shop.** "At most 5% of active sessions"
+reads as a sensible ceiling and means that a shop with three customers can never contain anyone,
+because one of three is a third of everything. The same mistake as reading a shape into six
+attempts: a proportion over a tiny sample carries no information while looking like an
+emergency. The share now applies only above a declared number of sessions; the absolute caps
+still hold below it.
+
+**Replayed incidents could never be acted on.** Staleness is measured against the wall clock,
+which is right — a pipeline an hour behind must not be blocking anybody — and makes every
+replayed scenario months stale, so the degradation matrix refused everything and the approval
+flow could not be exercised or shown. A replayed incident is now judged standing at the moment of
+its own data, and the decision carries a code saying so: a containment against a replayed session
+blocks nobody, and pretending it was decided in the present would be the dishonest half.
+
+**The Docker guard earned its place.** Adding `packages/policy` broke both images, and the check
+written two slices ago caught it before a build did. It did not catch that `policy.yaml` itself
+must reach the runtime — the API refuses to start without it, so the image would have built
+cleanly and failed to boot. The guard now checks runtime files too.
+
 
 **`METRICS.md` was generated and then never checked.** A committed artefact nobody regenerates is
 a file that makes confident claims about a detector that has since changed. `pnpm check:metrics`
@@ -800,7 +864,11 @@ still failing beside it.
 
 ## Next
 
-Slice 10 — policy, approval and containment. The first slice that can actually *do* something:
+Slice 11 — the audit chain. Every decision and every hand that touched one, in a tamper-evident
+sequence: containment already records who did what and when, and this makes that record
+impossible to edit after the fact rather than merely inconvenient.
+
+Previously: Slice 10 — policy, approval and containment. The first slice that can actually *do* something:
 versioned policy as code, the five reversible actions with mandatory expiry, and dual approval
 above an impact threshold. Everything so far decides and explains; nothing yet acts.
 

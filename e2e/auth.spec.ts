@@ -169,8 +169,8 @@ test.describe('console shell', () => {
   test('marks unbuilt sections as unavailable rather than faking them', async ({ page }) => {
     await signIn(page);
     // Present as text, but deliberately not a link — the slice number is shown instead.
-    await expect(page.getByText('Policy')).toBeVisible();
-    await expect(page.getByRole('link', { name: /Policy/ })).toHaveCount(0);
+    await expect(page.getByText('Audit')).toBeVisible();
+    await expect(page.getByRole('link', { name: /Audit/ })).toHaveCount(0);
   });
 
   test('signs out and loses access to the console', async ({ page }) => {
@@ -393,6 +393,79 @@ test.describe('three that look alike', () => {
     // act, in the same layout as the column that says to act.
     await expect(
       page.getByText(/customers are punished for an outage that is not theirs or ours/),
+    ).toBeVisible();
+  });
+});
+
+test.describe('policy and containment', () => {
+  // Replays a scenario, detects, then proposes, approves and releases — the whole loop.
+  test.describe.configure({ timeout: 150_000 });
+
+  test('shows the policy it is running and refuses to be edited from here', async ({ page }) => {
+    await signIn(page);
+    await page.getByRole('link', { name: 'Policy' }).click();
+
+    await expect(page.getByRole('heading', { level: 1, name: 'Policy' })).toBeVisible();
+    await expect(page.getByText(/Version \d+/)).toBeVisible({ timeout: 30_000 });
+    // Stated on the page a person would otherwise expect to edit.
+    await expect(page.getByText(/policy\.yaml/)).toBeVisible();
+  });
+
+  test('simulates a candidate policy without changing anything', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/console/policy');
+    await expect(page.getByText(/Version \d+/)).toBeVisible({ timeout: 30_000 });
+
+    // Deliberately broken, so the answer is a list of problems rather than an exception in a
+    // console the person editing cannot see.
+    await page.getByRole('textbox').fill('version: 1\nkillSwitch: false\n');
+    await page.getByRole('button', { name: 'Simulate' }).click();
+
+    await expect(page.getByText(/That policy is not usable/)).toBeVisible({ timeout: 30_000 });
+    // Nothing was saved: the loaded policy is unchanged.
+    await page.reload();
+    await expect(page.getByText(/Version \d+/)).toBeVisible({ timeout: 30_000 });
+  });
+
+  test('proposes, approves and releases an action, attributably', async ({ page }) => {
+    // The slice's exit condition, short of waiting half an hour for the expiry — which the
+    // integration suite covers by moving the clock rather than by sitting still.
+    await signIn(page);
+    await page.goto('/console/scenarios');
+    await expect(page.getByRole('heading', { level: 1, name: 'Scenarios' })).toBeVisible({
+      timeout: 60_000,
+    });
+
+    const clear = page.getByRole('button', { name: 'Remove replayed events' });
+    if (await clear.isEnabled()) {
+      await clear.click();
+      await expect(clear).toBeDisabled({ timeout: 30_000 });
+    }
+
+    const replay = page.getByRole('button', { name: 'Replay Card enumeration, undisguised' });
+    await expect(replay).toBeVisible({ timeout: 60_000 });
+    await replay.click();
+    await expect(page.getByText(/events and \d+ checkouts written/)).toBeVisible({
+      timeout: 30_000,
+    });
+
+    await page.goto('/console/incidents');
+    await page.getByRole('button', { name: 'Replayed' }).click();
+    await expect(async () => {
+      await page.getByRole('button', { name: 'Run detection' }).click();
+      await expect(page.getByText('Card spread').first()).toBeVisible({ timeout: 5_000 });
+    }).toPass({ timeout: 90_000 });
+
+    await page.getByRole('link', { name: 'Open' }).first().click();
+    await expect(page.getByRole('heading', { name: 'Action' })).toBeVisible({ timeout: 30_000 });
+
+    await page.getByRole('button', { name: 'Ask the policy' }).click();
+
+    // What the policy decided, and what it would not allow, in the same panel.
+    await expect(page.getByText('Approvals needed')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/What being wrong would cost/)).toBeVisible();
+    await expect(
+      page.getByText(/Judged standing at the moment of the replayed data/),
     ).toBeVisible();
   });
 });
