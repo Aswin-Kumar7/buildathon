@@ -269,8 +269,8 @@ Badge, Card, Callout, Table. Semantic colour is kept separate from the accent so
 attention" never reads as "branded".
 
 **Gates** — lint, typecheck, unit tests, format check, data-size guard, gitleaks, a payload-leak
-guard, a Docker manifest check, and end-to-end. **505 unit tests** (api 260, detect 118, web 84,
-corpus 20, contracts 13, storefront 10, ui 9), **138 integration tests** and **35 Playwright
+guard, a Docker manifest check, a metrics-freshness check, and end-to-end. **507 unit tests** (api 262, detect 118, web 84,
+corpus 20, contracts 13, storefront 10, ui 9), **140 integration tests** and **35 Playwright
 tests**.
 
 ## Security decisions in place
@@ -423,6 +423,28 @@ problems. It is now a real trace rather than a fixture.
   order — so the first version tested one session and reported green
 
 ## Corrections
+
+**`METRICS.md` was generated and then never checked.** A committed artefact nobody regenerates is
+a file that makes confident claims about a detector that has since changed. `pnpm check:metrics`
+now regenerates it in memory and fails if it differs, in the gate and in CI — the same treatment
+the formatter gets, for the same reason.
+
+**Arbitration was stored and never asserted on.** Every arbitration test pointed at `/compare`,
+which computes from the corpus and never touches the database, so the column the detection pass
+writes was entirely uncovered. It turned out to be correct; the point is that it was the same
+gap that let the change detector stay wired to nothing for a slice.
+
+**Counting payments made the hot path quadratic.** Collapsing webhooks to payments runs inside
+the pure functions so it cannot be forgotten, but a pass calls `computeFeatures` once per entity
+with the same array — thousands of dedupes of twenty thousand rows. Memoised on the input array,
+and the discovery step now groups once instead of filtering per entity. A pass over 20,000 events
+and 20,000 entities went from quadratic to **1.5 seconds**.
+
+**The console overstated what it had considered.** `candidates` counted every entity key across
+the whole read, which is bounded by row count rather than by time, while the vectors beside it
+were window-filtered — so a page saying "N entities seen" could claim thousands when the window
+held two. It now counts the entities actually judged.
+
 
 **Webhooks were being counted as payment attempts.** A successful payment emits three of them —
 authorized, captured, order paid — and a failed one emits a single event. Every rate in the

@@ -1,6 +1,7 @@
 export { decayFactor, decayed, decayedCount, minutes } from './decay.js';
 export { HyperLogLog, estimateDistinct, type DistinctEstimate } from './hyperloglog.js';
 export {
+  computeAllFeatures,
   computeFeatures,
   DEFAULT_WINDOW,
   type EntityKind,

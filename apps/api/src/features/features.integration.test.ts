@@ -94,7 +94,10 @@ describe('features', () => {
 
     expect(response.status).toBe(200);
     const body = response.body as FeatureRankResponse;
-    expect(body.candidates).toBeGreaterThan(10);
+    // Entities inside the window, which is a small number here and used to be a large one:
+    // this asserted more than ten while counting every key across the whole read, most of them
+    // hours outside the window being judged.
+    expect(body.candidates).toBeGreaterThan(0);
     expect(body.vectors.length).toBeGreaterThan(0);
     expect(body.vectors.every((v) => v.entityKind === 'session')).toBe(true);
   });
@@ -124,6 +127,20 @@ describe('features', () => {
     }
     // The five-minute enumeration burst is long over by the anchor moment.
     expect(body.vectors.some((v) => cardsOf(v) > 20)).toBe(false);
+  });
+
+  it('counts the entities it actually judged, not every key it has ever seen', async () => {
+    // The read is bounded by row count rather than by time, so counting keys across all of it
+    // claimed thousands had been considered while the window held a handful — beside a page
+    // that says "entities seen" next to the few it shows.
+    const body = (await h.rank('session', '?limit=1')).body as FeatureRankResponse;
+
+    expect(body.candidates).toBeGreaterThan(0);
+    expect(body.vectors).toHaveLength(1);
+
+    const all = (await h.rank('session', '?limit=100')).body as FeatureRankResponse;
+    expect(body.candidates).toBe(all.candidates);
+    expect(all.candidates).toBeGreaterThanOrEqual(all.vectors.length);
   });
 
   it('confirms every sketch count it returns', async () => {

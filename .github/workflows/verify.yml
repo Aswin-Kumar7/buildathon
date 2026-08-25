@@ -46,6 +46,12 @@ jobs:
       - name: docker manifest check
         run: pnpm check:docker
 
+      # METRICS.md is generated from the corpus and the thresholds. A threshold moved without
+      # regenerating it leaves a file in the repository stating results the detector no longer
+      # produces — which is worse than having no file at all.
+      - name: metrics are current
+        run: pnpm check:metrics
+
       - name: assert nothing changed
         run: |
           pnpm format

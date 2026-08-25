@@ -47,7 +47,20 @@ const OUTCOME_RANK: Record<Observation['outcome'], number> = {
   captured: 3,
 };
 
+/**
+ * Memoised on the input array.
+ *
+ * A detection pass calls `computeFeatures` once per entity — thousands of times — always with
+ * the same observation array, and collapsing to payments is O(n) each time. Keyed on the array
+ * reference rather than its contents because these arrays are read-only everywhere they travel,
+ * and a `WeakMap` lets the whole thing be collected the moment the pass is over.
+ */
+const deduped = new WeakMap<readonly Observation[], Observation[]>();
+
 export function perPayment(observations: readonly Observation[]): Observation[] {
+  const cached = deduped.get(observations);
+  if (cached !== undefined) return cached;
+
   const byPayment = new Map<string, Observation>();
   const unkeyed: Observation[] = [];
 
@@ -78,7 +91,9 @@ export function perPayment(observations: readonly Observation[]): Observation[] 
     });
   }
 
-  return [...byPayment.values(), ...unkeyed].sort((a, b) => a.at - b.at);
+  const result = [...byPayment.values(), ...unkeyed].sort((a, b) => a.at - b.at);
+  deduped.set(observations, result);
+  return result;
 }
 
 /** What a decision can act on. Containment applies to one of these, so features key on them. */
@@ -275,6 +290,52 @@ export function computeFeatures(
     (o) => keyOf(o, entityKind) === entityKey && o.at <= asOf && o.at >= from,
   );
 
+  return featuresFrom(entityKind, entityKey, observations, asOf, window, confirmExact);
+}
+
+/**
+ * Every entity of one kind, from one pass over the observations.
+ *
+ * `computeFeatures` filters the whole array per entity, which is fine for one and quadratic for
+ * a shop: a detection pass over twenty thousand events with a few thousand sessions rescans the
+ * array a few thousand times, three times over for the three entity kinds. Grouping once turns
+ * that into a single pass, and the per-entity function stays for the one-entity case and for
+ * tests.
+ */
+export function computeAllFeatures(
+  entityKind: EntityKind,
+  all: readonly Observation[],
+  asOf: number,
+  window: FeatureWindow = DEFAULT_WINDOW,
+  confirmExact = true,
+): FeatureVector[] {
+  const from = asOf - window.windowMs;
+  const grouped = new Map<string, Observation[]>();
+
+  for (const observation of perPayment(all)) {
+    if (observation.at > asOf || observation.at < from) continue;
+    const key = keyOf(observation, entityKind);
+    if (key === null || key === '') continue;
+
+    const bucket = grouped.get(key);
+    if (bucket === undefined) grouped.set(key, [observation]);
+    else bucket.push(observation);
+  }
+
+  return [...grouped].map(([key, observations]) =>
+    featuresFrom(entityKind, key, observations, asOf, window, confirmExact),
+  );
+}
+
+/** The computation itself, over observations already narrowed to one entity and one window. */
+function featuresFrom(
+  entityKind: EntityKind,
+  entityKey: string,
+  observations: readonly Observation[],
+  asOf: number,
+  window: FeatureWindow,
+  confirmExact: boolean,
+): FeatureVector {
   const times = observations.map((o) => o.at);
   const failures = observations.filter((o) => o.outcome === 'failed');
   const captures = observations.filter((o) => o.outcome === 'captured');

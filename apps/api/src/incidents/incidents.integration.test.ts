@@ -180,6 +180,23 @@ describe('incidents', () => {
     expect(after.incidents.map((i) => i.status)).toEqual(before.incidents.map((i) => i.status));
   });
 
+  it('stores the arbitration beside the evidence that produced it', async () => {
+    // Every arbitration assertion in this file was on the /compare endpoint, which computes
+    // from the corpus and never touches the database — so the column the detection pass writes
+    // was entirely unchecked. That is how the change detection stayed wired to nothing.
+    const list = (await h.get('/api/incidents')).body as IncidentListResponse;
+    const detail = (await h.get(`/api/incidents/${list.incidents[0]!.id}`))
+      .body as IncidentDetailResponse;
+
+    expect(detail.incident.arbitration).not.toBeNull();
+    const arbitration = detail.incident.arbitration!;
+
+    expect(arbitration.best).toBe('attack');
+    expect(arbitration.fits).toHaveLength(5);
+    expect(arbitration.runnerUp).not.toBe(arbitration.best);
+    expect(arbitration.reasons.length).toBeGreaterThan(0);
+  });
+
   it('measures time-to-detect from the attempt rather than the pass', async () => {
     const body = (await h.get('/api/incidents')).body as IncidentListResponse;
     const incident = body.incidents[0]!;

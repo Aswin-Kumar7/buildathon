@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { desc, eq } from 'drizzle-orm';
 import { canonicalEvents, checkoutSessions, type DbHandle } from '@sentinel/db';
 import {
+  computeAllFeatures,
   computeFeatures,
   DEFAULT_WINDOW,
   type EntityKind,
@@ -143,23 +144,6 @@ export class FeaturesService {
     };
   }
 
-  private static keysFor(
-    observations: readonly Observation[],
-    entityKind: EntityKind,
-  ): Set<string> {
-    const keys = new Set<string>();
-    for (const observation of observations) {
-      const key =
-        entityKind === 'session'
-          ? observation.sessionPseudonym
-          : entityKind === 'device'
-            ? observation.devicePseudonym
-            : observation.ipPseudonym;
-      if (key !== null && key !== '') keys.add(key);
-    }
-    return keys;
-  }
-
   /**
    * Feature vectors for every entity with recent activity.
    *
@@ -175,11 +159,14 @@ export class FeaturesService {
       DEFAULT_WINDOW.windowMs,
     );
 
-    const keys = FeaturesService.keysFor(observations, entityKind);
+    // One grouped pass rather than one filter per entity. The discovery step runs over every
+    // entity in the window, so filtering the whole array each time made the cost quadratic in
+    // a busy shop — thousands of sessions rescanning twenty thousand events, three times over.
+    const judged = computeAllFeatures(entityKind, observations, asOf, DEFAULT_WINDOW, false).filter(
+      (vector) => vector.attempts > 0,
+    );
 
-    const discovery = [...keys]
-      .map((key) => computeFeatures(entityKind, key, observations, asOf, DEFAULT_WINDOW, false))
-      .filter((vector) => vector.attempts > 0)
+    const discovery = [...judged]
       // Ranked by what actually needs a human: failures, then how many distinct cards were
       // involved. Neither is a verdict; both are reasons to look.
       .sort(
@@ -195,7 +182,11 @@ export class FeaturesService {
     );
 
     return {
-      candidates: keys.size,
+      // Entities actually judged, not every key ever seen. The read is bounded by row count
+      // rather than by time, so counting keys across all of it claimed thousands had been
+      // considered while the window held a handful — and the console says "entities seen" next
+      // to the few it shows.
+      candidates: judged.length,
       vectors,
       asOf,
       generatedAt,

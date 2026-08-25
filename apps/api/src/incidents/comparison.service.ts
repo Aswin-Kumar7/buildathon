@@ -13,6 +13,24 @@ import {
 import type { ComparisonCase, ComparisonResponse } from '@sentinel/contracts';
 
 /**
+ * The whole scenario, not the thirty-minute window a live decision uses.
+ *
+ * A demonstration of three recorded episodes should show all three of them; anchoring to the
+ * newest event and looking back half an hour would show the tail of the longest and nothing of
+ * the shortest, which is an artefact of the corpus rather than anything about the detector. The
+ * window is an observation period, not a threshold — the thresholds judging these three are the
+ * same ones production uses, which is the claim the page actually makes.
+ */
+const WINDOW = { windowMs: minutes(600), halfLifeMs: minutes(5) };
+
+/** The three that actually confuse each other, and the entity kind each is best seen through. */
+const CASES: { family: keyof typeof SCENARIOS; kind: EntityKind }[] = [
+  { family: 'attack_loud', kind: 'session' },
+  { family: 'gateway_outage', kind: 'network' },
+  { family: 'retry_storm', kind: 'session' },
+];
+
+/**
  * Three look-alike scenarios, judged side by side.
  *
  * The point of the view this feeds is restraint made visible. An attack, an acquirer outage and
@@ -25,15 +43,6 @@ import type { ComparisonCase, ComparisonResponse } from '@sentinel/contracts';
  * on a clean clone with no traffic in it, the scenarios are labelled in a file that predates the
  * detector, and nothing here can be quietly improved by seeding a friendlier database.
  */
-const WINDOW = { windowMs: minutes(600), halfLifeMs: minutes(5) };
-
-/** The three that actually confuse each other, and the entity kind each is best seen through. */
-const CASES: { family: keyof typeof SCENARIOS; kind: EntityKind }[] = [
-  { family: 'attack_loud', kind: 'session' },
-  { family: 'gateway_outage', kind: 'network' },
-  { family: 'retry_storm', kind: 'session' },
-];
-
 @Injectable()
 export class ComparisonService {
   compare(): ComparisonResponse {

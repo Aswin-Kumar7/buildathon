@@ -16,12 +16,13 @@
     "format": "prettier --write .",
     "check:data": "node scripts/check-data-size.mjs",
     "check:payload": "node scripts/check-payload-leak.mjs",
-    "check": "pnpm lint && pnpm typecheck && pnpm test:unit && pnpm check:format && pnpm check:data && pnpm check:payload && pnpm check:docker",
+    "check": "pnpm lint && pnpm typecheck && pnpm test:unit && pnpm check:format && pnpm check:data && pnpm check:payload && pnpm check:docker && pnpm check:metrics",
     "prepare": "husky",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "check:docker": "node scripts/check-docker.mjs",
-    "metrics": "pnpm --filter @sentinel/detect metrics"
+    "metrics": "pnpm --filter @sentinel/detect metrics",
+    "check:metrics": "pnpm --filter @sentinel/detect check:metrics"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
