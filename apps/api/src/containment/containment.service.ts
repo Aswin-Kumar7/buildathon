@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, or, sql } from 'drizzle-orm';
 import { containmentEvents, containments, incidents, users, type DbHandle } from '@sentinel/db';
 import {
   computeFeatures,
@@ -327,6 +327,46 @@ export class ContainmentService {
       .limit(1);
 
     return row !== undefined;
+  }
+
+  /**
+   * The active containment blocking any of these entities, or null.
+   *
+   * This is the method that makes `contain` mean something. The action describes itself as
+   * "refuse further attempts from this entity", and until something asks this question at the
+   * point an attempt is made, that description is a promise nothing keeps. The checkout asks it
+   * before creating an order, which is where a merchant can actually refuse: containing a
+   * session, a device or a network is the merchant declining to open new orders for it.
+   *
+   * One entity is contained by a block on any of its three keys — an attacker who rotates
+   * sessions is still on the same network — so all three are checked together.
+   */
+  async blocking(
+    candidates: readonly { kind: string; key: string }[],
+  ): Promise<{ id: string; action: string; entityKind: string } | null> {
+    if (candidates.length === 0) return null;
+
+    const [row] = await this.handle.db
+      .select({ id: containments.id, action: containments.action, kind: containments.entityKind })
+      .from(containments)
+      .where(
+        and(
+          eq(containments.status, 'active'),
+          sql`${containments.action} = 'contain'`,
+          sql`${containments.expiresAt} > now()`,
+          or(
+            ...candidates.map((candidate) =>
+              and(
+                eq(containments.entityKind, candidate.kind),
+                eq(containments.entityKey, candidate.key),
+              ),
+            ),
+          ),
+        ),
+      )
+      .limit(1);
+
+    return row === undefined ? null : { id: row.id, action: row.action, entityKind: row.kind };
   }
 
   async list(incidentId?: string): Promise<ContainmentDto[]> {

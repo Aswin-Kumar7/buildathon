@@ -251,6 +251,12 @@ evidence than asking for another factor.
 Every decision records the policy version and a hash of the values, so "why did it do that six
 weeks ago" has an answer that does not depend on what the file says today.
 
+**Contain actually contains.** The checkout asks, before opening a Razorpay order, whether the
+shopper's session, device or network is under an active block, and refuses if so. Without that
+question at the point an attempt is made, `contain` is a row that says "active" and changes
+nothing — the action describes itself as "refuse further attempts", and this is where the refusal
+happens. The shopper is told nothing about why; the reason lives in the audit trail.
+
 **Five actions, all reversible, all expiring** — `observe`, `step_up`, `contain`, `escalate`,
 `release`. That is the constraint the list was written under rather than a property of the
 current five, and it is asserted: nothing customer-impacting may exist without an expiry. The
@@ -308,7 +314,7 @@ attention" never reads as "branded".
 
 **Gates** — lint, typecheck, unit tests, format check, data-size guard, gitleaks, a payload-leak
 guard, a Docker manifest check, a metrics-freshness check, and end-to-end. **565 unit tests** (api 277, detect 118, web 96,
-policy 31, corpus 20, contracts 13, storefront 10, ui 9), **155 integration tests** and **38
+policy 31, corpus 20, contracts 13, storefront 10, ui 9), **157 integration tests** and **38
 Playwright tests**.
 
 ## Security decisions in place
@@ -461,6 +467,20 @@ problems. It is now a real trace rather than a fixture.
   order — so the first version tested one session and reported green
 
 ## Corrections
+
+**`contain` contained nothing.** The method that answers "is this entity blocked" existed, was
+tested, and was called by nobody — a contained session could still open an order. The checkout
+now asks it before creating the order, so the action performs the refusal it describes. Blocking
+is on any of the entity's three keys, so an attacker who rotates sessions is still stopped by a
+block on the network.
+
+**The kill switch claimed to work without a deploy, and does not.** `policy.yaml` is baked into
+the image, so engaging the switch means editing the file and redeploying — no code change, but
+not the instant runtime toggle the comment promised. Reworded to match the deployment: policy
+changes go through the same reviewed, revertible path as code, which is the intended virtue and
+was misdescribed as a limitation. If instant engagement is ever needed the file moves to a
+mounted secret.
+
 
 **The policy hash did not depend on the policy.** `JSON.stringify(policy, sortedKeys)` looks
 right and is not: an array replacer is a key *filter*, and dotted paths match none of the actual

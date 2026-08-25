@@ -11,9 +11,18 @@
 
 version: 1
 
-# Stops everything, immediately, without a deploy. Nothing customer-impacting happens while this
-# is true — not containment, not step-up, not an approval already granted. The one control that
-# has to work when nothing else does, so it is checked first and its refusal is unconditional.
+# Stops everything customer-impacting while true — not containment, not step-up, and not an
+# approval already granted, which is re-checked at the moment it would take effect. The one
+# control that has to work when nothing else does, so it is checked first and its refusal is
+# unconditional.
+#
+# It engages the way every other value here changes: edit this file, and it takes effect when the
+# policy is next loaded. In this deployment the file is baked into the image, so that means a
+# redeploy — no code change and no image logic change, but not an instant runtime toggle. That is
+# a deliberate trade, not an oversight: the same reviewed, diffable, revertible path guards the
+# kill switch as guards every threshold, and a switch anybody could flip from a console without a
+# trace is the thing this whole file exists to avoid. If instant engagement is ever needed, the
+# file moves to a mounted secret and this comment changes with it.
 killSwitch: false
 
 # How well the attack hypothesis must fit before each action is even proposed. These sit above
