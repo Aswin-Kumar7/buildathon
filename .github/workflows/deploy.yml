@@ -46,6 +46,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: filter
+        # Only meaningful on a push, which has a previous commit to diff against. A manual run
+        # (workflow_dispatch) is an explicit "deploy current main", so the filter is skipped and
+        # both jobs below deploy unconditionally — the escape hatch for a rollout that a
+        # path-only diff would otherwise strand (a fix-forward commit that touches no app path,
+        # or a component whose own commit failed the gate and never built).
+        if: github.event_name == 'push'
         with:
           filters: |
             api:
@@ -62,7 +68,7 @@ jobs:
 
   api:
     needs: [verify, changes]
-    if: needs.changes.outputs.api == 'true'
+    if: needs.changes.outputs.api == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -98,7 +104,7 @@ jobs:
 
   storefront:
     needs: [verify, changes]
-    if: needs.changes.outputs.storefront == 'true'
+    if: needs.changes.outputs.storefront == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
