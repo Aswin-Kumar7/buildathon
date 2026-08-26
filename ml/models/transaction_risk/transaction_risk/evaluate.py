@@ -24,6 +24,8 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
+from .config import REVIEW_CAP
+
 
 @dataclass
 class Interval:
@@ -42,7 +44,51 @@ class Evaluation:
     pr_auc: Interval
     roc_auc: float
     brier: float
+    # The operating point as a shopper feels it and an operations team has to staff it.
+    false_decline_rate: float = 0.0
+    block_rate: float = 0.0
+    review_rate: float = 0.0
+    review_threshold: float = 0.0
     reliability: list[dict[str, float]] = field(default_factory=list)
+
+
+def operating_point(
+    y: np.ndarray, probs: np.ndarray, block_threshold: float, review_cap: float
+) -> dict[str, float]:
+    """The three-way operating point: what fraction is blocked, reviewed, and wrongly declined.
+
+    The block threshold is the cost-optimal one and is not touched here — this only *reports* the
+    consequences of running at it, plus a review band. The review band takes the highest-risk
+    transactions that were **not** blocked, up to a fixed share of all traffic (the analyst budget),
+    because human review is a capacity, not a free tier: a model that flags a tenth of traffic for
+    review has not saved anyone money if nobody can look at it.
+
+    The false-decline rate — legitimate shoppers wrongly blocked, as a share of all legitimate
+    traffic — is the number a merchant actually feels, and the one a precision figure hides when
+    fraud is rare.
+    """
+    predicted_block = probs >= block_threshold
+    negatives = int(np.sum(y == 0))
+    false_positives = int(np.sum(predicted_block & (y == 0)))
+    n = len(y)
+
+    budget = int(np.floor(review_cap * n))
+    below = probs[~predicted_block]
+    if budget > 0 and below.size > 0:
+        ranked = np.sort(below)[::-1]
+        take = int(min(budget, ranked.size))
+        review_threshold = float(ranked[take - 1]) if take > 0 else float(block_threshold)
+        review_rate = take / n
+    else:
+        review_threshold = float(block_threshold)
+        review_rate = 0.0
+
+    return {
+        "false_decline_rate": (false_positives / negatives) if negatives else 0.0,
+        "block_rate": float(np.mean(predicted_block)),
+        "review_rate": float(review_rate),
+        "review_threshold": review_threshold,
+    }
 
 
 def _bootstrap(
@@ -78,9 +124,13 @@ def _bootstrap(
     }
 
 
-def evaluate(y: np.ndarray, probs: np.ndarray, threshold: float, seed: int) -> Evaluation:
-    """The held-out report: point estimates, intervals, ranking quality, and calibration."""
+def evaluate(
+    y: np.ndarray, probs: np.ndarray, threshold: float, seed: int, review_cap: float = REVIEW_CAP
+) -> Evaluation:
+    """The held-out report: point estimates, intervals, ranking quality, calibration, and the
+    three-way operating point a team actually runs and staffs."""
     intervals = _bootstrap(y, probs, threshold, seed)
+    operating = operating_point(y, probs, threshold, review_cap)
 
     fraction_positive, mean_predicted = calibration_curve(y, probs, n_bins=10, strategy="quantile")
     reliability = [
@@ -97,6 +147,10 @@ def evaluate(y: np.ndarray, probs: np.ndarray, threshold: float, seed: int) -> E
         pr_auc=intervals["pr_auc"],
         roc_auc=float(roc_auc_score(y, probs)),
         brier=float(brier_score_loss(y, probs)),
+        false_decline_rate=operating["false_decline_rate"],
+        block_rate=operating["block_rate"],
+        review_rate=operating["review_rate"],
+        review_threshold=operating["review_threshold"],
         reliability=reliability,
     )
 

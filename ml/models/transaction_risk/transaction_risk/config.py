@@ -55,3 +55,11 @@ class CostModel:
 
 SPLIT = SplitConfig()
 COST = CostModel()
+
+# The analyst review budget: the share of traffic a human can look at. A cost-optimal block
+# threshold is not the whole operating story — the highest-risk transactions that fall *below* it
+# are the ones worth a person's time, and there are only so many hours in a day. So the operating
+# point reports a three-way split (allow / review / block) where the review band takes the riskiest
+# non-blocked traffic up to this cap, and no further. Making the capacity explicit is what stops a
+# model that "reviews everything" from looking free.
+REVIEW_CAP = 0.01

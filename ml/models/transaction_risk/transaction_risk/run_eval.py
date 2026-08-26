@@ -18,7 +18,7 @@ import numpy as np
 
 from . import data as data_module
 from . import features as features_module
-from .config import ARTIFACTS_DIR, COST, SEED, SPLIT
+from .config import ARTIFACTS_DIR, COST, REVIEW_CAP, SEED, SPLIT
 from sklearn.inspection import permutation_importance
 
 from .evaluate import Evaluation, evaluate, ranking_score
@@ -45,6 +45,10 @@ def _evaluation_dict(evaluation: Evaluation) -> dict:
         "pr_auc": _interval(evaluation.pr_auc),
         "roc_auc": _round(evaluation.roc_auc),
         "brier": _round(evaluation.brier),
+        "false_decline_rate": _round(evaluation.false_decline_rate),
+        "block_rate": _round(evaluation.block_rate),
+        "review_rate": _round(evaluation.review_rate),
+        "review_threshold": _round(evaluation.review_threshold),
         "reliability": [
             {"predicted": _round(point["predicted"]), "observed": _round(point["observed"])}
             for point in evaluation.reliability
@@ -140,7 +144,7 @@ def run(write: bool = True) -> dict:
             "n_uids": int(uid.nunique()),
             "fraud_rate": _round(float(frame["isFraud"].mean())),
         },
-        "honest": {"model": model.backend, **_evaluation_dict(honest_eval)},
+        "honest": {"model": model.backend, "review_cap": _round(REVIEW_CAP), **_evaluation_dict(honest_eval)},
         "baseline_logistic": {"pr_auc": _round(baseline_pr)},
         "leakage": {
             "honest_pr_auc": _round(honest_pr),

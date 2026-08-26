@@ -69,3 +69,78 @@
   color: var(--s-ink-2);
   text-align: right;
 }
+
+/* The three-way operating point: allow / review / block as a single proportion bar. */
+.operate-bar {
+  display: flex;
+  width: 100%;
+  height: 2rem;
+  border-radius: var(--s-radius-sm, 4px);
+  overflow: hidden;
+  margin: var(--s-3) 0;
+  font-size: var(--s-text-xs);
+  font-family: var(--s-mono);
+}
+
+.operate-bar__seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+  padding: 0 var(--s-1, 4px);
+  color: var(--s-surface);
+  flex-basis: 0;
+}
+
+.operate-bar__seg--allow {
+  background: var(--s-ok);
+}
+.operate-bar__seg--review {
+  background: var(--s-warn);
+}
+.operate-bar__seg--block {
+  background: var(--s-critical, #b4232a);
+}
+
+/* Reliability diagram. */
+.calib {
+  display: flex;
+  gap: var(--s-4);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.calib__svg {
+  width: 220px;
+  height: 220px;
+  flex: none;
+}
+
+.calib__frame {
+  fill: none;
+  stroke: var(--s-line);
+  stroke-width: 1;
+}
+
+.calib__ideal {
+  stroke: var(--s-ink-2);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  opacity: 0.6;
+}
+
+.calib__curve {
+  fill: none;
+  stroke: var(--s-accent);
+  stroke-width: 2;
+}
+
+.calib__pt {
+  fill: var(--s-accent);
+}
+
+.calib__caption {
+  flex: 1;
+  min-width: 200px;
+}

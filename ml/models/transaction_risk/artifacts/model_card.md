@@ -37,6 +37,16 @@ missed fraud at ₹3,000 and a false block at
 ₹1,200. The logistic baseline reaches PR-AUC
 0.641.
 
+## The operating point, as a desk runs it
+
+One threshold decides block-or-not; a real desk runs three actions, and review is a capacity, not a
+free tier. At the cost-optimal threshold this blocks **10.71%** of traffic and
+routes the riskiest non-blocked **0.98%** to a human — capped at the
+**1.0%** analyst budget, review threshold 0.250. The
+**false-decline rate is 5.06%**: legitimate shoppers wrongly blocked,
+as a share of all legitimate traffic — the number a merchant actually feels and the one a precision
+figure hides when fraud is rare.
+
 ## The leakage delta — why the split matters
 
 | Split | PR-AUC | Cards shared train↔test |

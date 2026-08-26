@@ -29,6 +29,16 @@ export const modelMetricsSchema = z.object({
     prAuc: intervalSchema,
     rocAuc: z.number(),
     brier: z.number(),
+    /** The analyst review budget the operating point respects — a share of all traffic. */
+    reviewCap: z.number(),
+    /** Legitimate shoppers wrongly blocked, as a share of all legitimate traffic. */
+    falseDeclineRate: z.number(),
+    /** Share of traffic blocked at the cost-optimal threshold. */
+    blockRate: z.number(),
+    /** Share of traffic routed to a human — the riskiest non-blocked traffic, capped at reviewCap. */
+    reviewRate: z.number(),
+    /** The lower threshold of the review band; below it, traffic is allowed. */
+    reviewThreshold: z.number(),
     reliability: z.array(z.object({ predicted: z.number(), observed: z.number() })),
   }),
   baselineLogisticPrAuc: z.number(),

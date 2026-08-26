@@ -30,3 +30,15 @@ def test_headline_numbers_carry_intervals():
     for key in ("precision", "recall", "pr_auc"):
         interval = metrics["honest"][key]
         assert interval["low"] <= interval["point"] <= interval["high"]
+
+
+def test_operating_point_is_three_way_and_capacity_capped():
+    # The desk runs allow / review / block, and review is a capacity, not a free tier: the review
+    # band never exceeds the declared budget, and the block threshold is not disturbed by it.
+    honest = run(write=False)["honest"]
+    assert honest["review_rate"] <= honest["review_cap"] + 1e-9
+    # The review band sits below the block threshold — the riskiest traffic that was not blocked.
+    assert honest["review_threshold"] <= honest["threshold"]
+    # A false-decline rate is reported and is a valid share.
+    assert 0.0 <= honest["false_decline_rate"] <= 1.0
+    assert 0.0 <= honest["block_rate"] <= 1.0

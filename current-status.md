@@ -327,6 +327,15 @@ label on the numbers.
 numbers with their intervals, feature importance (card identifiers correctly near zero on the honest
 split), the cost-chosen threshold, and an error taxonomy — each under the synthetic-vs-real label.
 
+It also carries the two things that turn a score into an operating decision. The **operating point**
+is shown as three actions, not one number: at the cost-optimal block threshold, the page reports the
+share blocked, the riskiest non-blocked slice routed to a human — capped at a declared analyst budget,
+because review is a capacity and not a free tier — and the **false-decline rate**, the legitimate
+shoppers wrongly blocked as a share of all legitimate traffic, which is the number a merchant feels and
+a precision figure hides when fraud is rare. And a **reliability diagram** plots predicted probability
+against the fraction actually fraud, so "the probabilities mean what they say" — the thing a cost-based
+threshold quietly rests on — is visible rather than asserted through the Brier score alone.
+
 **Incident classifier (Model B)** — `ml/models/incident`, a second Python pipeline, and the first
 model that runs *in the request path*. It classifies an incident into one of four decidable causes —
 attack, outage, retry storm, healthy traffic — with an explicit **abstain** (a reject option, not a

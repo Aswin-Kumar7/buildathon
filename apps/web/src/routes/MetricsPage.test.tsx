@@ -27,7 +27,15 @@ function metrics(overrides: Partial<ModelMetrics> = {}): ModelMetrics {
       prAuc: interval(0.52),
       rocAuc: 0.86,
       brier: 0.086,
-      reliability: [{ predicted: 0.1, observed: 0.11 }],
+      reviewCap: 0.01,
+      falseDeclineRate: 0.05,
+      blockRate: 0.1,
+      reviewRate: 0.0098,
+      reviewThreshold: 0.25,
+      reliability: [
+        { predicted: 0.1, observed: 0.11 },
+        { predicted: 0.4, observed: 0.38 },
+      ],
     },
     baselineLogisticPrAuc: 0.63,
     leakage: {
@@ -100,6 +108,26 @@ describe('MetricsPage', () => {
 
     expect(await screen.findByText(/0.620\s+\(0.570–0.670\)/)).toBeInTheDocument();
     expect(screen.getByText(/Logistic baseline/)).toBeInTheDocument();
+  });
+
+  it('shows the three-way operating point, capped review, and the false-decline rate', async () => {
+    stub({ available: true, metrics: metrics() });
+    render(wrap(<MetricsPage />));
+
+    expect(await screen.findByText(/operating point, as a desk runs it/i)).toBeInTheDocument();
+    // The number a merchant feels, stated outright.
+    expect(screen.getByText('5.00%')).toBeInTheDocument(); // false-decline rate
+    // Review is a capacity, shown against its budget.
+    expect(screen.getByText(/of 1.00% budget/)).toBeInTheDocument();
+    expect(screen.getByText(/block 10.00%/)).toBeInTheDocument(); // the three-way bar segment
+  });
+
+  it('renders the calibration reliability diagram', async () => {
+    stub({ available: true, metrics: metrics() });
+    render(wrap(<MetricsPage />));
+
+    expect(await screen.findByText(/do the probabilities mean what they say/i)).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /reliability diagram/i })).toBeInTheDocument();
   });
 
   it('says plainly when the benchmark has not been generated', async () => {
