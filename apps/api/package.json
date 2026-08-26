@@ -31,7 +31,8 @@
     "@sentinel/corpus": "workspace:*",
     "@sentinel/detect": "workspace:*",
     "@sentinel/policy": "workspace:*",
-    "@sentinel/audit": "workspace:*"
+    "@sentinel/audit": "workspace:*",
+    "@sentinel/narrate": "workspace:*"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.2.1",
