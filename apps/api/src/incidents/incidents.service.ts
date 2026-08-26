@@ -33,7 +33,9 @@ import type {
 import { DB } from '../db/db.module.js';
 import { FeaturesService, type EventSource } from '../features/features.service.js';
 import { AuditService } from '../audit/audit.service.js';
+import { performance } from 'node:perf_hooks';
 import { ModelScoringService } from '../model-scoring/model-scoring.service.js';
+import { LoadService } from '../system/load.service.js';
 
 /** Entity kinds evaluated on every pass. An attacker rotating one is caught by another. */
 const KINDS: readonly EntityKind[] = ['session', 'device', 'network'];
@@ -59,6 +61,7 @@ export class IncidentsService {
     private readonly features: FeaturesService,
     private readonly audit: AuditService,
     private readonly scoring: ModelScoringService,
+    private readonly load: LoadService,
   ) {}
 
   /**
@@ -86,7 +89,9 @@ export class IncidentsService {
     let observations: Observation[] = [];
 
     for (const kind of KINDS) {
+      const fetchStart = performance.now();
       const ranked = await this.features.rank(kind, CANDIDATES, source);
+      this.load.recordFeatureFetch(performance.now() - fetchStart);
       if (ranked.vectors.length === 0) continue;
       evaluated += ranked.vectors.length;
       asOf = Math.max(asOf, ranked.asOf);
@@ -163,7 +168,14 @@ export class IncidentsService {
     scoredSoFar: number,
   ): ModelOpinion | null {
     if (vector === undefined || scoredSoFar >= MAX_SCORED_PER_PASS) return null;
-    return this.scoring.score(vector, traffic);
+    // Model scoring is SHEDDABLE_PLUS: under real load the controller sheds it and the decision runs
+    // rules-only (degraded:model), exactly as the degradation matrix requires. The inference time is
+    // recorded so the health view can split it out from the feature fetch.
+    if (this.load.shouldShed('model_scoring')) return null;
+    const start = performance.now();
+    const opinion = this.scoring.score(vector, traffic);
+    this.load.recordInference(performance.now() - start);
+    return opinion;
   }
 
   /**

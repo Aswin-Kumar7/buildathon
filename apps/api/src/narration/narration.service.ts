@@ -17,6 +17,7 @@ import {
 } from '@sentinel/narrate';
 import type { IncidentDetail, NarrativeDto } from '@sentinel/contracts';
 import { IncidentsService } from '../incidents/incidents.service.js';
+import { LoadService } from '../system/load.service.js';
 
 /** Injection token for an optional remote narrator. Absent in the default build; supplied in tests. */
 export const NARRATION_PROVIDER = Symbol('NARRATION_PROVIDER');
@@ -59,6 +60,7 @@ export class NarrationService {
 
   constructor(
     private readonly incidents: IncidentsService,
+    private readonly load: LoadService,
     @Optional() @Inject(NARRATION_PROVIDER) private readonly provider?: NarrationProvider,
   ) {
     const configured = (process.env.NARRATION_MODE ?? 'local').toLowerCase();
@@ -107,6 +109,10 @@ export class NarrationService {
 
   /** The tiers to try, in order, for the configured mode. Live is present only when reachable. */
   private chainFor(_facts: NarrationFacts) {
+    // Narration is SHEDDABLE: under load the load controller sheds it and the deterministic template
+    // stands in, at no cost to safety. This is the shedding the health view counts in real time.
+    if (this.load.shouldShed('narration')) return [templateSelector];
+
     const live =
       this.provider !== undefined && this.canRunProvider()
         ? guarded(liveSelector(this.gatedProvider(this.provider)), this.breaker, this.timeoutMs)

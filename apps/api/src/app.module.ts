@@ -11,6 +11,7 @@ import { ReplayModule } from './replay/replay.module.js';
 import { FeaturesModule } from './features/features.module.js';
 import { IncidentsModule } from './incidents/incidents.module.js';
 import { NarrationModule } from './narration/narration.module.js';
+import { SystemModule } from './system/system.module.js';
 import { PolicyModule } from './policy/policy.module.js';
 import { ContainmentModule } from './containment/containment.module.js';
 import { AuditModule } from './audit/audit.module.js';
@@ -34,6 +35,7 @@ import { ZodExceptionFilter } from './common/zod-exception.filter.js';
     FeaturesModule,
     IncidentsModule,
     NarrationModule,
+    SystemModule,
     PolicyModule,
     ContainmentModule,
     AuditModule,

@@ -28,6 +28,7 @@ COPY packages/detect/package.json packages/detect/
 COPY packages/policy/package.json packages/policy/
 COPY packages/audit/package.json packages/audit/
 COPY packages/narrate/package.json packages/narrate/
+COPY packages/load/package.json packages/load/
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build

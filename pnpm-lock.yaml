@@ -86,6 +86,9 @@ importers:
       '@sentinel/detect':
         specifier: workspace:*
         version: link:../../packages/detect
+      '@sentinel/load':
+        specifier: workspace:*
+        version: link:../../packages/load
       '@sentinel/narrate':
         specifier: workspace:*
         version: link:../../packages/narrate
@@ -335,6 +338,18 @@ importers:
       '@swc/core':
         specifier: ^1.16.1
         version: 1.16.1
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.1)(jsdom@25.0.1)(tsx@4.23.12)(yaml@2.9.0)
+
+  packages/load:
+    devDependencies:
       '@types/node':
         specifier: ^22.20.1
         version: 22.20.1
