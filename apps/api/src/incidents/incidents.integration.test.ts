@@ -304,6 +304,35 @@ describe('incidents, the cases that must not open one', () => {
   }
 });
 
+describe('incidents, the distributed attack behind a proxy pool', () => {
+  /**
+   * A card-testing attack spread across many sessions and addresses, at roughly two attempts a
+   * session — thin enough that no single session trips a rule. The scenario-matrix harness once
+   * reported this as a coverage gap, but that was the harness keying the network on the full IP
+   * instead of the /24 subnet the production pipeline groups by. The proxy pool shares one subnet,
+   * so the network correlation carries the whole attack: it is caught and contained. This test is
+   * the guard that keeps production and that claim in agreement.
+   */
+  it('is caught and contained at the network level', async () => {
+    const h = await boot(['attack_distributed'], 'incidents-distributed@test.local');
+    try {
+      await h.post('/api/incidents/evaluate');
+      const body = (await h.get('/api/incidents')).body as IncidentListResponse;
+      expect(body.incidents.length).toBeGreaterThan(0);
+
+      const attack = body.incidents.find((i) => i.entityKind === 'network');
+      expect(attack, 'a network-level incident should be raised').toBeDefined();
+      expect(attack!.firedRules).toContain('card_spread');
+
+      const detail = (await h.get(`/api/incidents/${attack!.id}`)).body as IncidentDetailResponse;
+      expect(detail.incident.arbitration?.best).toBe('attack');
+      expect(detail.incident.arbitration?.decision).toBe('contain');
+    } finally {
+      await h.app.close();
+    }
+  }, 180_000);
+});
+
 describe('incidents, change detection with real history', () => {
   /**
    * The low-amplitude attack runs for over an hour, which is the only way change detection has

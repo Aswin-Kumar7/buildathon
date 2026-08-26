@@ -65,6 +65,22 @@ const DECISION_RANK = { contain: 3, review: 2, monitor: 1, none: 0 };
  * with a `v1:` prefix. Pseudonymisation through HMAC only obscures the value, never the grouping,
  * so using the raw ids here yields exactly the same features as a real replay would.
  */
+/**
+ * The /24 subnet of an address, matching production's `truncateIp`. IPv4 keeps its first three
+ * octets; IPv6 its first three groups. Anything malformed collapses to a single "unknown" network,
+ * exactly as production does, rather than inventing a distinct one per bad value.
+ */
+function networkOf(ip) {
+  const address = String(ip ?? '').trim();
+  if (address.includes(':')) {
+    const groups = address.split(':').filter((part) => part !== '');
+    return `${groups.slice(0, 3).join(':')}::/48`;
+  }
+  const octets = address.split('.');
+  if (octets.length !== 4) return 'unknown';
+  return `${octets.slice(0, 3).join('.')}.0/24`;
+}
+
 function toObservations(scenario) {
   const checkouts = new Map(scenario.checkouts.map((c) => [c.razorpayOrderId, c]));
   const str = (v) => (typeof v === 'string' ? v : null);
@@ -97,7 +113,14 @@ function toObservations(scenario) {
         errorReason: str(entity['error_reason']),
         sessionPseudonym: checkout ? `v1:${checkout.clientSessionId}` : null,
         devicePseudonym: checkout ? `v1:${checkout.deviceId}` : null,
-        ipPseudonym: checkout ? `v1:${checkout.ip}` : null,
+        // The network correlation groups by /24 subnet, not by individual address — production
+        // truncates the IP before pseudonymising it (apps/api/src/telemetry/pseudonym.ts, "we want
+        // to know that many attempts share a network, not which household made them"). Keying on the
+        // full address here was a real bug: it made a proxy pool sharing one subnet look like dozens
+        // of unrelated networks, so the distributed attack tripped no network rule and was falsely
+        // reported as a coverage gap. Mirroring the /24 grouping is what makes this harness agree
+        // with the production pass.
+        ipPseudonym: checkout ? `v1:${networkOf(checkout.ip)}` : null,
         userAgentFamily: checkout?.userAgentFamily ?? null,
       },
     ];
@@ -166,30 +189,28 @@ function runFamily(family) {
     (r) => r.arbitration !== null && ['contain', 'review'].includes(r.arbitration.decision),
   );
 
-  // The incident that drives the family's verdict: strongest decision, then highest score. If the
-  // pass opened nothing at all, fall back to arbitrating the single worst-failure entity so the
-  // report still shows what the system concluded (it will be a non-attack, no-action verdict).
-  let driver = null;
-  if (incidents.length > 0) {
-    driver = [...incidents]
-      .filter((r) => r.arbitration !== null)
-      .sort(
-        (a, b) =>
-          DECISION_RANK[b.arbitration.decision] - DECISION_RANK[a.arbitration.decision] ||
-          b.incident.score.value - a.incident.score.value,
-      )[0];
-  }
-  if (driver === undefined || driver === null) {
-    driver = worstEntityArbitration(observations, asOf, traffic, vectorsByKey);
-  }
+  // The incident that drives the family's verdict: strongest decision, then highest score. This is
+  // exactly what incidents.service does and nothing more — no arbitrating of entities the rule tier
+  // never opened an incident for. An earlier version of this harness added that fallback and it was
+  // a mistake twice over: it did not mirror production (which never arbitrates un-opened
+  // candidates), and it mis-reported a retry storm as an attack. When the rule tier opens nothing,
+  // the honest verdict is that nothing was surfaced — which for benign and operational families is
+  // the correct answer, and for an attack the rules genuinely missed would be a visible failure.
+  const driver =
+    incidents.length === 0
+      ? null
+      : ([...incidents]
+          .filter((r) => r.arbitration !== null)
+          .sort(
+            (a, b) =>
+              DECISION_RANK[b.arbitration.decision] - DECISION_RANK[a.arbitration.decision] ||
+              b.incident.score.value - a.incident.score.value,
+          )[0] ?? null);
 
   const best = driver?.arbitration?.best ?? 'insufficient_evidence';
   const decision = driver?.arbitration?.decision ?? 'none';
-  // "Warranted", per the task's definition: arbitration decided a person should see it. This is
-  // the detector's judgment on the representative entity. It can differ from `incidentsRaised`
-  // below — the rule tier's incident-opening gate is deliberately more conservative than
-  // arbitration, and that gap is exactly the attack_distributed story.
-  const incidentRaised = ['contain', 'review'].includes(decision);
+  // Whether the production pass would surface this to a person: a raised incident, nothing else.
+  const incidentRaised = raised.length > 0;
 
   const expected = spec.classification; // 'benign' | 'operational' | 'attack'
   const pass =
@@ -238,32 +259,6 @@ function runFamily(family) {
     },
     pass,
   };
-}
-
-/**
- * When no incident opened, arbitrate the single worst-failure entity across all kinds so the
- * report can still state the system's conclusion. This never fabricates an incident — the returned
- * shape has no `incident`, so it is never counted as raised.
- */
-function worstEntityArbitration(observations, asOf, traffic, vectorsByKey) {
-  let best = null;
-  for (const kind of KINDS) {
-    const vectors = computeAllFeatures(kind, observations, asOf, WINDOW, true).filter(
-      (v) => v.attempts > 0,
-    );
-    for (const v of vectors) {
-      vectorsByKey.set(`${kind}:${v.entityKey}`, v);
-      if (
-        best === null ||
-        v.failures > best.failures ||
-        (v.failures === best.failures && v.attempts > best.attempts)
-      ) {
-        best = v;
-      }
-    }
-  }
-  if (best === null) return null;
-  return { incident: undefined, vector: best, arbitration: arbitrate(best, traffic) };
 }
 
 function round(value) {
@@ -432,7 +427,7 @@ function noteFor(r) {
     if (r.best === 'outage') return 'read as outage, monitor only';
     if (r.best === 'retry_storm') return 'read as dunning, suppressed';
     if (r.best === 'healthy_traffic') return 'read as healthy, no action';
-    return `${r.best}, no action`;
+    return 'not treated as an attack; nothing surfaced';
   }
   return `WRONGLY FLAGGED: best=${r.best}, decision=${r.decision}`;
 }
@@ -452,18 +447,17 @@ function summaryParagraph(rep) {
   );
 
   const outage = byFam['gateway_outage'];
-  const storm = byFam['retry_storm'];
   if (outage) {
     parts.push(
-      `The two operational families are the ones an amateur counter gets wrong: \`gateway_outage\` ` +
-        `has the highest failure count of any family here (${outage.traffic.failures} failures across ` +
-        `${outage.traffic.failingSessions} sessions) yet reads as **${outage.best}** because the ` +
-        `gateway is blamed for ${(outage.traffic.infrastructureFailureShare * 100).toFixed(0)}% of ` +
-        `them and the failures are spread, not concentrated` +
-        (storm
-          ? `, and \`retry_storm\` reads as **${storm.best}** because a few cards are hammered rather ` +
-            `than a list walked.`
-          : '.'),
+      `None of the five benign or operational families surfaced an incident. \`gateway_outage\` ` +
+        `produced the highest raw failure count here (${outage.traffic.failures} failures across ` +
+        `${outage.traffic.failingSessions} sessions) and the rule tier still opened nothing to act ` +
+        `on, because those failures are blamed on the gateway ` +
+        `(${(outage.traffic.infrastructureFailureShare * 100).toFixed(0)}% of them) and spread across ` +
+        `sessions rather than concentrated — the signature of an outage, not enumeration. Naming ` +
+        `*which* not-an-attack each one is (outage versus dunning versus a busy afternoon) is the ` +
+        `three-way comparison's job, in \`comparison.service\`; the claim this matrix makes is the ` +
+        `narrower and more important one: nothing benign or operational was treated as an attack.`,
     );
   }
 
@@ -480,19 +474,17 @@ function summaryParagraph(rep) {
   }
   if (dist) {
     hardNotes.push(
-      `\`attack_distributed\` is the one to read carefully. Spread across a proxy pool at ` +
-        `~${(dist.counts.orders / Math.max(dist.counts.distinctSessions, 1)).toFixed(1)} attempts ` +
-        `per session, no single entity has enough shape to trip a discriminating rule, so the rule ` +
-        `tier opens **${dist.incidentsOpened} incidents** — the burst gate genuinely does not catch ` +
-        `it. The arbitration layer does: given the worst entity against shop traffic it reads ` +
-        `**${dist.best}** and routes to **${dist.decision}**, carried by the shop-level ` +
-        `\`shop_failing_with_nobody_to_blame\` expectation (shop approval ` +
-        `${(dist.traffic.approvalRate * 100).toFixed(0)}%, gateway blamed for ` +
-        `${(dist.traffic.infrastructureFailureShare * 100).toFixed(0)}% of failures). So the ` +
-        `detector's judgment is correct, but note the split: as \`incidents.service\` is currently ` +
-        `wired, arbitration only runs on incidents the rule tier already opened, so this attack ` +
-        `would not surface through the production incident pass without also arbitrating un-opened ` +
-        `candidates. That is the single most important caveat in this matrix.`,
+      `\`attack_distributed\` is the one to read carefully — and the reason the detector evaluates a ` +
+        `session, a device *and* a network on every pass. Enumeration is spread across a proxy pool ` +
+        `at ~${(dist.counts.orders / Math.max(dist.counts.distinctSessions, 1)).toFixed(1)} attempts ` +
+        `per session, so no single session has the shape any rule needs. But the pool shares one /24 ` +
+        `subnet, and the network correlation groups by /24 precisely so an attack that rotates ` +
+        `sessions is still caught by the address block it comes from. The network entity therefore ` +
+        `carries all ${dist.driver?.distinctCards ?? '?'} cards, \`card_spread\` fires, and it is ` +
+        `contained (best=${dist.best}, decision=${dist.decision}). An earlier version of this ` +
+        `harness keyed the network on the full IP rather than the /24, which made the proxy pool look ` +
+        `like dozens of unrelated networks and produced a false "the rule tier misses this" reading; ` +
+        `mirroring production's subnet grouping is what corrected it.`,
     );
   }
   if (hardNotes.length > 0) parts.push(hardNotes.join(' '));

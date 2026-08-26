@@ -26,25 +26,16 @@
         "distinctNetworks": 48
       },
       "asOf": 1772359790000,
-      "best": "healthy_traffic",
-      "runnerUp": "insufficient_evidence",
-      "margin": 0.372,
+      "best": "insufficient_evidence",
+      "runnerUp": null,
+      "margin": null,
       "decision": "none",
-      "abstained": false,
-      "reasons": [
-        "suppressed_by_healthy_traffic"
-      ],
+      "abstained": null,
+      "reasons": [],
       "incidentRaised": false,
       "incidentsRaised": 0,
       "incidentsOpened": 0,
-      "driver": {
-        "entityKind": "session",
-        "fromOpenedIncident": false,
-        "attempts": 1,
-        "failures": 1,
-        "distinctCards": 1,
-        "approvalRate": 0
-      },
+      "driver": null,
       "traffic": {
         "attempts": 48,
         "failures": 6,
@@ -73,25 +64,16 @@
         "distinctNetworks": 39
       },
       "asOf": 1772360434000,
-      "best": "healthy_traffic",
-      "runnerUp": "insufficient_evidence",
-      "margin": 0.372,
+      "best": "insufficient_evidence",
+      "runnerUp": null,
+      "margin": null,
       "decision": "none",
-      "abstained": false,
-      "reasons": [
-        "suppressed_by_healthy_traffic"
-      ],
+      "abstained": null,
+      "reasons": [],
       "incidentRaised": false,
       "incidentsRaised": 0,
       "incidentsOpened": 0,
-      "driver": {
-        "entityKind": "session",
-        "fromOpenedIncident": false,
-        "attempts": 3,
-        "failures": 2,
-        "distinctCards": 1,
-        "approvalRate": 0.333
-      },
+      "driver": null,
       "traffic": {
         "attempts": 48,
         "failures": 5,
@@ -120,25 +102,16 @@
         "distinctNetworks": 59
       },
       "asOf": 1772358568000,
-      "best": "outage",
-      "runnerUp": "insufficient_evidence",
-      "margin": 0.393,
-      "decision": "monitor",
-      "abstained": false,
-      "reasons": [
-        "suppressed_by_outage"
-      ],
+      "best": "insufficient_evidence",
+      "runnerUp": null,
+      "margin": null,
+      "decision": "none",
+      "abstained": null,
+      "reasons": [],
       "incidentRaised": false,
       "incidentsRaised": 0,
       "incidentsOpened": 0,
-      "driver": {
-        "entityKind": "session",
-        "fromOpenedIncident": false,
-        "attempts": 1,
-        "failures": 1,
-        "distinctCards": 1,
-        "approvalRate": 0
-      },
+      "driver": null,
       "traffic": {
         "attempts": 59,
         "failures": 29,
@@ -167,25 +140,16 @@
         "distinctNetworks": 2
       },
       "asOf": 1772362898000,
-      "best": "retry_storm",
-      "runnerUp": "attack",
-      "margin": 0.171,
+      "best": "insufficient_evidence",
+      "runnerUp": null,
+      "margin": null,
       "decision": "none",
-      "abstained": false,
-      "reasons": [
-        "suppressed_by_retry_storm"
-      ],
+      "abstained": null,
+      "reasons": [],
       "incidentRaised": false,
       "incidentsRaised": 0,
       "incidentsOpened": 0,
-      "driver": {
-        "entityKind": "session",
-        "fromOpenedIncident": false,
-        "attempts": 24,
-        "failures": 19,
-        "distinctCards": 4,
-        "approvalRate": 0.208
-      },
+      "driver": null,
       "traffic": {
         "attempts": 48,
         "failures": 36,
@@ -214,25 +178,16 @@
         "distinctNetworks": 166
       },
       "asOf": 1772356975000,
-      "best": "healthy_traffic",
-      "runnerUp": "insufficient_evidence",
-      "margin": 0.352,
+      "best": "insufficient_evidence",
+      "runnerUp": null,
+      "margin": null,
       "decision": "none",
-      "abstained": false,
-      "reasons": [
-        "suppressed_by_healthy_traffic"
-      ],
+      "abstained": null,
+      "reasons": [],
       "incidentRaised": false,
       "incidentsRaised": 0,
       "incidentsOpened": 0,
-      "driver": {
-        "entityKind": "session",
-        "fromOpenedIncident": false,
-        "attempts": 2,
-        "failures": 1,
-        "distinctCards": 2,
-        "approvalRate": 0.5
-      },
+      "driver": null,
       "traffic": {
         "attempts": 176,
         "failures": 20,
@@ -317,8 +272,8 @@
         "attack_clearly_best_supported"
       ],
       "incidentRaised": true,
-      "incidentsRaised": 5,
-      "incidentsOpened": 5,
+      "incidentsRaised": 4,
+      "incidentsOpened": 4,
       "driver": {
         "entityKind": "session",
         "fromOpenedIncident": true,
@@ -356,24 +311,23 @@
       },
       "asOf": 1772357149000,
       "best": "attack",
-      "runnerUp": "insufficient_evidence",
-      "margin": 0,
-      "decision": "review",
-      "abstained": true,
+      "runnerUp": "retry_storm",
+      "margin": 0.375,
+      "decision": "contain",
+      "abstained": false,
       "reasons": [
-        "margin_too_narrow",
-        "runner_up_insufficient_evidence"
+        "attack_clearly_best_supported"
       ],
       "incidentRaised": true,
-      "incidentsRaised": 0,
-      "incidentsOpened": 0,
+      "incidentsRaised": 1,
+      "incidentsOpened": 1,
       "driver": {
-        "entityKind": "session",
-        "fromOpenedIncident": false,
-        "attempts": 3,
-        "failures": 3,
-        "distinctCards": 3,
-        "approvalRate": 0
+        "entityKind": "network",
+        "fromOpenedIncident": true,
+        "attempts": 78,
+        "failures": 74,
+        "distinctCards": 78,
+        "approvalRate": 0.051
       },
       "traffic": {
         "attempts": 78,

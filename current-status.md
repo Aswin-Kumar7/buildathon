@@ -410,11 +410,15 @@ seconds so shedding is visible as it happens. The existing ingestion-health view
 
 **Scenario matrix** — `scripts/scenario-run.mjs` runs all eight synthetic scenario families through the
 full detection pipeline; the deterministic result (docs/performance/scenario-matrix.md) is **8/8 correct**
-— every attack caught, every benign or operational family left alone. It surfaced one real architectural
-finding: a *distributed* attack that arbitration judges correctly (attack/review) but the rule tier opens
-no incident for, so as currently wired it would not surface through the production incident pass. The
-detector's judgment is right; the plumbing between the rule tier and arbitration is the gap, and it is
-documented in the matrix.
+— all three attacks caught and contained (loud → session, low-amplitude → session, distributed →
+network), all five benign or operational families left alone. The distributed attack is the interesting
+one: enumeration spread across a proxy pool at ~2 attempts a session trips no single-entity rule, but the
+pool shares one **/24 subnet** and the network correlation groups by /24 exactly so a session-rotating
+attack is still caught by the address block it comes from — which is why the detector evaluates a session,
+a device *and* a network on every pass. An integration test
+(`incidents.integration.test.ts`) pins that behaviour. (An earlier version of the harness keyed the
+network on the full IP rather than the /24 and so mis-reported this as a coverage gap; mirroring
+production's subnet grouping corrected both the harness and the report.)
 
 
 **Audit chain** — `packages/audit`, and a `sentinel.audit_log` table. Every decision and every
