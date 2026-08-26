@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module.js';
 import { AuditController } from './audit.controller.js';
 import { AuditService } from './audit.service.js';
 
@@ -10,6 +11,10 @@ import { AuditService } from './audit.service.js';
  */
 @Global()
 @Module({
+  // The audit controller is session-guarded, and SessionGuard needs AuthService. The service this
+  // module exports is global; the guard on its own controller is not, so the dependency has to be
+  // imported here like any other module's would.
+  imports: [AuthModule],
   controllers: [AuditController],
   providers: [AuditService],
   exports: [AuditService],

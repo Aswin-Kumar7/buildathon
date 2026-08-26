@@ -86,8 +86,8 @@ export function hashContent(content: AuditContent): string {
 export type DivergenceReason =
   | 'hash-mismatch' // a field was changed — the recorded hash no longer matches the content
   | 'broken-link' // this entry's prevHash is not the previous entry's hash — a deletion or reorder
-  | 'sequence-gap' // a sequence number is missing — a row was deleted
-  | 'out-of-order'; // sequence numbers do not increase — rows were reordered
+  | 'sequence-gap' // a sequence number is missing from the log entirely — a row was deleted
+  | 'out-of-order'; // a sequence is out of place — rows were reordered (it decreases, or the one that belongs here sits elsewhere)
 
 export interface Divergence {
   seq: number;
@@ -113,6 +113,10 @@ export interface VerifyResult {
  */
 export function verifyChain(entries: readonly ChainEntry[]): VerifyResult {
   let previous: ChainEntry | null = null;
+  // Every sequence number present, so a jump can be told apart from a reorder: a deleted row's
+  // sequence is gone from the log entirely, whereas a moved row's is merely somewhere it should
+  // not be. Without this the two are indistinguishable at the point the walk first trips.
+  const present = new Set(entries.map((entry) => entry.seq));
 
   for (const entry of entries) {
     // Ordering first: a reorder shows up here before its hashes are even considered.
@@ -126,11 +130,18 @@ export function verifyChain(entries: readonly ChainEntry[]): VerifyResult {
         );
       }
       if (entry.seq !== previous.seq + 1) {
+        // A jump. If the sequence we expected is still in the log, a row was moved, not removed —
+        // an adjacent swap trips here (seq 4 then 6, with 5 displaced just after) and must read as
+        // a reorder, not a gap. If the expected sequence is truly absent, a row was deleted.
+        const expected = previous.seq + 1;
+        const displaced = present.has(expected);
         return divergence(
           entries,
           entry.seq,
-          'sequence-gap',
-          `sequence jumps from ${previous.seq} to ${entry.seq}`,
+          displaced ? 'out-of-order' : 'sequence-gap',
+          displaced
+            ? `sequence jumps from ${previous.seq} to ${entry.seq}; ${expected} is out of place elsewhere`
+            : `sequence jumps from ${previous.seq} to ${entry.seq}`,
         );
       }
     }
