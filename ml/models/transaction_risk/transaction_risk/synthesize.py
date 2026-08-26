@@ -52,11 +52,17 @@ def synthesize(n_uids: int = 1200, seed: int = 0) -> pd.DataFrame:
 
         count = int(rng.integers(6, 26))
         first_dt = float(rng.integers(0, 180 * 86_400))
+        first_day = first_dt // 86_400
         dt = first_dt
 
         for _position in range(count):
             dt += float(rng.integers(3_600, 4 * 86_400))
-            d1_days = (dt - first_dt) / 86_400.0
+            # D1 in IEEE-CIS is an *integer* count of days since the card's first transaction —
+            # day(this) minus day(first) — not a continuous elapsed time. Emitting it as fractional
+            # days broke the very reconstruction it exists to support: `floor(dt/day) - D1` only
+            # lands on one first-day per card when D1 is defined this way, and with a fraction it
+            # scattered each card across dozens of them. This matches the real column.
+            d1_days = int(dt // 86_400 - first_day)
             fraud = int(rng.random() < risk)
 
             # A faint, generalisable echo: fraud nudges these, but with enough noise that they are
@@ -68,7 +74,7 @@ def synthesize(n_uids: int = 1200, seed: int = 0) -> pd.DataFrame:
                     "TransactionDT": dt,
                     "card1": card1,
                     "addr1": addr1,
-                    "D1": round(d1_days, 3),
+                    "D1": d1_days,
                     "TransactionAmt": float(abs(rng.normal(70 + echo * 25, 45))),
                     "V1": float(rng.normal(echo, 1.0)),
                     "V2": float(rng.normal(echo * 0.8, 1.0)),

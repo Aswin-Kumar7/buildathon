@@ -1,6 +1,6 @@
 {
   "baseline_logistic": {
-    "pr_auc": 0.634351
+    "pr_auc": 0.640878
   },
   "cost": {
     "false_negative_paise": 300000,
@@ -9,141 +9,145 @@
   "error_taxonomy": [
     {
       "amount_band": "low",
-      "false_negative": 57,
-      "false_positive": 26,
-      "n": 1196
+      "false_negative": 56,
+      "false_positive": 38,
+      "n": 1263
     },
     {
       "amount_band": "mid",
-      "false_negative": 108,
-      "false_positive": 32,
-      "n": 1196
+      "false_negative": 99,
+      "false_positive": 45,
+      "n": 1263
     },
     {
       "amount_band": "high",
       "false_negative": 132,
-      "false_positive": 61,
-      "n": 1196
+      "false_positive": 82,
+      "n": 1264
     }
   ],
   "feature_importance": [
     {
-      "feature": "C1",
-      "importance": 0.175347
+      "feature": "V1",
+      "importance": 0.177575
     },
     {
-      "feature": "V1",
-      "importance": 0.170468
+      "feature": "C1",
+      "importance": 0.148678
     },
     {
       "feature": "C2",
-      "importance": 0.137405
+      "importance": 0.112489
     },
     {
       "feature": "V2",
-      "importance": 0.127586
+      "importance": 0.111715
     },
     {
       "feature": "TransactionAmt",
-      "importance": 0.04146
+      "importance": 0.036278
     },
     {
       "feature": "card1",
-      "importance": 0.036745
-    },
-    {
-      "feature": "addr1",
-      "importance": 0.018319
-    },
-    {
-      "feature": "D1_norm",
-      "importance": 0.014739
+      "importance": 0.036142
     },
     {
       "feature": "V3",
-      "importance": 0.012592
+      "importance": 0.018735
+    },
+    {
+      "feature": "D1_norm",
+      "importance": 0.01096
+    },
+    {
+      "feature": "addr1",
+      "importance": -0.000498
     }
   ],
   "honest": {
-    "brier": 0.08635,
+    "brier": 0.089442,
     "model": "sklearn-histgb",
-    "n_test": 3588,
-    "positives": 495,
+    "n_test": 3790,
+    "positives": 528,
     "pr_auc": {
-      "high": 0.563244,
-      "low": 0.472418,
-      "point": 0.5166
+      "high": 0.554451,
+      "low": 0.469888,
+      "point": 0.511681
     },
     "precision": {
-      "high": 0.679071,
-      "low": 0.574285,
-      "point": 0.624606
+      "high": 0.637891,
+      "low": 0.545651,
+      "point": 0.593596
     },
     "recall": {
-      "high": 0.445303,
-      "low": 0.358777,
-      "point": 0.4
+      "high": 0.498128,
+      "low": 0.41296,
+      "point": 0.456439
     },
     "reliability": [
       {
-        "observed": 0.013172,
-        "predicted": 0.005247
+        "observed": 0.01532,
+        "predicted": 0.002678
       },
       {
-        "observed": 0.026923,
-        "predicted": 0.030742
+        "observed": 0.012397,
+        "predicted": 0.010563
       },
       {
-        "observed": 0.041436,
-        "predicted": 0.038435
+        "observed": 0.038217,
+        "predicted": 0.024962
       },
       {
-        "observed": 0.0,
-        "predicted": 0.039339
+        "observed": 0.065693,
+        "predicted": 0.037722
       },
       {
-        "observed": 0.084088,
-        "predicted": 0.064489
+        "observed": 0.066502,
+        "predicted": 0.043471
       },
       {
-        "observed": 0.193353,
-        "predicted": 0.139929
+        "observed": 0.138983,
+        "predicted": 0.099975
       },
       {
-        "observed": 0.336043,
-        "predicted": 0.25416
+        "observed": 0.24,
+        "predicted": 0.151961
       },
       {
-        "observed": 0.626168,
-        "predicted": 0.598108
+        "observed": 0.405738,
+        "predicted": 0.28402
+      },
+      {
+        "observed": 0.624161,
+        "predicted": 0.589275
       }
     ],
-    "roc_auc": 0.860618,
-    "threshold": 0.315789
+    "roc_auc": 0.850745,
+    "threshold": 0.333333
   },
   "leakage": {
-    "delta": 0.10867,
-    "dropped_to_gap": 542,
-    "honest_pr_auc": 0.5166,
+    "delta": 0.098095,
+    "dropped_to_gap": 576,
+    "honest_pr_auc": 0.511681,
     "honest_uid_overlap": 0,
-    "naive_pr_auc": 0.62527,
-    "naive_uid_overlap": 1560
+    "naive_pr_auc": 0.609776,
+    "naive_uid_overlap": 1119
   },
   "learning_curve": [
     {
-      "n_train": 3048,
+      "n_train": 3002,
       "train_fraction": 0.25,
-      "val_pr_auc": 0.521378
+      "val_pr_auc": 0.513187
     },
     {
-      "n_train": 6096,
+      "n_train": 6004,
       "train_fraction": 0.5,
-      "val_pr_auc": 0.53605
+      "val_pr_auc": 0.502854
     },
     {
-      "n_train": 12193,
+      "n_train": 12009,
       "train_fraction": 1.0,
-      "val_pr_auc": 0.551439
+      "val_pr_auc": 0.520111
     }
   ],
   "provenance": {
@@ -152,7 +156,7 @@
     "fraud_rate": 0.131866,
     "model_backend": "sklearn-histgb",
     "n_rows": 18587,
-    "n_uids": 2242,
+    "n_uids": 1200,
     "seed": 20260826
   }
 }

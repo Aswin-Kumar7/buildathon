@@ -13,11 +13,11 @@ on a split built so the model cannot cheat.
 
 - **Source:** `synthetic`
 - Synthetic stand-in — the competition data cannot be redistributed. It is built to reproduce the one structure the method exists to handle (fraud clustered by card over time), so the leakage delta is real; the absolute scores are not a claim about IEEE-CIS. Place train_transaction.csv in the data directory to run on the real thing.
-- 18,587 rows, 2,242 distinct cards, fraud rate 0.132, seed 20260826.
+- 18,587 rows, 1,200 distinct cards, fraud rate 0.132, seed 20260826.
 
 ## How it was measured
 
-The split groups whole cards together and orders them by time, with a 542-row
+The split groups whole cards together and orders them by time, with a 576-row
 delay gap dropped before the test period. Grouping stops the model memorising a card and being
 rewarded for it; the time order and gap stop it training on a future, and on labels that would not
 yet have arrived. The test set below is cards the model never saw, from a period after it trained.
@@ -26,25 +26,25 @@ yet have arrived. The test set below is cards the model never saw, from a period
 
 | Metric | Value (95% CI) |
 |---|---|
-| Precision | 0.625  (0.574–0.679) |
-| Recall | 0.400  (0.359–0.445) |
-| PR-AUC | 0.517  (0.472–0.563) |
-| ROC-AUC | 0.861 |
-| Brier score | 0.086 (lower is better; calibration) |
+| Precision | 0.594  (0.546–0.638) |
+| Recall | 0.456  (0.413–0.498) |
+| PR-AUC | 0.512  (0.470–0.554) |
+| ROC-AUC | 0.851 |
+| Brier score | 0.089 (lower is better; calibration) |
 
-Operating threshold 0.316, chosen to minimise expected cost on validation given a
+Operating threshold 0.333, chosen to minimise expected cost on validation given a
 missed fraud at ₹3,000 and a false block at
 ₹1,200. The logistic baseline reaches PR-AUC
-0.634.
+0.641.
 
 ## The leakage delta — why the split matters
 
 | Split | PR-AUC | Cards shared train↔test |
 |---|---|---|
-| Careless (random) | 0.625 | 1,560 |
-| Honest (grouped, time-ordered) | 0.517 | 0 |
+| Careless (random) | 0.610 | 1,119 |
+| Honest (grouped, time-ordered) | 0.512 | 0 |
 
-A random split inflates PR-AUC by **0.109** — the model looking better than it is,
+A random split inflates PR-AUC by **0.098** — the model looking better than it is,
 purely by recognising cards it will not see again. The honest split is the one the headline numbers
 come from. This delta is the single most important number here: it is the difference between a score
 and a claim.
