@@ -2,7 +2,7 @@
 
 > **Synthetic, seed-deterministic scenarios.** Every family below is generated in-process from `@sentinel/corpus` at its committed seed and run through the pure detection pipeline (`features -> rules -> cluster -> traffic -> arbitrate`, mirroring `apps/api/src/incidents/incidents.service.ts`). No live traffic, no database, no clock, no randomness: `node scripts/scenario-run.mjs` produces byte-identical output every time.
 
-Threshold fingerprint `84bbf0ad` (production thresholds, unmodified). Observation window 600 min / half-life 5 min — widened from the production 30-minute window so an entire episode is in view for every family, the same choice `comparison.service.ts` makes. The thresholds are the ones production uses; only the observation period is widened.
+Threshold fingerprint `675bfee0` (production thresholds, unmodified). Observation window 600 min / half-life 5 min — widened from the production 30-minute window so an entire episode is in view for every family, the same choice `comparison.service.ts` makes. The thresholds are the ones production uses; only the observation period is widened.
 
 **Result: 8/8 families classified correctly** (attacks caught and warranted; benign and operational traffic not treated as an attack and never contained).
 

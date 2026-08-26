@@ -203,15 +203,18 @@ export const CATALOG: readonly Claim[] = [
           ? { slots: { verb: 'was not confident enough to call it', pct: '' }, evidence: ['model'] }
           : {
               slots: {
-                verb: `read it as ${HYPOTHESIS[asHypothesis(f.model.predictedClass)]}`,
-                pct: percent(f.model.confidence),
+                verb:
+                  f.model.predictedClass === 'benign'
+                    ? 'scored it low risk'
+                    : 'read it as card testing',
+                pct: percent(f.model.risk),
               },
               evidence: ['model'],
             },
     (s) =>
       s.pct === ''
         ? `The model ${s.verb}.`
-        : `The model independently ${s.verb}, at ${s.pct} confidence.`,
+        : `The model independently ${s.verb}, at ${s.pct} risk.`,
   ),
 
   claim(
@@ -251,10 +254,4 @@ export function claimById(id: string): Claim | undefined {
 
 function capitalize(text: string): string {
   return text.length === 0 ? text : text[0]!.toUpperCase() + text.slice(1);
-}
-
-// The model's predicted class is a free string on the wire; narrow it to a known hypothesis for
-// wording, falling back to "not enough to say" rather than rendering a raw label.
-function asHypothesis(value: string): Hypothesis {
-  return value in HYPOTHESIS ? (value as Hypothesis) : 'insufficient_evidence';
 }

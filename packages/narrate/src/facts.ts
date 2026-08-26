@@ -34,10 +34,11 @@ export interface NarrationEvidence {
   weight: number;
 }
 
-/** The model's own second opinion, when there is one, as a fact to be narrated rather than trusted. */
+/** The model's own risk score, when there is one, as a fact to be narrated rather than trusted. */
 export interface NarrationModel {
+  /** P(abuse), the served risk score. */
+  risk: number;
   predictedClass: string;
-  confidence: number;
   abstained: boolean;
 }
 
@@ -83,7 +84,7 @@ export function evidenceHash(facts: NarrationFacts): string {
     facts.changeFired,
     facts.model === null
       ? null
-      : [facts.model.predictedClass, round(facts.model.confidence), facts.model.abstained],
+      : [facts.model.predictedClass, round(facts.model.risk), facts.model.abstained],
   ]);
 
   return createHash('sha256').update(canonical).digest('hex').slice(0, 32);

@@ -197,6 +197,20 @@ describe('incidents', () => {
     expect(arbitration.reasons.length).toBeGreaterThan(0);
   });
 
+  it('records the model weighing in on the decision, not just watching it', async () => {
+    // The model is load-bearing: on a loud attack it agrees with the rules, and that concurrence is
+    // written onto the decision (`corroborated`) rather than left as an opinion nobody acted on. The
+    // same field carries `escalated` / `deescalated` when the model actually moves the outcome.
+    const list = (await h.get('/api/incidents')).body as IncidentListResponse;
+    const detail = (await h.get(`/api/incidents/${list.incidents[0]!.id}`))
+      .body as IncidentDetailResponse;
+
+    const arbitration = detail.incident.arbitration!;
+    expect(arbitration.modelInfluence).toBeDefined();
+    expect(arbitration.modelInfluence).not.toBe('none');
+    expect(arbitration.reasons).toContain('model_agrees_attack');
+  });
+
   it('measures time-to-detect from the attempt rather than the pass', async () => {
     const body = (await h.get('/api/incidents')).body as IncidentListResponse;
     const incident = body.incidents[0]!;

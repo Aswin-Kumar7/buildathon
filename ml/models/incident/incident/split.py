@@ -37,3 +37,24 @@ def grouped_split(groups: np.ndarray, test_fraction: float = 0.25,
 
 def group_overlap(groups: np.ndarray, a: np.ndarray, b: np.ndarray) -> int:
     return len(set(groups[a]) & set(groups[b]))
+
+
+def naive_split(n: int, test_fraction: float = 0.25, val_fraction: float = 0.2) -> Split:
+    """A careless row-wise split that ignores the scenario grouping — for the leakage delta only.
+
+    It lets entities from one scenario instance fall on both sides of the split, so the model can be
+    rewarded for recognising a seed it half-remembers. The gap between this score and the grouped
+    one is the leakage delta: how much a naive evaluation would have flattered the model. On a corpus
+    drawn from a single seeded generator the gap is small — every instance generalises to every other
+    — which is itself the honest thing to report, and the reason the dramatic leakage story belongs
+    to the real-data IEEE-CIS benchmark, not here.
+    """
+    rng = np.random.default_rng(SEED)
+    idx = rng.permutation(n)
+    n_test = int(n * test_fraction)
+    n_val = int(n * val_fraction)
+    return Split(
+        train=idx[n_test + n_val :],
+        validation=idx[n_test : n_test + n_val],
+        test=idx[:n_test],
+    )

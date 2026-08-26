@@ -54,6 +54,26 @@ export interface Thresholds {
   arbitrationMargin: number;
   /** How well the attack hypothesis must fit its own expectations before containment. */
   containmentSupport: number;
+  /**
+   * The model's risk, P(abuse), at or above which it is treated as calling an attack — high enough to
+   * escalate a rule-suppressed case to a person, or to corroborate a containment. Deliberately far
+   * above the model's *own* cost-optimal block threshold: the model scores aggressively for its own
+   * recall, but overriding the deterministic rules is a stronger act and needs more confidence. Below
+   * it (and above the benign bar) the model is a passenger and the rules decide alone.
+   */
+  modelHighRisk: number;
+  /**
+   * The risk at or below which the model is treated as calling it benign — low enough to de-escalate
+   * a rule-driven containment it disputes down to a review. Real attacks score far above this, so it
+   * never softens a genuine one; it is the safety valve for a containment the model is sure is wrong.
+   */
+  modelLowRisk: number;
+  /**
+   * The higher bar for the model to raise a case entirely on its own — an entity no single-entity
+   * rule opened anything for, which is the distributed and low-and-slow attack a burst gate cannot
+   * see. It only ever routes to review, never containment.
+   */
+  modelFlagRisk: number;
 }
 
 export const THRESHOLDS: Thresholds = {
@@ -74,6 +94,9 @@ export const THRESHOLDS: Thresholds = {
   severityMedium: 0.5,
   arbitrationMargin: 0.08,
   containmentSupport: 0.7,
+  modelHighRisk: 0.7,
+  modelLowRisk: 0.15,
+  modelFlagRisk: 0.8,
 };
 
 /**

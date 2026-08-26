@@ -3,15 +3,20 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { incidents, incidentTransitions, users, type DbHandle } from '@sentinel/db';
 import {
   arbitrate,
+  arbitrationExplainsBenign,
   bucketize,
   canTransition,
+  combineDecision,
   computeTraffic,
   DEFAULT_CHANGE_OPTIONS,
   clusterIncidents,
+  describesSameActivity,
   detectChange,
   dropDuplicateViews,
   evaluateRules,
   firedRules,
+  modelFlagsMissedEntity,
+  openIncident,
   timeToDetect,
   thresholdHash,
   type ChangeResult,
@@ -19,6 +24,8 @@ import {
   type Evaluation,
   type Arbitration,
   type FeatureVector,
+  type ModelInfluence,
+  type ModelVerdict,
   type TrafficContext,
   type Incident as ComputedIncident,
   type IncidentStatus,
@@ -53,6 +60,9 @@ const MAX_SCORED_PER_PASS = 100;
 
 type Row = typeof incidents.$inferSelect;
 type Source = 'razorpay' | 'replay' | 'all';
+
+/** Arbitration as it is stored, carrying how the model moved the decision. */
+type StoredArbitration = Arbitration & { modelInfluence?: ModelInfluence };
 
 @Injectable()
 export class IncidentsService {
@@ -114,8 +124,14 @@ export class IncidentsService {
     // finds the same burst three times. Three rows for one thing is the same failure as sixty
     // alerts for one burst, just smaller — the analyst still has to work out they are the same.
     let scored = 0;
-    for (const computed of dropDuplicateViews(found)) {
-      const vector = vectors.get(`${computed.entityKind}:${computed.entityKey}`);
+    // Entities the rule tier already spoke for this pass, so the model-only pass below does not
+    // open a second case for one that rules and arbitration already judged.
+    const handled = new Set<string>();
+    const ruleIncidents = dropDuplicateViews(found);
+    for (const computed of ruleIncidents) {
+      const entityId = `${computed.entityKind}:${computed.entityKey}`;
+      handled.add(entityId);
+      const vector = vectors.get(entityId);
       const arbitration = vector === undefined ? null : arbitrate(vector, traffic);
 
       // Trigger only, and capped. The exact counts are already confirmed on these vectors, which
@@ -123,12 +139,15 @@ export class IncidentsService {
       const opinion = this.scoreWhenWarranted(vector, traffic, scored);
       if (opinion !== null) scored += 1;
 
-      // Arbitration has the final say on whether anybody needs to see this. The rules decide
-      // that something is *unusual*; arbitration decides what it is, and an outage, a biller's
-      // schedule or an ordinary busy afternoon are all explanations that argue against putting
-      // it in front of a person at all. Existing incidents are still updated, so one that has
+      // The model is a driver, not a passenger. Arbitration decides from the rules; the model's
+      // verdict then combines with it — escalating a case the rules would have suppressed, or
+      // downgrading a containment it disputes — bounded so it never blocks a shopper on its own and
+      // is ignored the moment it abstains or is absent (the degraded:model path). An outage, a
+      // biller's schedule or an ordinary busy afternoon are still explanations that argue against
+      // putting anyone in front of a person, and existing incidents are updated so one that has
       // since explained itself says so rather than going stale.
-      const wanted = arbitration === null || ['contain', 'review'].includes(arbitration.decision);
+      const decided = IncidentsService.decide(arbitration, opinion);
+      const wanted = decided === null || ['contain', 'review'].includes(decided.decision);
       if (!wanted && !(await this.exists(computed.key))) continue;
 
       const wrote = await this.upsert(
@@ -136,12 +155,27 @@ export class IncidentsService {
         change,
         hash,
         provenance.get(computed.entityKey) ?? 'razorpay',
-        arbitration,
+        decided,
         opinion,
       );
       if (wrote === 'opened') opened += 1;
       else updated += 1;
     }
+
+    // The model on its own — the pass that lets it raise a case the rules never opened.
+    const flaggedResult = await this.raiseModelFlagged({
+      vectors,
+      traffic,
+      handled,
+      ruleIncidents,
+      scored,
+      change,
+      hash,
+      provenance,
+      asOf,
+    });
+    opened += flaggedResult.opened;
+    updated += flaggedResult.updated;
 
     return {
       evaluated,
@@ -162,6 +196,100 @@ export class IncidentsService {
    * Extracted so the decision loop stays legible: the model is advisory, so the conditions under
    * which it does *not* run belong in one place rather than tangled into the arbitration branch.
    */
+  /**
+   * The model-only pass: raise a review case on each entity the rules opened nothing for that the
+   * model is confident enough to call an attack on its own — the distributed and low-and-slow
+   * attacks a single-entity burst gate structurally cannot see. Deduplicated against the rule tier's
+   * incidents by same-activity, so one machine seen through a coarser key is never a second case.
+   */
+  private async raiseModelFlagged(ctx: {
+    vectors: Map<string, FeatureVector>;
+    traffic: TrafficContext;
+    handled: Set<string>;
+    ruleIncidents: readonly ComputedIncident[];
+    scored: number;
+    change: ChangeResult | null;
+    hash: string;
+    provenance: Map<string, EventSource>;
+    asOf: number;
+  }): Promise<{ opened: number; updated: number }> {
+    const { vectors, traffic, handled, ruleIncidents, change, hash, provenance, asOf } = ctx;
+    let scored = ctx.scored;
+    let opened = 0;
+    let updated = 0;
+
+    const flagged = new Map<string, { incident: ComputedIncident; opinion: ModelOpinion }>();
+    for (const [entityId, vector] of vectors) {
+      if (handled.has(entityId) || scored >= MAX_SCORED_PER_PASS) continue;
+      const opinion = this.scoreWhenWarranted(vector, traffic, scored);
+      if (opinion !== null) scored += 1;
+      if (opinion === null || !modelFlagsMissedEntity(IncidentsService.verdictOf(opinion)))
+        continue;
+      flagged.set(entityId, {
+        incident: openIncident({ outcomes: [], vector, at: asOf }),
+        opinion,
+      });
+    }
+
+    for (const kept of dropDuplicateViews([...flagged.values()].map((entry) => entry.incident))) {
+      // One machine is one session, one device and one network. If the rule tier already opened a
+      // case on any view of this activity, the model flagging another view of the *same* machine is
+      // the same incident seen through a coarser key, not a new one.
+      if (ruleIncidents.some((rule) => describesSameActivity(rule, kept))) continue;
+      const entityId = `${kept.entityKind}:${kept.entityKey}`;
+      const entry = flagged.get(entityId);
+      const vector = vectors.get(entityId);
+      if (entry === undefined || vector === undefined) continue;
+      const base = arbitrate(vector, traffic);
+      // The model may raise a case the rules missed — but not over a confident benign explanation.
+      // A binary risk score cannot tell a busy-but-innocent entity from an attack; the arbitration
+      // can, and where it positively identified an outage, dunning or an ordinary hour, that wins.
+      if (arbitrationExplainsBenign(base.best)) continue;
+      const decided: StoredArbitration = {
+        ...base,
+        decision: 'review',
+        reasons: [...base.reasons, 'model_flagged_attack_no_rule'],
+        modelInfluence: 'flagged',
+      };
+      const wrote = await this.upsert(
+        kept,
+        change,
+        hash,
+        provenance.get(kept.entityKey) ?? 'razorpay',
+        decided,
+        entry.opinion,
+      );
+      if (wrote === 'opened') opened += 1;
+      else updated += 1;
+    }
+
+    return { opened, updated };
+  }
+
+  /**
+   * The decision actually taken: arbitration's rule-based call, moved by the model's verdict where
+   * the model is confident enough to move it. Returns null only when arbitration itself is null (an
+   * incident from before arbitration existed), in which case the rules stand alone.
+   */
+  private static decide(
+    arbitration: Arbitration | null,
+    opinion: ModelOpinion | null,
+  ): StoredArbitration | null {
+    if (arbitration === null) return null;
+    const combined = combineDecision(arbitration, IncidentsService.verdictOf(opinion));
+    return {
+      ...arbitration,
+      decision: combined.decision,
+      reasons: combined.reasons,
+      modelInfluence: combined.influence,
+    };
+  }
+
+  /** The model opinion reduced to the verdict a decision needs: its risk score, P(abuse). */
+  private static verdictOf(opinion: ModelOpinion | null): ModelVerdict | null {
+    return opinion === null ? null : { risk: opinion.risk };
+  }
+
   private scoreWhenWarranted(
     vector: FeatureVector | undefined,
     traffic: TrafficContext,
@@ -225,7 +353,7 @@ export class IncidentsService {
     change: ChangeResult | null,
     hash: string,
     source: EventSource,
-    arbitration: Arbitration | null,
+    arbitration: StoredArbitration | null,
     modelOpinion: unknown,
   ): Promise<'opened' | 'updated'> {
     const values = {

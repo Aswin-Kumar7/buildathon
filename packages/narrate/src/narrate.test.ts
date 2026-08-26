@@ -30,7 +30,7 @@ function facts(over: Partial<NarrationFacts> = {}): NarrationFacts {
     runnerUp: 'retry_storm',
     decision: 'contain',
     changeFired: { ewma: true, cusum: false },
-    model: { predictedClass: 'attack', confidence: 0.91, abstained: false },
+    model: { risk: 0.91, predictedClass: 'abuse', abstained: false },
     ...over,
   };
 }

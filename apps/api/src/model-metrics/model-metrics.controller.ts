@@ -1,10 +1,8 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import {
-  modelMetricsResponseSchema,
-  incidentModelResponseSchema,
+  riskModelMetricsResponseSchema,
   modelRegistryResponseSchema,
-  type ModelMetricsResponse,
-  type IncidentModelResponse,
+  type RiskModelMetricsResponse,
   type ModelRegistryResponse,
 } from '@sentinel/contracts';
 import { ModelMetricsService } from './model-metrics.service.js';
@@ -19,9 +17,13 @@ export class ModelMetricsController {
     private readonly scoring: ModelScoringService,
   ) {}
 
+  /**
+   * The deployed card-testing risk model's honest evaluation — the one served in the request path,
+   * so the precision/recall/PR-AUC the reader sees describe the model the merchant actually runs.
+   */
   @Get('metrics')
-  get(): ModelMetricsResponse {
-    return modelMetricsResponseSchema.parse(this.metrics.load());
+  get(): RiskModelMetricsResponse {
+    return riskModelMetricsResponseSchema.parse(this.metrics.load());
   }
 
   /**
@@ -29,11 +31,6 @@ export class ModelMetricsController {
    * feature-definition version, and a metrics snapshot. What ties a decision the model informed to
    * the exact model that informed it.
    */
-  @Get('incident')
-  incident(): IncidentModelResponse {
-    return incidentModelResponseSchema.parse(this.metrics.loadIncident());
-  }
-
   @Get('registry')
   registry(): ModelRegistryResponse {
     const entry = this.scoring.registryEntry();

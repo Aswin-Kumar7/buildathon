@@ -60,7 +60,7 @@ describe('model scoring', () => {
     expect(app.get(ModelScoringService).available).toBe(true);
   });
 
-  it('attaches an advisory model opinion to an incident', async () => {
+  it('attaches the model risk opinion to an incident', async () => {
     const list = (await get('/api/incidents')).body as IncidentListResponse;
     const detail = (await get(`/api/incidents/${list.incidents[0]!.id}`))
       .body as IncidentDetailResponse;
@@ -68,9 +68,10 @@ describe('model scoring', () => {
     expect(detail.incident.modelAvailable).toBe(true);
     expect(detail.incident.modelOpinion).not.toBeNull();
     const opinion = detail.incident.modelOpinion!;
-    // A loud enumeration is what the model was trained to call an attack.
-    expect(opinion.predictedClass).toBe('attack');
-    // The probabilities are a distribution, and the contributions are the per-feature reasons.
+    // A loud enumeration is what the model scores as high card-testing risk.
+    expect(opinion.risk).toBeGreaterThan(0.5);
+    expect(opinion.predictedClass).toBe('abuse');
+    // The two-class distribution sums to one, and the contributions are the per-feature reasons.
     const total = opinion.probabilities.reduce((sum, p) => sum + p.probability, 0);
     expect(total).toBeCloseTo(1, 1);
     expect(opinion.contributions.length).toBeGreaterThan(0);
@@ -79,19 +80,19 @@ describe('model scoring', () => {
   it('serves the model registry, tying a decision to the model that informed it', async () => {
     const body = (await get('/api/model/registry')).body;
     expect(body.available).toBe(true);
-    expect(body.registry.version).toBe('b1');
+    expect(body.registry.version).toBe('r1');
     expect(body.registry.featureDefinitionVersion).toMatch(/^fdv-/);
     expect(body.registry.trainingDataHash).toMatch(/^sha256:/);
   });
 
-  it('serves Model B metrics: the confusion matrix, ablation ladder and risk-coverage', async () => {
-    const body = (await get('/api/model/incident')).body;
+  it('serves the deployed model metrics: the honest evaluation and per-origin breakdown', async () => {
+    const body = (await get('/api/model/metrics')).body;
     expect(body.available).toBe(true);
-    expect(body.model.classes).toHaveLength(4);
-    expect(body.model.confusion).toHaveLength(4);
+    // The number shown is the deployed model's, on synthetic labels, and the page says so.
+    expect(body.model.provenance.dataSource).toBe('synthetic-cardtesting');
+    expect(body.model.honest.prAuc.point).toBeGreaterThan(0);
+    expect(body.model.honest.perOrigin.length).toBeGreaterThan(5);
     expect(body.model.ablation.length).toBeGreaterThan(1);
-    expect(body.model.riskCoverage.length).toBeGreaterThan(5);
-    // The corpus is cleanly separable, so hardening should have fired.
-    expect(body.model.hardening.triggered).toBe(true);
+    expect(body.model.leakage.honestGroupOverlap).toBe(0);
   });
 });

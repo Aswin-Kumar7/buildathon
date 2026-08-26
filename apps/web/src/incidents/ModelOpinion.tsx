@@ -1,6 +1,5 @@
 import { Badge, Callout, Card } from '@sentinel/ui';
 import type { IncidentDetail } from '@sentinel/contracts';
-import { hypothesisName } from './evidence.js';
 
 const FEATURE_LABEL: Record<string, string> = {
   log_attempts: 'how many attempts',
@@ -18,11 +17,13 @@ const FEATURE_LABEL: Record<string, string> = {
 const featureLabel = (f: string): string => FEATURE_LABEL[f] ?? f.replace(/_/g, ' ');
 
 /**
- * Model B's advisory opinion — shown beside the rules, never instead of them.
+ * Model B's verdict, and — the part that matters — how it moved the decision.
  *
- * The deterministic decision stands on its own; this is the learned second opinion. When the model
- * is absent the card says the decision ran degraded on rules alone, rather than leaving a silent
- * gap that could read as the model having agreed.
+ * The model is a driver here, not a passenger: it can escalate a case the rules would have
+ * suppressed, hold back a containment it disputes, or raise a case the rules never opened. The
+ * `Influence` line says which of those happened, on a short leash: the model never blocks a shopper
+ * on its own, and when the artefact is absent the decision runs on rules alone (`degraded:model`)
+ * rather than leaving a silent gap that could read as the model having agreed.
  */
 export function ModelOpinion({ incident }: { incident: IncidentDetail }): React.JSX.Element {
   if (!incident.modelAvailable) {
@@ -50,28 +51,32 @@ export function ModelOpinion({ incident }: { incident: IncidentDetail }): React.
     );
   }
 
+  const riskPct = Math.round(opinion.risk * 100);
+
   return (
     <Card>
       <div className="incident__head">
         <h2>Model opinion</h2>
         <div>
-          {opinion.abstained ? (
-            <Badge tone="warn">abstained</Badge>
-          ) : (
-            <Badge tone="neutral">{hypothesisName(opinion.predictedClass)}</Badge>
-          )}
+          <Badge tone={opinion.predictedClass === 'benign' ? 'ok' : 'critical'}>
+            risk {riskPct}%
+          </Badge>
           <span className="incident__band"> model {opinion.modelVersion}</span>
         </div>
       </div>
 
       <p className="incident__band">
         {opinion.abstained
-          ? `Not confident enough to call it — top guess ${hypothesisName(opinion.predictedClass)} at ${Math.round(opinion.confidence * 100)}%, below the abstain bar.`
-          : `${hypothesisName(opinion.predictedClass)}, ${Math.round(opinion.confidence * 100)}% confident. Advisory — the rules decided what was done.`}
+          ? `Card-testing risk ${riskPct}% — in the review band, so the model would defer to a person rather than decide.`
+          : opinion.predictedClass === 'benign'
+            ? `Card-testing risk ${riskPct}% — the model reads this as benign.`
+            : `Card-testing risk ${riskPct}% — the model reads this as abuse.`}
       </p>
 
-      {/* The calibration band: the full probability distribution, so a reader sees not just the
-          winner but how sure the model is across the alternatives. */}
+      <Influence influence={incident.arbitration?.modelInfluence ?? 'none'} />
+
+      {/* The calibration bar: benign against abuse, so a reader sees not just the call but how far
+          the risk sits from the boundary. */}
       <h3>How the model splits it</h3>
       <ul className="compare__fits">
         {[...opinion.probabilities]
@@ -83,7 +88,8 @@ export function ModelOpinion({ incident }: { incident: IncidentDetail }): React.
                 style={{ width: `${Math.round(p.probability * 100)}%` }}
               />
               <span className="compare__label">
-                {hypothesisName(p.label)} <em>{Math.round(p.probability * 100)}%</em>
+                {p.label === 'abuse' ? 'card testing' : 'benign'}{' '}
+                <em>{Math.round(p.probability * 100)}%</em>
               </span>
             </li>
           ))}
@@ -103,5 +109,43 @@ export function ModelOpinion({ incident }: { incident: IncidentDetail }): React.
         ))}
       </ul>
     </Card>
+  );
+}
+
+// How the model moved this decision — the difference between a passenger and a driver, shown plainly.
+const INFLUENCE: Record<string, { tone: 'ok' | 'warn' | 'neutral'; text: string }> = {
+  corroborated: {
+    tone: 'ok',
+    text: 'The model agreed with the rules and strengthened the call — it was not just watching.',
+  },
+  escalated: {
+    tone: 'warn',
+    text: 'The model escalated this. The rules alone would have let it pass; the model was confident enough of an attack to put it in front of a person.',
+  },
+  deescalated: {
+    tone: 'warn',
+    text: 'The model held containment back. The rules would have contained automatically; the model was not convinced, so a person decides rather than a shopper being blocked.',
+  },
+  flagged: {
+    tone: 'warn',
+    text: 'The model raised this on its own — no single-entity rule fired, but the model recognised an attack and sent it to review. This is the distributed, low-and-slow case a burst gate cannot see.',
+  },
+};
+
+function Influence({ influence }: { influence: string }): React.JSX.Element {
+  const shown = INFLUENCE[influence];
+  if (shown === undefined) {
+    return (
+      <p className="incident__band">
+        The model did not move this decision — it agreed there was nothing to act on, or was not
+        sure enough to weigh in. It can escalate, hold back or raise a case on its own; here it did
+        not.
+      </p>
+    );
+  }
+  return (
+    <Callout tone={shown.tone} title={`Model influence: ${influence}`}>
+      <p>{shown.text}</p>
+    </Callout>
   );
 }

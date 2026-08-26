@@ -178,6 +178,10 @@ export const arbitrationSchema = z.object({
   decision: decisionSchema,
   abstained: z.boolean(),
   reasons: z.array(z.string()),
+  /** How the model moved the rule-based decision, when it did — the driver flag for a load-bearing model. */
+  modelInfluence: z
+    .enum(['none', 'corroborated', 'escalated', 'deescalated', 'flagged'])
+    .optional(),
 });
 export type ArbitrationDto = z.infer<typeof arbitrationSchema>;
 

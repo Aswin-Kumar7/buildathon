@@ -12,7 +12,9 @@ import type { ModelOpinion, ModelRegistry } from '@sentinel/contracts';
 interface ServedModel {
   features: string[];
   classes: string[];
-  abstainBelow: number;
+  riskClass: string;
+  reviewThreshold: number;
+  blockThreshold: number;
   scalerMean: number[];
   scalerStd: number[];
   coef: number[][];
@@ -20,17 +22,18 @@ interface ServedModel {
 }
 
 /**
- * Serves Model B in the request path, as the linear map it is.
+ * Serves the deployed card-testing risk model in the request path, as the linear map it is.
  *
- * The model is a temperature-scaled multinomial logistic, exported to `model.json` as a scaler and
- * a weight matrix. Scoring it is a few dot products and a softmax — no native runtime, no ONNX
- * dependency — and the per-feature contributions it returns are exact for a linear model, which is
- * what makes the "why flagged" panel truthful rather than a plausible-looking approximation.
+ * The model is a temperature-scaled binary logistic, exported to `model.json` as a scaler, a weight
+ * matrix with the benign logit pinned to zero, and the two operating thresholds. Scoring it is a few
+ * dot products and a softmax whose second class is P(abuse) — no native runtime, no ONNX dependency —
+ * and the per-feature contributions it returns are exact for a linear model, which is what makes the
+ * "why flagged" panel truthful rather than a plausible-looking approximation.
  *
  * When the artefact is absent — a clone where nobody ran `make eval` — this reports unavailable and
  * the system runs on rules and arbitration alone, marked `degraded:model`. The model informs the
- * decision; it was never allowed to be the decision, so losing it degrades the explanation, not the
- * safety of what is done.
+ * decision and can move it on a short leash; it was never allowed to *be* the decision, so losing it
+ * degrades the explanation, not the safety of what is done.
  */
 @Injectable()
 export class ModelScoringService {
@@ -77,26 +80,34 @@ export class ModelScoringService {
     );
     const probabilities = softmax(logits);
 
-    let best = 0;
-    for (let c = 1; c < probabilities.length; c += 1) {
-      if (probabilities[c]! > probabilities[best]!) best = c;
-    }
-    const confidence = probabilities[best]!;
+    // The risk score is P(abuse) — the second class, by construction of the exported weights.
+    const abuse = model.classes.indexOf(model.riskClass);
+    const risk = probabilities[abuse]!;
 
-    // Contributions toward the predicted class: coefficient times the standardised value. For a
-    // linear model these are exact SHAP values, not an approximation of them.
+    // The served bands: below the review threshold the risk is too low to act on, above the block
+    // threshold it is containment-eligible, and between them it is a case for a person.
+    const band: ModelOpinion['band'] =
+      risk >= model.blockThreshold
+        ? 'contain_eligible'
+        : risk >= model.reviewThreshold
+          ? 'review'
+          : 'observe';
+
+    // Contributions toward the abuse class: coefficient times the standardised value. For a linear
+    // model these are exact SHAP values, not an approximation of them.
     const contributions = standardised
       .map((x, i) => ({
         feature: INCIDENT_FEATURE_NAMES[i] ?? model.features[i]!,
-        contribution: Number((model.coef[best]![i]! * x).toFixed(4)),
+        contribution: Number((model.coef[abuse]![i]! * x).toFixed(4)),
       }))
       .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
       .slice(0, 6);
 
     return {
-      predictedClass: model.classes[best]!,
-      confidence: Number(confidence.toFixed(4)),
-      abstained: confidence < model.abstainBelow,
+      risk: Number(risk.toFixed(4)),
+      predictedClass: risk >= model.blockThreshold ? model.riskClass : 'benign',
+      band,
+      abstained: band === 'review',
       probabilities: model.classes.map((label, c) => ({
         label,
         probability: Number(probabilities[c]!.toFixed(4)),

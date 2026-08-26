@@ -1,5 +1,16 @@
-"""`make eval` for Model B: train, evaluate selectively, ablate, harden if it scored too well, and
-write the served model, the registry, and the metrics — deterministically from a fixed seed."""
+"""`make eval` for the deployed risk model: train, choose the operating point, evaluate on a held-out
+grouped split, measure the leakage delta, ablate, and write the served model, the registry and the
+metrics — deterministically from a fixed seed.
+
+Two runs on the same inputs produce byte-identical `metrics.json`, which is what lets CI regenerate
+it and diff: a drifted metrics file means the model changed, not that the run was noisy. Every float
+is rounded before it is written, so floating-point wobble cannot masquerade as a real change.
+
+The artefacts are written for a reader who was not here: the metrics with their intervals, the
+operating point a team would staff, the leakage delta with both split scores side by side, the
+per-origin breakdown, the ablation ladder, and a model card that says in words what the numbers mean
+and — the load-bearing sentence — that these labels are synthetic, not real-world outcomes.
+"""
 
 from __future__ import annotations
 
@@ -7,76 +18,194 @@ import json
 
 import numpy as np
 
-from .config import ARTIFACTS_DIR, CLASSES, FEATURES, TRAFFIC_FEATURES
+from .config import ARTIFACTS_DIR, COST, FEATURES, REVIEW_CAP, SEED, SPLIT, TRAFFIC_FEATURES
 from .data import load
-from .evaluate import evaluate, macro_f1
-from .export import feature_definition_version, write as write_artifacts
-from .hardening import maybe_harden
-from .model import train
+from .evaluate import Evaluation, evaluate, operating_point, ranking_score
+from .export import VERSION, feature_definition_version, write as write_artifacts
 from .metrics_md import render_metrics_md
+from .model import train
 from .model_card import render_model_card
-from .split import grouped_split, group_overlap
+from .split import grouped_split, group_overlap, naive_split
+
+
+def _round(value: float, places: int = 6) -> float:
+    return round(float(value), places)
+
+
+def _interval(interval) -> dict[str, float]:
+    return {"point": _round(interval.point), "low": _round(interval.low), "high": _round(interval.high)}
+
+
+def _evaluation_dict(evaluation: Evaluation) -> dict:
+    return {
+        "n_test": evaluation.n_test,
+        "positives": evaluation.positives,
+        "threshold": _round(evaluation.threshold),
+        "precision": _interval(evaluation.precision),
+        "recall": _interval(evaluation.recall),
+        "f1": _interval(evaluation.f1),
+        "pr_auc": _interval(evaluation.pr_auc),
+        "roc_auc": _round(evaluation.roc_auc),
+        "brier": _round(evaluation.brier),
+        "false_decline_rate": _round(evaluation.false_decline_rate),
+        "block_rate": _round(evaluation.block_rate),
+        "review_rate": _round(evaluation.review_rate),
+        "review_threshold": _round(evaluation.review_threshold),
+        "reliability": [
+            {"predicted": _round(p["predicted"]), "observed": _round(p["observed"])}
+            for p in evaluation.reliability
+        ],
+        "per_origin": [
+            {
+                "origin": row["origin"],
+                "n": row["n"],
+                "positive": row["positive"],
+                "recall": None if row["recall"] is None else _round(row["recall"]),
+                "false_positive_rate": None
+                if row["false_positive_rate"] is None
+                else _round(row["false_positive_rate"]),
+                "mean_risk": _round(row["mean_risk"]),
+            }
+            for row in evaluation.per_origin
+        ],
+    }
+
+
+def _feature_importance(model) -> list[dict]:
+    """Exact for a linear model: the standardised abuse coefficient, normalised to sum to one. No
+    permutation needed — the coefficient *is* the model's reliance on that feature."""
+    weights = np.abs(model.coef[1])
+    total = float(weights.sum()) or 1.0
+    ranked = sorted(zip(FEATURES, weights / total), key=lambda pair: pair[1], reverse=True)
+    return [{"feature": name, "importance": _round(float(value))} for name, value in ranked]
+
+
+def _learning_curve(x_tr, y_tr, x_val, y_val) -> list[dict]:
+    """Val PR-AUC as the training set grows — whether more data would help."""
+    curve = []
+    rng = np.random.default_rng(SEED)
+    order = rng.permutation(len(y_tr))
+    for fraction in (0.25, 0.5, 1.0):
+        take = max(50, int(len(order) * fraction))
+        idx = order[:take]
+        model = train(x_tr[idx], y_tr[idx], x_val, y_val, COST)
+        val_pr = ranking_score(y_val, model.risk(x_val))
+        curve.append({"train_fraction": fraction, "n_train": int(take), "val_pr_auc": _round(val_pr)})
+    return curve
 
 
 def _ablation(x, y, split) -> list[dict]:
-    """Macro-F1 with different feature groups removed — proof of which features carry which class.
-
-    The traffic features are what tell an outage from a distributed attack; drop them and that
-    distinction collapses, which is the point of measuring it rather than asserting it.
-    """
+    """Test PR-AUC with feature groups removed — proof of what the traffic-context features carry."""
     entity_idx = [i for i, f in enumerate(FEATURES) if f not in TRAFFIC_FEATURES]
     traffic_idx = [i for i, f in enumerate(FEATURES) if f in TRAFFIC_FEATURES]
-    rungs = [
+    ladder = []
+    for name, idx in [
         ("all features", list(range(len(FEATURES)))),
         ("entity only (no traffic context)", entity_idx),
         ("traffic context only", traffic_idx),
-    ]
-    ladder = []
-    for name, idx in rungs:
+    ]:
         model = train(x[split.train][:, idx], y[split.train], x[split.validation][:, idx],
-                      y[split.validation])
-        f1 = macro_f1(y[split.test], model.proba(x[split.test][:, idx]))
-        ladder.append({"features": name, "n_features": len(idx), "macro_f1": round(float(f1), 4)})
+                      y[split.validation], COST)
+        pr = ranking_score(y[split.test], model.risk(x[split.test][:, idx]))
+        ladder.append({"features": name, "n_features": len(idx), "pr_auc": _round(pr)})
     return ladder
+
+
+def _error_taxonomy(y, risk, threshold, amounts) -> list[dict]:
+    """Where the errors fall, by how cheap the entity's attempts were — the small-amount share split
+    into terciles. Card testing probes at trivial amounts; a benign biller does not."""
+    predicted = risk >= threshold
+    terciles = np.quantile(amounts, [1 / 3, 2 / 3])
+    buckets = []
+    for name, lo, hi in [
+        ("low", -np.inf, terciles[0]),
+        ("mid", terciles[0], terciles[1]),
+        ("high", terciles[1], np.inf),
+    ]:
+        mask = (amounts >= lo) & (amounts < hi)
+        yb, pb = y[mask], predicted[mask]
+        buckets.append(
+            {
+                "amount_band": name,
+                "n": int(mask.sum()),
+                "false_positive": int(np.sum(pb & (yb == 0))),
+                "false_negative": int(np.sum(~pb & (yb == 1))),
+            }
+        )
+    return buckets
 
 
 def run(write: bool = True) -> dict:
     data = load()
-    split = grouped_split(data.groups)
+    split = grouped_split(data.groups, SPLIT.test_fraction, SPLIT.validation_fraction)
 
     model = train(data.x[split.train], data.y[split.train], data.x[split.validation],
-                  data.y[split.validation])
-    test_probs = model.proba(data.x[split.test])
-    metrics_eval = evaluate(test_probs, data.y[split.test])
+                  data.y[split.validation], COST)
 
-    hardening = maybe_harden(
-        data.x[split.train], data.y[split.train], data.x[split.validation], data.y[split.validation],
-        data.x[split.test], data.y[split.test], test_probs,
-    )
-    ablation = _ablation(data.x, data.y, split)
+    # The served review threshold: the review-cap band applied on validation, so the request path
+    # routes to a person at the same bar the reported operating point was measured against.
+    val_op = operating_point(data.y[split.validation], model.risk(data.x[split.validation]),
+                             model.threshold, REVIEW_CAP)
+    review_threshold = val_op["review_threshold"]
+
+    test_risk = model.risk(data.x[split.test])
+    honest = evaluate(data.y[split.test], test_risk, data.origin[split.test], model.threshold, SEED)
+
+    # The leakage delta: the same model on a careless row-wise split that ignores the grouping.
+    naive = naive_split(len(data.y), SPLIT.test_fraction, SPLIT.validation_fraction)
+    naive_model = train(data.x[naive.train], data.y[naive.train], data.x[naive.validation],
+                        data.y[naive.validation], COST)
+    naive_pr = ranking_score(data.y[naive.test], naive_model.risk(data.x[naive.test]))
+    honest_pr = honest.pr_auc.point
+
+    # The no-skill floor: the PR-AUC a ranker with no information reaches, which is the positive
+    # prevalence. The model earns only the distance above this.
+    no_skill = float(data.y[split.test].mean())
 
     metrics = {
         "provenance": {
+            "data_source": "synthetic-cardtesting",
+            "model_backend": "logistic-temperature",
+            "data_note": (
+                "Synthetic scenario corpus, not real-world labels. Every row is an entity from a "
+                "seeded scenario the project authored; the label is the scenario's ground truth, not "
+                "a confirmed chargeback. Scores measure the deployed model on a held-out grouped "
+                "split of this corpus. The path to real labels is the merchant's own confirmed "
+                "incidents — see the retraining design."
+            ),
+            "seed": SEED,
             "n_rows": int(len(data.y)),
-            "n_groups": int(len(set(data.groups))),
-            "training_data_hash": data.training_hash,
-            "feature_definition_version": feature_definition_version(),
-            "classes": CLASSES,
-            "temperature": round(model.temperature, 4),
+            "n_groups": int(len(set(data.groups.tolist()))),
+            "positive_rate": _round(float(data.y.mean())),
         },
+        "honest": {"model": "logistic-temperature", "review_cap": _round(REVIEW_CAP), **_evaluation_dict(honest)},
+        "baseline_no_skill": {"pr_auc": _round(no_skill)},
+        "leakage": {
+            "honest_pr_auc": _round(honest_pr),
+            "naive_pr_auc": _round(naive_pr),
+            "delta": _round(naive_pr - honest_pr),
+            "honest_group_overlap": group_overlap(data.groups, split.train, split.test),
+            "naive_group_overlap": group_overlap(data.groups, naive.train, naive.test),
+        },
+        "cost": {
+            "false_negative_paise": COST.false_negative_paise,
+            "false_positive_paise": COST.false_positive_paise,
+        },
+        "feature_importance": _feature_importance(model),
+        "learning_curve": _learning_curve(data.x[split.train], data.y[split.train],
+                                           data.x[split.validation], data.y[split.validation]),
+        "ablation_ladder": _ablation(data.x, data.y, split),
+        "error_taxonomy": _error_taxonomy(data.y[split.test], test_risk, model.threshold,
+                                          data.amounts[split.test]),
         "split_integrity": {
             "train_test_group_overlap": group_overlap(data.groups, split.train, split.test),
-            "train_val_group_overlap": group_overlap(data.groups, split.train, split.validation),
             "n_train": int(len(split.train)),
             "n_test": int(len(split.test)),
         },
-        "evaluation": metrics_eval,
-        "ablation_ladder": ablation,
-        "hardening": hardening,
     }
 
-    registry = write_artifacts(model, metrics_eval, data.training_hash) if write else {}
     if write:
+        registry = write_artifacts(model, review_threshold, metrics, data.training_hash)
         ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
         (ARTIFACTS_DIR / "metrics.json").write_text(
             json.dumps(metrics, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -84,17 +213,16 @@ def run(write: bool = True) -> dict:
         (ARTIFACTS_DIR / "model_card.md").write_text(
             render_model_card(metrics, registry), encoding="utf-8"
         )
-        (ARTIFACTS_DIR / "METRICS.md").write_text(
-            render_metrics_md(metrics), encoding="utf-8"
-        )
+        (ARTIFACTS_DIR / "METRICS.md").write_text(render_metrics_md(metrics), encoding="utf-8")
     return metrics
 
 
 if __name__ == "__main__":
     result = run()
-    e = result["evaluation"]
+    h = result["honest"]
+    leak = result["leakage"]
     print(
-        f"eval — accuracy={e['accuracy']} macro_f1={e['macro_f1']} abstain={e['abstain_rate']} "
-        f"hardening_triggered={result['hardening']['triggered']} "
-        f"group_overlap={result['split_integrity']['train_test_group_overlap']}"
+        f"eval — PR-AUC={h['pr_auc']['point']} precision={h['precision']['point']} "
+        f"recall={h['recall']['point']} f1={h['f1']['point']} threshold={h['threshold']} "
+        f"leakage_delta={leak['delta']} group_overlap={result['split_integrity']['train_test_group_overlap']}"
     )

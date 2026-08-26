@@ -1,3 +1,4 @@
-"""Model B — the incident classifier. Multi-class over the hypothesis families, with an explicit
-abstain the model earns through confidence rather than guesses at. Trained on the corpus, split so
-no scenario seed leaks across the divide, and served as the linear form it actually is."""
+"""The deployed card-testing risk model. A binary calibrated logistic that scores P(abuse) for an
+entity, trained on the synthetic scenario corpus and split so no scenario seed leaks across the
+divide. Served as the linear form it actually is — a few dot products in the request path — and
+measured, on a held-out grouped split, with the same honest suite the reader sees on the model page."""

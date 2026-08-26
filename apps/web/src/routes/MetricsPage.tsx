@@ -1,83 +1,38 @@
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Callout, Card } from '@sentinel/ui';
-import { modelMetricsResponseSchema, type ModelMetrics } from '@sentinel/contracts';
-import { IncidentModelSection } from './IncidentModelSection.js';
+import { riskModelMetricsResponseSchema, type RiskModelMetrics } from '@sentinel/contracts';
 import './MetricsPage.css';
 
 async function fetchMetrics() {
   const response = await fetch('/api/model/metrics', { credentials: 'include' });
   if (!response.ok) throw new Error(`api returned ${response.status}`);
-  return modelMetricsResponseSchema.parse(await response.json());
+  return riskModelMetricsResponseSchema.parse(await response.json());
 }
 
 const three = (value: number): string => value.toFixed(3);
 const pct = (value: number): string => `${(value * 100).toFixed(2)}%`;
 
-/**
- * The evidence label, shown wherever a number is. On synthetic data the scores are a property of
- * the generator, not of IEEE-CIS, and a reader must never mistake one for the other.
- */
-function Source({ metrics }: { metrics: ModelMetrics }): React.JSX.Element {
-  const real = metrics.provenance.dataSource === 'ieee-cis';
-  return (
-    <Badge tone={real ? 'ok' : 'warn'}>{real ? 'IEEE-CIS held-out' : 'synthetic stand-in'}</Badge>
-  );
-}
-
 function band(interval: { point: number; low: number; high: number }): string {
   return `${three(interval.point)}  (${three(interval.low)}–${three(interval.high)})`;
 }
 
-function Leakage({ metrics }: { metrics: ModelMetrics }): React.JSX.Element {
-  const l = metrics.leakage;
-  return (
-    <Card>
-      <h2>The leakage delta</h2>
-      <p>
-        The same model, measured two ways. A careless random split lets it memorise which card is
-        fraud and reuse that on the same card in the test set — a recognition it cannot repeat on a
-        card it has never seen. The honest split keeps whole cards on one side, and the gap between
-        the two scores is exactly how much a careless evaluation would have flattered it.
-      </p>
-      <table className="metrics-table">
-        <thead>
-          <tr>
-            <th>Split</th>
-            <th>PR-AUC</th>
-            <th>Cards shared train↔test</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Careless (random)</td>
-            <td className="is-inflated">{three(l.naivePrAuc)}</td>
-            <td>{l.naiveUidOverlap.toLocaleString()}</td>
-          </tr>
-          <tr>
-            <td>Honest (grouped, time-ordered)</td>
-            <td>{three(l.honestPrAuc)}</td>
-            <td>{l.honestUidOverlap.toLocaleString()}</td>
-          </tr>
-        </tbody>
-      </table>
-      <p className="metrics-delta">
-        A careless split inflates PR-AUC by <strong>{three(l.delta)}</strong>. The headline numbers
-        below come from the honest split; the {l.droppedToGap.toLocaleString()} rows in the delay
-        gap were dropped so the model never trained on labels that would not yet have arrived.
-      </p>
-    </Card>
-  );
-}
-
-function Held({ metrics }: { metrics: ModelMetrics }): React.JSX.Element {
+/**
+ * The held-out headline for the *deployed* model — the same one the request path scores with, so
+ * precision/recall/PR-AUC describe the model the merchant actually runs, not a benchmark beside it.
+ */
+function Held({ metrics }: { metrics: RiskModelMetrics }): React.JSX.Element {
   const h = metrics.honest;
   return (
     <Card>
       <div className="metrics-head">
         <h2>Held-out results</h2>
-        <Source metrics={metrics} />
+        <Badge tone="warn">synthetic corpus, held-out</Badge>
       </div>
       <dl className="incident__facts">
+        <div>
+          <dt>PR-AUC</dt>
+          <dd>{band(h.prAuc)}</dd>
+        </div>
         <div>
           <dt>Precision</dt>
           <dd>{band(h.precision)}</dd>
@@ -87,8 +42,8 @@ function Held({ metrics }: { metrics: ModelMetrics }): React.JSX.Element {
           <dd>{band(h.recall)}</dd>
         </div>
         <div>
-          <dt>PR-AUC</dt>
-          <dd>{band(h.prAuc)}</dd>
+          <dt>F1</dt>
+          <dd>{band(h.f1)}</dd>
         </div>
         <div>
           <dt>ROC-AUC</dt>
@@ -99,29 +54,81 @@ function Held({ metrics }: { metrics: ModelMetrics }): React.JSX.Element {
           <dd>{three(h.brier)}</dd>
         </div>
         <div>
-          <dt>Logistic baseline PR-AUC</dt>
-          <dd>{three(metrics.baselineLogisticPrAuc)}</dd>
+          <dt>No-skill PR-AUC floor</dt>
+          <dd>{three(metrics.baselineNoSkill.prAuc)}</dd>
         </div>
       </dl>
       <p className="incident__band">
-        {h.model} model, {h.nTest.toLocaleString()} test transactions (
-        {h.positives.toLocaleString()} fraud), threshold {three(h.threshold)} chosen to minimise
-        expected cost. Every figure carries its 95% bootstrap interval, because a point estimate on
-        a finite test set is half a claim.
+        {h.nTest.toLocaleString()} test entities ({h.positives.toLocaleString()} abuse) at the
+        cost-optimal block threshold {three(h.threshold)}, chosen to minimise expected cost. Every
+        figure carries its 95% bootstrap interval, because a point estimate on a finite test set is
+        half a claim.
       </p>
     </Card>
   );
 }
 
 /**
- * The operating point as three actions, not one number, and the rate a merchant actually feels.
+ * The honest heart of the page: where the model is right, and where it is not.
  *
- * A cost-optimal threshold decides block-or-not; running a real desk means allow / review / block,
- * and review is a capacity — a person's time — not a free tier. So the review band is capped at a
- * declared share of traffic, and the false-decline rate (good shoppers wrongly blocked) is stated
- * outright, because precision hides it when fraud is rare.
+ * An aggregate hides both. This shows, per scenario family and composition, the recall on attacks
+ * and the false-positive rate on benign traffic — so a reader sees the model catch obvious
+ * enumeration and struggle exactly where card testing and a biller's dunning genuinely overlap.
  */
-function OperatingPoint({ metrics }: { metrics: ModelMetrics }): React.JSX.Element {
+function PerOrigin({ metrics }: { metrics: RiskModelMetrics }): React.JSX.Element {
+  const rows = [...metrics.honest.perOrigin].sort((a, b) => b.meanRisk - a.meanRisk);
+  return (
+    <Card>
+      <h2>Where the model is right, and where it is not</h2>
+      <p className="incident__band">
+        Per origin. For an attack the number is recall — what share it caught; for benign traffic it
+        is the false-positive rate — what share it wrongly flagged. The model catches obvious and
+        distributed enumeration, and its mistakes concentrate in aggressive dunning and retry
+        storms, the real ambiguity a rules layer then resolves rather than a modelling artefact.
+      </p>
+      <div className="audit-table-wrap">
+        <table className="metrics-table">
+          <thead>
+            <tr>
+              <th>Origin</th>
+              <th>Kind</th>
+              <th>n</th>
+              <th>Recall / FP-rate</th>
+              <th>Mean risk</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const wrong = r.positive ? (r.recall ?? 1) < 0.9 : (r.falsePositiveRate ?? 0) > 0.1;
+              return (
+                <tr key={r.origin}>
+                  <td>{r.origin}</td>
+                  <td>
+                    <Badge tone={r.positive ? 'critical' : 'neutral'}>
+                      {r.positive ? 'attack' : 'benign'}
+                    </Badge>
+                  </td>
+                  <td>{r.n}</td>
+                  <td className={wrong ? 'is-inflated' : undefined}>
+                    {r.positive
+                      ? `recall ${three(r.recall ?? 0)}`
+                      : `FP ${three(r.falsePositiveRate ?? 0)}`}
+                  </td>
+                  <td>{three(r.meanRisk)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * The operating point as three actions, not one number, and the rate a merchant actually feels.
+ */
+function OperatingPoint({ metrics }: { metrics: RiskModelMetrics }): React.JSX.Element {
   const h = metrics.honest;
   const allowRate = Math.max(0, 1 - h.blockRate - h.reviewRate);
   const seg = (value: number): { flexGrow: number } => ({ flexGrow: Math.max(value, 0.001) });
@@ -131,23 +138,25 @@ function OperatingPoint({ metrics }: { metrics: ModelMetrics }): React.JSX.Eleme
       <h2>The operating point, as a desk runs it</h2>
       <p className="incident__band">
         The cost-optimal threshold is one number; running at it is three actions. Traffic below the
-        review band is allowed, the riskiest non-blocked slice — capped at {pct(h.reviewCap)} of all
-        traffic, the analyst budget — goes to a person, and above the block threshold it is stopped.
+        review band is observed, the riskiest slice — capped at {pct(h.reviewCap)} of all traffic,
+        the analyst budget — goes to a person, and above the block threshold it is
+        containment-eligible (still gated by the deterministic rules, never blocked by the model
+        alone).
       </p>
 
       <div
         className="operate-bar"
         role="img"
-        aria-label="allow, review and block shares of traffic"
+        aria-label="observe, review and contain-eligible shares"
       >
         <span className="operate-bar__seg operate-bar__seg--allow" style={seg(allowRate)}>
-          allow {pct(allowRate)}
+          observe {pct(allowRate)}
         </span>
         <span className="operate-bar__seg operate-bar__seg--review" style={seg(h.reviewRate)}>
           review {pct(h.reviewRate)}
         </span>
         <span className="operate-bar__seg operate-bar__seg--block" style={seg(h.blockRate)}>
-          block {pct(h.blockRate)}
+          contain-eligible {pct(h.blockRate)}
         </span>
       </div>
 
@@ -171,23 +180,19 @@ function OperatingPoint({ metrics }: { metrics: ModelMetrics }): React.JSX.Eleme
       </dl>
 
       <p className="incident__band">
-        The false-decline rate — legitimate shoppers wrongly blocked, as a share of all legitimate
-        traffic — is the number a merchant feels and a precision figure hides when fraud is rare.
-        Review is bounded on purpose: a model that flags a tenth of traffic for a human has saved
-        nobody money if nobody can look at it.
+        The false-decline rate is benign entities the model would put on the contain-eligible side,
+        as a share of all benign traffic — eligibility, not an actual block, because the rules and
+        policy still gate what is done. Review is bounded on purpose: a model that flags a tenth of
+        traffic for a human has saved nobody money if nobody can look at it.
       </p>
     </Card>
   );
 }
 
 /**
- * The reliability diagram: predicted probability against the fraction that was actually fraud.
- *
- * A cost-based threshold is meaningless on scores that are not probabilities, so this is the check
- * that they are. Points on the dashed line are perfectly calibrated — a 0.3 prediction is fraud
- * three times in ten — and the distance off it is the miscalibration the Brier score sums up.
+ * The reliability diagram: predicted risk against the fraction that was actually abuse.
  */
-function Calibration({ metrics }: { metrics: ModelMetrics }): React.JSX.Element {
+function Calibration({ metrics }: { metrics: RiskModelMetrics }): React.JSX.Element {
   const points = metrics.honest.reliability;
   const size = 220;
   const pad = 4;
@@ -226,9 +231,9 @@ function Calibration({ metrics }: { metrics: ModelMetrics }): React.JSX.Element 
           ))}
         </svg>
         <p className="incident__band calib__caption">
-          Predicted probability (x) against the fraction actually fraud (y), in deciles. The dashed
-          line is perfect calibration; the curve is the {metrics.honest.model} model after isotonic
-          calibration. Brier {three(metrics.honest.brier)} — lower is better, and it is what a
+          Predicted risk (x) against the fraction actually abuse (y), in deciles. The dashed line is
+          perfect calibration; the curve is the {metrics.honest.model} model after temperature
+          scaling. Brier {three(metrics.honest.brier)} — lower is better, and it is what a
           cost-based threshold quietly depends on.
         </p>
       </div>
@@ -236,11 +241,52 @@ function Calibration({ metrics }: { metrics: ModelMetrics }): React.JSX.Element 
   );
 }
 
-function Extras({ metrics }: { metrics: ModelMetrics }): React.JSX.Element {
+function Leakage({ metrics }: { metrics: RiskModelMetrics }): React.JSX.Element {
+  const l = metrics.leakage;
   return (
     <Card>
-      <h2>Where the signal is, and where the errors fall</h2>
-      <h3>Feature importance (permutation, honest split)</h3>
+      <h2>The leakage delta</h2>
+      <p>
+        The same model, measured two ways. A careless row-wise split lets a scenario instance fall
+        on both sides, so the model can be rewarded for half-remembering a seed. The grouped split
+        keeps every instance on one side. On a corpus from a single seeded generator the gap is
+        small — and honestly so; the dramatic leakage story belongs to the real-data IEEE-CIS
+        research benchmark.
+      </p>
+      <table className="metrics-table">
+        <thead>
+          <tr>
+            <th>Split</th>
+            <th>PR-AUC</th>
+            <th>Scenario groups shared train↔test</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Careless (row-wise)</td>
+            <td className="is-inflated">{three(l.naivePrAuc)}</td>
+            <td>{l.naiveGroupOverlap.toLocaleString()}</td>
+          </tr>
+          <tr>
+            <td>Honest (grouped by scenario)</td>
+            <td>{three(l.honestPrAuc)}</td>
+            <td>{l.honestGroupOverlap.toLocaleString()}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p className="metrics-delta">
+        A careless split moves PR-AUC by <strong>{three(l.delta)}</strong>. The headline numbers
+        come from the grouped split, where no scenario the model trained on appears in the test set.
+      </p>
+    </Card>
+  );
+}
+
+function Extras({ metrics }: { metrics: RiskModelMetrics }): React.JSX.Element {
+  return (
+    <Card>
+      <h2>Where the signal is, and what the features carry</h2>
+      <h3>Feature importance (standardised coefficient, exact for a linear model)</h3>
       <ul className="metrics-bars">
         {metrics.featureImportance.slice(0, 8).map((f) => (
           <li key={f.feature}>
@@ -253,33 +299,30 @@ function Extras({ metrics }: { metrics: ModelMetrics }): React.JSX.Element {
           </li>
         ))}
       </ul>
-      <p className="incident__band">
-        The card identifiers sit near zero — the honest split gives them no value, which is the
-        whole point. The signal the model actually uses is the transaction-level features, the part
-        that generalises to a card it has never seen.
-      </p>
 
-      <h3>Errors by amount</h3>
+      <h3>Ablation ladder (PR-AUC)</h3>
       <table className="metrics-table">
         <thead>
           <tr>
-            <th>Band</th>
-            <th>Transactions</th>
-            <th>False positives</th>
-            <th>False negatives</th>
+            <th>Features</th>
+            <th>Count</th>
+            <th>PR-AUC</th>
           </tr>
         </thead>
         <tbody>
-          {metrics.errorTaxonomy.map((row) => (
-            <tr key={row.amountBand}>
-              <td>{row.amountBand}</td>
-              <td>{row.n.toLocaleString()}</td>
-              <td>{row.falsePositive}</td>
-              <td>{row.falseNegative}</td>
+          {metrics.ablation.map((row) => (
+            <tr key={row.features}>
+              <td>{row.features}</td>
+              <td>{row.nFeatures}</td>
+              <td>{three(row.prAuc)}</td>
             </tr>
           ))}
         </tbody>
       </table>
+      <p className="incident__band">
+        Remove the traffic-context features and the model loses the ability to tell an outage's
+        failures from a masked attack — the ladder shows it rather than asserting it.
+      </p>
     </Card>
   );
 }
@@ -290,42 +333,38 @@ export function MetricsPage(): React.JSX.Element {
   return (
     <>
       <header className="page-head">
-        <h1>Model benchmark</h1>
+        <h1>The deployed model</h1>
         <p>
-          Precision and recall on labels this project did not author — measured on data the model
-          never saw, from a period after it trained, with whole cards kept out of its training so it
-          cannot memorise them. The number that matters most is the leakage delta: the difference
-          between a score and a claim.
+          The card-testing risk model the request path actually scores with, measured on a held-out
+          grouped split of the synthetic scenario corpus. There is no separate benchmark: the model
+          you see precision, recall and PR-AUC for is the one the merchant runs.
         </p>
       </header>
 
       {metrics.isError && (
-        <Callout tone="critical" title="Could not load the benchmark">
+        <Callout tone="critical" title="Could not load the model">
           <p role="alert">{metrics.error.message}</p>
         </Callout>
       )}
-      {metrics.isPending && <p role="status">Loading the benchmark…</p>}
+      {metrics.isPending && <p role="status">Loading the model…</p>}
 
       {metrics.data !== undefined && metrics.data.available === false && (
-        <Callout tone="neutral" title="The benchmark has not been generated">
+        <Callout tone="neutral" title="The model has not been generated">
           <p>{metrics.data.reason}</p>
         </Callout>
       )}
 
       {metrics.data !== undefined && metrics.data.available === true && (
         <>
-          <Callout
-            tone={metrics.data.metrics.provenance.dataSource === 'ieee-cis' ? 'neutral' : 'warn'}
-            title="What these numbers are evidence of"
-          >
-            <p>{metrics.data.metrics.provenance.dataNote}</p>
+          <Callout tone="warn" title="These labels are synthetic, not real-world outcomes">
+            <p>{metrics.data.model.provenance.dataNote}</p>
           </Callout>
-          <Leakage metrics={metrics.data.metrics} />
-          <Held metrics={metrics.data.metrics} />
-          <OperatingPoint metrics={metrics.data.metrics} />
-          <Calibration metrics={metrics.data.metrics} />
-          <Extras metrics={metrics.data.metrics} />
-          <IncidentModelSection />
+          <Held metrics={metrics.data.model} />
+          <PerOrigin metrics={metrics.data.model} />
+          <OperatingPoint metrics={metrics.data.model} />
+          <Calibration metrics={metrics.data.model} />
+          <Leakage metrics={metrics.data.model} />
+          <Extras metrics={metrics.data.model} />
         </>
       )}
     </>

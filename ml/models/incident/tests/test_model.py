@@ -1,54 +1,54 @@
 """The served model.json reproduces the trained model within tolerance — the parity guarantee the
-request path rests on, standing in for the ONNX golden-set check."""
+request path rests on — and the risk score does what a risk score must."""
 from __future__ import annotations
 import numpy as np
+from incident.config import COST
 from incident.data import load
 from incident.export import model_json
 from incident.model import train
 from incident.split import grouped_split
 
 
-def _softmax(z):
-    z = z - z.max(axis=1, keepdims=True)
-    e = np.exp(z)
-    return e / e.sum(axis=1, keepdims=True)
-
-
-def test_exported_json_reproduces_the_model():
-    data = load()
-    split = grouped_split(data.groups)
-    model = train(data.x[split.train], data.y[split.train], data.x[split.validation], data.y[split.validation])
-    served = model_json(model)
-
-    x = data.x[split.test]
+def _served_risk(served: dict, x: np.ndarray) -> np.ndarray:
+    """P(abuse) as the API computes it: softmax over the two class logits, second class."""
     mean = np.array(served["scalerMean"])
     std = np.array(served["scalerStd"])
     coef = np.array(served["coef"])
     intercept = np.array(served["intercept"])
-    reproduced = _softmax(((x - mean) / std) @ coef.T + intercept)
+    logits = ((x - mean) / std) @ coef.T + intercept
+    logits = logits - logits.max(axis=1, keepdims=True)
+    e = np.exp(logits)
+    return (e / e.sum(axis=1, keepdims=True))[:, 1]
 
-    assert np.max(np.abs(reproduced - model.proba(x))) < 1e-6
 
-
-def test_abstains_when_unsure():
-    # The reject option must actually engage. A dominant, well-separated class makes the plain
-    # mean of the data look confidently healthy — being sure there is correct, not a failure — so
-    # that is the wrong probe. A genuinely ambiguous entity is one pulled equally toward *every*
-    # class: the centroid of the per-class centroids, equidistant from all four. On a point like
-    # that the model should decline rather than force a call, and its top probability should fall
-    # below the abstain bar the operating point uses.
-    from incident.config import ABSTAIN_BELOW, CLASSES
-
+def _model():
     data = load()
     split = grouped_split(data.groups)
-    model = train(data.x[split.train], data.y[split.train], data.x[split.validation], data.y[split.validation])
+    model = train(data.x[split.train], data.y[split.train], data.x[split.validation],
+                  data.y[split.validation], COST)
+    return data, split, model
 
-    x_train, y_train = data.x[split.train], data.y[split.train]
-    centroids = np.stack([x_train[y_train == c].mean(axis=0) for c in range(len(CLASSES))])
-    ambiguous = centroids.mean(axis=0, keepdims=True)
 
-    top = model.proba(ambiguous).max()
-    assert top < ABSTAIN_BELOW  # equidistant from every class → the model abstains rather than guesses
-    # And the contrast: on a class-typical point it is decisive. Confidence tracks ambiguity, which
-    # is the whole justification for having an abstain at all.
-    assert model.proba(centroids[:1]).max() > ABSTAIN_BELOW
+def test_exported_json_reproduces_the_model():
+    data, split, model = _model()
+    served = model_json(model, review_threshold=0.3)
+    x = data.x[split.test]
+    assert np.max(np.abs(_served_risk(served, x) - model.risk(x))) < 1e-6
+
+
+def test_risk_ranks_abuse_above_benign():
+    data, split, model = _model()
+    risk = model.risk(data.x[split.test])
+    y = data.y[split.test]
+    # The property PR-AUC rewards: abuse entities score higher on average than benign ones.
+    assert risk[y == 1].mean() > risk[y == 0].mean()
+    # The block threshold is a real interior operating point, not a degenerate 0 or 1.
+    assert 0.0 < model.threshold < 1.0
+
+
+def test_threshold_leans_toward_recall_under_the_cost_asymmetry():
+    # A missed attack costs far more than a wrongly-flagged benign, so the cost-optimal threshold
+    # sits below 0.5: the model is told to lean toward catching. The Bayes-optimal point for a
+    # calibrated model is fp / (fp + fn) — well under a half at these costs.
+    _, _, model = _model()
+    assert model.threshold < 0.5

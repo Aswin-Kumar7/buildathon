@@ -206,8 +206,8 @@ export class NarrationService {
         detail.modelOpinion === null
           ? null
           : {
+              risk: detail.modelOpinion.risk,
               predictedClass: detail.modelOpinion.predictedClass,
-              confidence: detail.modelOpinion.confidence,
               abstained: detail.modelOpinion.abstained,
             },
     };

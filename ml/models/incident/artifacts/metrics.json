@@ -2,206 +2,362 @@
   "ablation_ladder": [
     {
       "features": "all features",
-      "macro_f1": 1.0,
-      "n_features": 10
+      "n_features": 10,
+      "pr_auc": 0.940056
     },
     {
       "features": "entity only (no traffic context)",
-      "macro_f1": 0.7868,
-      "n_features": 7
+      "n_features": 7,
+      "pr_auc": 0.923108
     },
     {
       "features": "traffic context only",
-      "macro_f1": 0.6675,
-      "n_features": 3
+      "n_features": 3,
+      "pr_auc": 0.303974
     }
   ],
-  "evaluation": {
-    "abstain_rate": 0.0,
-    "abstain_threshold": 0.55,
-    "accuracy": 1.0,
-    "classes": [
-      "attack",
-      "outage",
-      "retry_storm",
-      "healthy_traffic"
-    ],
-    "confusion": [
-      [
-        151,
-        0,
-        0,
-        0
-      ],
-      [
-        0,
-        64,
-        0,
-        0
-      ],
-      [
-        0,
-        0,
-        23,
-        0
-      ],
-      [
-        0,
-        0,
-        0,
-        400
-      ]
-    ],
-    "macro_f1": 1.0,
-    "n_test": 638,
-    "per_class": {
-      "attack": {
-        "precision": 1.0,
-        "recall": 1.0,
-        "support": 151
-      },
-      "healthy_traffic": {
-        "precision": 1.0,
-        "recall": 1.0,
-        "support": 400
-      },
-      "outage": {
-        "precision": 1.0,
-        "recall": 1.0,
-        "support": 64
-      },
-      "retry_storm": {
-        "precision": 1.0,
-        "recall": 1.0,
-        "support": 23
-      }
+  "baseline_no_skill": {
+    "pr_auc": 0.211321
+  },
+  "cost": {
+    "false_negative_paise": 500000,
+    "false_positive_paise": 80000
+  },
+  "error_taxonomy": [
+    {
+      "amount_band": "low",
+      "false_negative": 0,
+      "false_positive": 0,
+      "n": 0
     },
-    "risk_coverage": [
+    {
+      "amount_band": "mid",
+      "false_negative": 0,
+      "false_positive": 0,
+      "n": 0
+    },
+    {
+      "amount_band": "high",
+      "false_negative": 8,
+      "false_positive": 105,
+      "n": 1325
+    }
+  ],
+  "feature_importance": [
+    {
+      "feature": "log_attempts",
+      "importance": 0.277865
+    },
+    {
+      "feature": "failure_rate",
+      "importance": 0.132584
+    },
+    {
+      "feature": "approval_rate",
+      "importance": 0.132584
+    },
+    {
+      "feature": "small_amount_share",
+      "importance": 0.113796
+    },
+    {
+      "feature": "recovery_rate",
+      "importance": 0.103937
+    },
+    {
+      "feature": "cards_per_attempt",
+      "importance": 0.066325
+    },
+    {
+      "feature": "log_failing_sessions",
+      "importance": 0.063665
+    },
+    {
+      "feature": "infra_share",
+      "importance": 0.060499
+    },
+    {
+      "feature": "burstiness",
+      "importance": 0.030035
+    },
+    {
+      "feature": "top_session_failure_share",
+      "importance": 0.018711
+    }
+  ],
+  "honest": {
+    "block_rate": 0.284528,
+    "brier": 0.043904,
+    "f1": {
+      "high": 0.859179,
+      "low": 0.793046,
+      "point": 0.828006
+    },
+    "false_decline_rate": 0.100478,
+    "model": "logistic-temperature",
+    "n_test": 1325,
+    "per_origin": [
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.0
+        "false_positive_rate": 1.0,
+        "mean_risk": 0.506562,
+        "n": 31,
+        "origin": "aggressive_dunning",
+        "positive": false,
+        "recall": null
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.05
+        "false_positive_rate": null,
+        "mean_risk": 0.710872,
+        "n": 42,
+        "origin": "attack_card_reuse",
+        "positive": true,
+        "recall": 1.0
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.1
+        "false_positive_rate": null,
+        "mean_risk": 0.998751,
+        "n": 60,
+        "origin": "attack_distributed",
+        "positive": true,
+        "recall": 1.0
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.15
+        "false_positive_rate": null,
+        "mean_risk": 0.999972,
+        "n": 16,
+        "origin": "attack_loud",
+        "positive": true,
+        "recall": 1.0
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.2
+        "false_positive_rate": null,
+        "mean_risk": 0.999672,
+        "n": 38,
+        "origin": "attack_low_amplitude",
+        "positive": true,
+        "recall": 1.0
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.25
+        "false_positive_rate": null,
+        "mean_risk": 0.675081,
+        "n": 29,
+        "origin": "attack_partial_success",
+        "positive": true,
+        "recall": 1.0
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.3
+        "false_positive_rate": 0.0,
+        "mean_risk": 0.002182,
+        "n": 21,
+        "origin": "broken_integration",
+        "positive": false,
+        "recall": null
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.35
+        "false_positive_rate": 0.0,
+        "mean_risk": 0.001672,
+        "n": 45,
+        "origin": "customer_error",
+        "positive": false,
+        "recall": null
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.4
+        "false_positive_rate": 0.148148,
+        "mean_risk": 0.089832,
+        "n": 54,
+        "origin": "flash_sale",
+        "positive": false,
+        "recall": null
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.45
+        "false_positive_rate": 0.111111,
+        "mean_risk": 0.072468,
+        "n": 90,
+        "origin": "gateway_outage",
+        "positive": false,
+        "recall": null
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.5
+        "false_positive_rate": null,
+        "mean_risk": 0.440582,
+        "n": 25,
+        "origin": "masked_in_outage",
+        "positive": true,
+        "recall": 0.76
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.55
+        "false_positive_rate": 0.0,
+        "mean_risk": 0.019271,
+        "n": 150,
+        "origin": "masked_in_outage_background",
+        "positive": false,
+        "recall": null
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.6
+        "false_positive_rate": null,
+        "mean_risk": 0.895928,
+        "n": 11,
+        "origin": "masked_loud_in_dunning",
+        "positive": true,
+        "recall": 1.0
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.65
+        "false_positive_rate": 0.139394,
+        "mean_risk": 0.048991,
+        "n": 165,
+        "origin": "masked_loud_in_dunning_background",
+        "positive": false,
+        "recall": null
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.7
+        "false_positive_rate": null,
+        "mean_risk": 0.95201,
+        "n": 13,
+        "origin": "masked_loud_in_flash",
+        "positive": true,
+        "recall": 1.0
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.75
+        "false_positive_rate": 0.015385,
+        "mean_risk": 0.014542,
+        "n": 195,
+        "origin": "masked_loud_in_flash_background",
+        "positive": false,
+        "recall": null
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.8
+        "false_positive_rate": null,
+        "mean_risk": 0.540766,
+        "n": 46,
+        "origin": "masked_slow_in_normal",
+        "positive": true,
+        "recall": 0.956522
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.85
+        "false_positive_rate": 0.0,
+        "mean_risk": 0.014005,
+        "n": 180,
+        "origin": "masked_slow_in_normal_background",
+        "positive": false,
+        "recall": null
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.9
+        "false_positive_rate": 0.0,
+        "mean_risk": 0.009077,
+        "n": 81,
+        "origin": "normal_traffic",
+        "positive": false,
+        "recall": null
       },
       {
-        "coverage": 1.0,
-        "selective_accuracy": 1.0,
-        "threshold": 0.95
+        "false_positive_rate": 0.909091,
+        "mean_risk": 0.323555,
+        "n": 33,
+        "origin": "retry_storm",
+        "positive": false,
+        "recall": null
       }
-    ]
-  },
-  "hardening": {
-    "base_macro_f1": 1.0,
-    "hardened_macro_f1": 0.9759,
-    "note": "The corpus scored above the hardening threshold, so a round of feature noise was added and the model re-evaluated. The hardened number is the honest one to quote.",
-    "triggered": true
-  },
-  "provenance": {
-    "classes": [
-      "attack",
-      "outage",
-      "retry_storm",
-      "healthy_traffic"
     ],
-    "feature_definition_version": "fdv-bfe27ae905dd",
-    "n_groups": 240,
-    "n_rows": 2741,
-    "temperature": 0.25,
-    "training_data_hash": "sha256:6b0f29c5965bbc82"
+    "positives": 280,
+    "pr_auc": {
+      "high": 0.957081,
+      "low": 0.919131,
+      "point": 0.940056
+    },
+    "precision": {
+      "high": 0.766944,
+      "low": 0.671854,
+      "point": 0.721485
+    },
+    "recall": {
+      "high": 0.98925,
+      "low": 0.952014,
+      "point": 0.971429
+    },
+    "reliability": [
+      {
+        "observed": 0.0,
+        "predicted": 0.0
+      },
+      {
+        "observed": 0.0,
+        "predicted": 1e-05
+      },
+      {
+        "observed": 0.0,
+        "predicted": 0.000443
+      },
+      {
+        "observed": 0.007874,
+        "predicted": 0.006967
+      },
+      {
+        "observed": 0.0,
+        "predicted": 0.015515
+      },
+      {
+        "observed": 0.007407,
+        "predicted": 0.020167
+      },
+      {
+        "observed": 0.03125,
+        "predicted": 0.034459
+      },
+      {
+        "observed": 0.335938,
+        "predicted": 0.265822
+      },
+      {
+        "observed": 0.742424,
+        "predicted": 0.755813
+      },
+      {
+        "observed": 1.0,
+        "predicted": 0.995452
+      }
+    ],
+    "review_cap": 0.03,
+    "review_rate": 0.029434,
+    "review_threshold": 0.040186,
+    "roc_auc": 0.981138,
+    "threshold": 0.08
+  },
+  "leakage": {
+    "delta": -0.033285,
+    "honest_group_overlap": 0,
+    "honest_pr_auc": 0.940056,
+    "naive_group_overlap": 474,
+    "naive_pr_auc": 0.906771
+  },
+  "learning_curve": [
+    {
+      "n_train": 763,
+      "train_fraction": 0.25,
+      "val_pr_auc": 0.916585
+    },
+    {
+      "n_train": 1526,
+      "train_fraction": 0.5,
+      "val_pr_auc": 0.923775
+    },
+    {
+      "n_train": 3052,
+      "train_fraction": 1.0,
+      "val_pr_auc": 0.929026
+    }
+  ],
+  "provenance": {
+    "data_note": "Synthetic scenario corpus, not real-world labels. Every row is an entity from a seeded scenario the project authored; the label is the scenario's ground truth, not a confirmed chargeback. Scores measure the deployed model on a held-out grouped split of this corpus. The path to real labels is the merchant's own confirmed incidents \u2014 see the retraining design.",
+    "data_source": "synthetic-cardtesting",
+    "model_backend": "logistic-temperature",
+    "n_groups": 640,
+    "n_rows": 5225,
+    "positive_rate": 0.196746,
+    "seed": 20260826
   },
   "split_integrity": {
-    "n_test": 638,
-    "n_train": 1660,
-    "train_test_group_overlap": 0,
-    "train_val_group_overlap": 0
+    "n_test": 1325,
+    "n_train": 3052,
+    "train_test_group_overlap": 0
   }
 }

@@ -3,8 +3,11 @@
 Single source of truth for where Sentinel actually stands. Updated with every change.
 
 **Last updated:** 2026-08-26
-**Current slice:** 15 — Performance & graceful degradation: criticality taxonomy, load test, live shedding (built + measured)
-**Latest tag:** `v0.14.0` → `v0.15.0` pending
+**Current work:** ML redesign — one deployed card-testing risk model. Gates 1–3 of 5 done (hardened
+synthetic corpus with realistic overlap; binary P(abuse) risk model with the honest evaluation on the
+*deployed* model; request-path rewire — serving, decision, policy, UI — with a benign veto and /24
+train/serve alignment). Pending: retraining/label plumbing (Gate 4) and UI/research presentation (Gate 5).
+**Latest tag:** `v0.15.3` → `v0.16.0` pending (the redesign)
 
 ## Slice progress
 
@@ -22,8 +25,8 @@ Single source of truth for where Sentinel actually stands. Updated with every ch
 | 9 | Arbitration and suppression | `v0.9.0` | **done** |
 | 10 | Policy, approval and containment | `v0.10.0` | **done** |
 | 11 | Audit chain | `v0.11.0` | **done** |
-| 12 | Model A — real labelled benchmark | `v0.12.0` | **done** |
-| 13 | Model B — incident classifier, served | `v0.13.0` | **done** |
+| 12 | Model A — real labelled benchmark | `v0.12.0` | done → **demoted to research** in the redesign |
+| 13 | Model B — incident classifier, served | `v0.13.0` | done → **replaced by the binary risk model** in the redesign |
 | 14 | Narration — claim-id-only, bound in code | `v0.14.0` | **done** |
 | 15 | Performance & graceful degradation | `v0.15.0` | **built + measured** |
 | 16 | Submission | `v1.0.0` | not started |
@@ -303,70 +306,64 @@ console acts yet. The detail view shows the score as the sum it actually is, eve
 with mitigating evidence in the same list rather than a panel away — a reader deciding whether to
 act on somebody needs to see what argued against it in the same glance.
 
-**Model benchmark** — `ml/models/transaction_risk`, a Python pipeline whose deliverable is an
-*honest evaluation*, not a leaderboard score. It reconstructs the card identity the IEEE-CIS
-community found (`card1 + addr1 + first-transaction-day`, recovered via `D1`), splits on **whole
-cards ordered by time with a delay gap**, trains a calibrated gradient-boosted model over a logistic
-baseline, and reports precision, recall, PR-AUC and calibration with **bootstrap confidence
-intervals** on a test set it never saw.
+**One deployed risk model** — `ml/models/incident`, a Python pipeline whose deliverable is a
+calibrated **binary card-testing risk model**, P(abuse), that runs *in the request path*. This is the
+whole ML story now: there is no separate benchmark model beside the product. The precision, recall and
+PR-AUC a reader is shown are **this** model's, on a held-out split of the same corpus it trained on —
+so the model you see numbers for is the model the merchant actually runs. (The earlier design split a
+real-labelled IEEE-CIS benchmark from a synthetic-trained served classifier; the seam that opened —
+metrics describing a model that never ran — is what this redesign closes.)
 
-The committed numbers are from the **real IEEE-CIS data**. The headline is the **leakage delta**: the
-same model scored on a careless random split next to the honest one. The careless split shares
-**42,628 cards** across train and test and scores PR-AUC **0.53**; the honest split shares **zero**
-and scores **0.36** — a **+0.16** inflation that is purely the model memorising cards it will not see
-again. The boosted model is ~5× the logistic baseline (0.36 vs 0.07), well-calibrated (Brier 0.034),
-and at its cost-optimal operating point declines only **0.85%** of legitimate shoppers. That leakage
-gap is the difference between a score and a claim, and it is the number the whole slice exists to
-publish.
+Its training data is exported from the scenario corpus through `@sentinel/detect`'s `incidentFeatures`
+— the **same** function the API scores with — so the ten features it trains on are byte-for-byte the
+ten it is served, keyed on the **same /24 network identity** the API correlates on (a fix that stopped
+the model training on thin per-address entities and being served fat per-subnet ones). The feature
+definition is versioned (`fdv-…`) and pinned in a registry with the training-data hash. The split is
+**grouped on scenario** so no instance is on both sides (zero overlap).
 
-`make eval` is deterministic from a fixed seed (two runs byte-identical). The competition **data** is
-**never committed** — the rules forbid redistributing it (§7.B) and it is gitignored — but a **model
-trained on it and its metrics are publishable** under the repo's MIT licence (§8.B), so a reader sees
-the real held-out numbers without the data. `make check-metrics` verifies them against the real data
-when it is present, and falls back to a synthetic determinism check when it is not (a clean clone, or
-CI), so the gate never fails for want of data it may not hold. Absent the data the pipeline runs a
-deterministic synthetic stand-in (fraud clustered by card over time) and writes it to a side file
-rather than overwriting the real result. Every artefact records which source produced it.
+**A corpus with genuine overlap.** The eight committed families are trivially separable — a plain
+model scored PR-AUC 1.0 — so the corpus is hardened with *realistic boundary cases*: a tester reusing a
+small card pool (dunning-shaped), a benign batch walking many cards (enumeration-shaped), and attacks
+*masked* inside ordinary traffic and inside an outage (via a new `mix` composition layer that dilutes
+the population signal). The model now scores **PR-AUC ≈ 0.94, precision ≈ 0.72, recall ≈ 0.97, F1 ≈
+0.83** at a cost-optimal block threshold, and — the honest heart of it — a **per-origin breakdown**
+shows it catches obvious and distributed enumeration cleanly and concentrates its false positives in
+aggressive dunning and retry storms, the real Stripe-documented ambiguity a rules layer then resolves.
+The evaluation carries bootstrap intervals, the cost-optimal operating point (observe / review /
+contain-eligible with a false-decline rate and a capped analyst budget), a reliability curve, an
+ablation ladder (drop the traffic-context features and the outage-versus-attack separation weakens),
+and a **leakage delta** (small on a single-generator synthetic corpus, and honestly so). **These labels
+are synthetic, not real-world outcomes** — every artefact says so, and the retraining design (below,
+pending) is the path to the merchant's own confirmed labels.
 
-**Metrics page** — `/console/metrics` renders the artefact: the leakage delta first, the held-out
-numbers with their intervals, feature importance (card identifiers correctly near zero on the honest
-split), the cost-chosen threshold, and an error taxonomy — each under the synthetic-vs-real label.
+**Served, not shelled out to** — the model exports as a linear `model.json` (a scaler, a
+temperature-folded weight matrix with the benign logit pinned to zero, and the two operating
+thresholds). `ModelScoringService` evaluates it in TypeScript as a few dot products and a softmax whose
+second class is P(abuse): no native runtime, exact per-feature contributions for the "why the model
+leans this way" panel, and a designed **degraded path** — artefact absent, the console shows
+`degraded:model`, the system runs on rules and arbitration alone.
 
-It also carries the two things that turn a score into an operating decision. The **operating point**
-is shown as three actions, not one number: at the cost-optimal block threshold, the page reports the
-share blocked, the riskiest non-blocked slice routed to a human — capped at a declared analyst budget,
-because review is a capacity and not a free tier — and the **false-decline rate**, the legitimate
-shoppers wrongly blocked as a share of all legitimate traffic, which is the number a merchant feels and
-a precision figure hides when fraud is rare. And a **reliability diagram** plots predicted probability
-against the fraction actually fraud, so "the probabilities mean what they say" — the thing a cost-based
-threshold quietly rests on — is visible rather than asserted through the Brier score alone.
+**Load-bearing, but leashed.** The risk score combines with rule-based arbitration in one pure
+function (`combineDecision`): it **escalates** a case the rules were unsure about, **de-escalates** a
+containment it scores low-risk down to a person, **corroborates** one it agrees with, and can **raise a
+case the rules never opened** — the distributed and low-and-slow attack a burst gate cannot see. Two
+bars, deliberately far above the model's own aggressive block threshold, gate when it may move a
+decision at all. And a **benign veto**: because a binary risk score cannot tell a busy-but-innocent
+entity from an attack, the model may **not** escalate or raise a case over an arbitration that
+positively identified an outage, a biller's dunning or an ordinary hour — the deterministic explanation
+wins. The model **never turns anything into a containment on its own**; how it moved each decision is
+recorded (`modelInfluence`) and shown on the incident.
 
-**Incident classifier (Model B)** — `ml/models/incident`, a second Python pipeline, and the first
-model that runs *in the request path*. It classifies an incident into one of four decidable causes —
-attack, outage, retry storm, healthy traffic — with an explicit **abstain** (a reject option, not a
-fifth label): below a confidence bar the model declines rather than guessing. Its training data is
-exported from the scenario corpus through `@sentinel/detect`'s `incidentFeatures` — the **same**
-function the API scores with — so the ten features a model trained on are byte-for-byte the ten it is
-served, and the feature definition is versioned (`fdv-…`) and pinned in a registry alongside the
-training-data hash. The split is grouped on scenario so no scenario is on both sides (zero overlap).
+**Metrics page** — `/console/metrics` renders the deployed model's evaluation: the synthetic
+disclaimer first, then the held-out numbers with their intervals and the no-skill floor, the per-origin
+breakdown, the three-way operating point, the calibration diagram, the leakage delta and the ablation
+ladder — all describing the one model the merchant runs.
 
-The corpus turned out cleanly separable — macro-F1 1.0 — so **corpus hardening** fired automatically:
-feature noise added and the model re-scored to a harder, honest 0.976, which is the number quoted. The
-**ablation ladder** shows why the population-level view earns its keep — drop the traffic-context
-features and outage-versus-attack collapses to 0.79, because a per-entity view genuinely cannot tell
-them apart. `make eval` is deterministic (byte-identical runs), gated the same way as Model A.
-
-**Served, not shelled out to** — the model exports as a linear `model.json` (a scaler and a weight
-matrix folded through temperature scaling). `ModelScoringService` evaluates it in TypeScript as a few
-dot products and a softmax: no `onnxruntime-node` native dependency, exact per-feature contributions
-(SHAP is closed-form for a linear model) for the "why the model leans this way" panel, and a designed
-**degraded path** — when the artefact is absent the API reports unavailable, the console shows
-`degraded:model`, and the system runs on rules and arbitration alone. The model is advisory: arbitration
-still decides what is *done*; scoring is trigger-only and capped at 100 incidents a pass. The incident
-detail carries the opinion (predicted cause, calibrated distribution, top contributions) and the metrics
-page publishes the four-class confusion matrix, the ablation ladder and the risk–coverage curve. The
-served artefacts ship into the API image and are guarded as runtime files, so a container without them
-fails the build rather than silently degrading in production.
+**IEEE-CIS, as supporting research** — `ml/models/transaction_risk` remains: the honest real-labelled
+benchmark (whole-card time-ordered split, a **+0.16 leakage delta**, PR-AUC 0.36) that demonstrates the
+methodology on real fraud labels. It is no longer the product's headline — it is a different dataset and
+a different loss event (post-auth fraud, not card-testing decline bursts) — and is kept as evidence the
+same honesty discipline holds on real data.
 
 **Narration (`packages/narrate`)** — the plain-English account of an incident, built so a model can
 never state a fact it was not given. The package is a frozen **catalog of atomic claims**: each has a
@@ -1091,8 +1088,8 @@ through the *same* `incidentFeatures` the API scores with — one feature defini
 number a model trained on is the number it is served. It ships as a linear `model.json` the API evaluates
 directly: no native ONNX runtime, exact per-feature contributions for the "why" panel, and a designed
 degraded path — when the artefact is absent the system runs on rules and arbitration alone and says so
-(`degraded:model`) rather than leaving a silent gap. The model is advisory throughout: arbitration still
-decides what is done; the model only offers a second opinion, capped at 100 scored incidents a pass and
+(`degraded:model`) rather than leaving a silent gap. _(Model B was advisory when this slice shipped; it
+was later promoted to a load-bearing driver — see the Model B section above.)_ It is capped at 100 scored entities a pass and
 only on incidents already warranted. The corpus proved cleanly separable (macro-F1 1.0), so corpus
 hardening fired — noise added, re-scored to a harder, honest 0.976 — and the metrics page publishes the
 ablation ladder (traffic-context features are what separate outage from attack), the four-class confusion

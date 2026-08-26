@@ -311,12 +311,88 @@ function plan(spec: ScenarioSpec, draw: Draw) {
   };
 }
 
-export function generate(family: ScenarioFamily, seedOverride?: number): GeneratedScenario {
-  const spec = SCENARIOS[family];
+/**
+ * Adjustments a caller can make to a family's declared ranges, to synthesise a boundary case the
+ * eight committed families do not cover.
+ *
+ * The committed families are each cleanly separable — an attack shares no region of feature space
+ * with anything benign — which is exactly what makes a model that aces them prove nothing. Real
+ * traffic is not that tidy: a tester validating a small pool of stolen cards looks like a biller's
+ * dunning on the card-spread axis, and a big renewal batch across many cards looks like enumeration
+ * on it. These overrides let the *training exporter* build those overlaps deliberately, from the
+ * same generator, without disturbing the committed families — which pass no overrides and are
+ * therefore reproduced byte for byte, so every fixture and replay test still holds.
+ */
+export interface ScenarioOverrides {
+  windowMinutes?: [number, number];
+  orders?: [number, number];
+  approvalRate?: [number, number];
+  distinctSessions?: [number, number];
+  distinctNetworks?: [number, number];
+  amountPaise?: [number, number];
+  /**
+   * Draw each order's card from a fixed pool of this many cards, instead of a fresh card per order.
+   * A small pool is card reuse (dunning-shaped); a large one is wide card spread (enumeration-shaped)
+   * — the single axis that most cleanly separates the two, made ambiguous on purpose.
+   */
+  cardPoolSize?: number;
+}
+
+/**
+ * A family's declared spec, with the overridable ranges replaced. With no overrides it returns the
+ * committed spec unchanged — same object, same values — so `plan` draws exactly what it always did
+ * and the eight committed families reproduce byte for byte.
+ */
+function effectiveSpec(family: ScenarioFamily, overrides?: ScenarioOverrides): ScenarioSpec {
+  const base = SCENARIOS[family];
+  if (overrides === undefined) return base;
+  return {
+    ...base,
+    windowMinutes: overrides.windowMinutes ?? base.windowMinutes,
+    orders: overrides.orders ?? base.orders,
+    approvalRate: overrides.approvalRate ?? base.approvalRate,
+    distinctSessions: overrides.distinctSessions ?? base.distinctSessions,
+    distinctNetworks: overrides.distinctNetworks ?? base.distinctNetworks,
+    amountPaise: overrides.amountPaise ?? base.amountPaise,
+  };
+}
+
+/**
+ * How each order's card is chosen, resolved once before the loop.
+ *
+ * A fixed pool (drawn up front, when requested) is reuse; a retry storm reuses its committed handful;
+ * otherwise every order gets a fresh card. Each branch returns a closure invoked at the same point in
+ * the loop as the original inline draw, so the committed families' draw sequences are untouched.
+ */
+function cardSelector(
+  family: ScenarioFamily,
+  draw: Draw,
+  cardPoolSize?: number,
+): (index: number) => string {
+  if (cardPoolSize !== undefined && cardPoolSize > 0) {
+    const pool = Array.from({ length: cardPoolSize }, () => draw.id('card', 12));
+    return (index) => pool[index % pool.length]!;
+  }
+  if (family === 'retry_storm') {
+    return (index) => `card_SIMDUNNING${String(index % 8).padStart(2, '0')}`;
+  }
+  return () => draw.id('card', 12);
+}
+
+export function generate(
+  family: ScenarioFamily,
+  seedOverride?: number,
+  overrides?: ScenarioOverrides,
+): GeneratedScenario {
+  const spec = effectiveSpec(family, overrides);
   const seed = seedOverride ?? spec.seed;
   const draw = new Draw(seed);
 
   const { orderCount, approval, meanGap, sessions, networks } = plan(spec, draw);
+
+  // Resolved here, at the same point the pool was previously drawn, so the committed families' draw
+  // sequences are unchanged.
+  const nextCard = cardSelector(family, draw, overrides?.cardPoolSize);
 
   const checkouts: GeneratedCheckout[] = [];
   const events: GeneratedEvent[] = [];
@@ -344,12 +420,7 @@ export function generate(family: ScenarioFamily, seedOverride?: number): Generat
       createdAt: new Date(cursor).toISOString(),
     });
 
-    // A retry storm reuses the same handful of cards by design — that inversion is the whole
-    // signal separating it from enumeration, which uses each card once.
-    const cardId =
-      family === 'retry_storm'
-        ? `card_SIMDUNNING${String(index % 8).padStart(2, '0')}`
-        : draw.id('card', 12);
+    const cardId = nextCard(index);
 
     const at = cursor + draw.int(2_000, 25_000);
     const order: OrderContext = { orderId, amountPaise, cardId, at };

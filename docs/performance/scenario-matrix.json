@@ -2,7 +2,7 @@
   "kind": "scenario-matrix",
   "synthetic": true,
   "generatedNote": "Synthetic, seed-deterministic scenarios from @sentinel/corpus. No live traffic, no database, no clock.",
-  "thresholdHash": "84bbf0ad",
+  "thresholdHash": "675bfee0",
   "window": {
     "windowMinutes": 600,
     "halfLifeMinutes": 5

@@ -90,17 +90,24 @@ export const contributionSchema = z.object({
 });
 
 /**
- * The model's advisory opinion on an incident.
+ * The model's opinion on an incident: its card-testing risk score and how it read it.
  *
- * Advisory is the operative word: the deterministic rules and arbitration decide what is done, and
- * this sits beside that decision to inform it, never to override it. It carries the predicted class,
- * how confident it is, whether it abstained, and — for the "why flagged" panel — the per-feature
- * contributions that add up to the score.
+ * The model is load-bearing but leashed. This carries the risk itself — P(abuse) — the band that risk
+ * falls in at the served operating point (observe / review / contain-eligible), whether the model is
+ * borderline enough to defer to a person, and — for the "why flagged" panel — the per-feature
+ * contributions that add up to the score. The deterministic rules and arbitration still decide what
+ * is *done*; this informs that decision and can move it only within the bounds the leash allows.
  */
 export const modelOpinionSchema = z.object({
+  /** P(abuse), in [0, 1] — the served risk score. */
+  risk: z.number(),
+  /** The coarse call at the served block threshold: 'abuse' or 'benign'. */
   predictedClass: z.string(),
-  confidence: z.number(),
+  /** Which served band the risk falls in. */
+  band: z.enum(['observe', 'review', 'contain_eligible']),
+  /** True in the review band — the model itself would route this to a person rather than decide. */
   abstained: z.boolean(),
+  /** The two-class distribution, [benign, abuse], for the calibration bar. */
   probabilities: z.array(z.object({ label: z.string(), probability: z.number() })),
   contributions: z.array(contributionSchema),
   modelVersion: z.string(),
@@ -113,9 +120,9 @@ export const modelRegistrySchema = z.object({
   featureDefinitionVersion: z.string(),
   onnxExported: z.boolean(),
   metricsSnapshot: z.object({
-    accuracy: z.number(),
-    macroF1: z.number(),
-    abstainRate: z.number(),
+    prAuc: z.number(),
+    precision: z.number(),
+    recall: z.number(),
   }),
 });
 export type ModelRegistry = z.infer<typeof modelRegistrySchema>;
@@ -127,46 +134,86 @@ export const modelRegistryResponseSchema = z.discriminatedUnion('available', [
 export type ModelRegistryResponse = z.infer<typeof modelRegistryResponseSchema>;
 
 /**
- * Model B's benchmark artefact: the four-class classifier's honest evaluation.
+ * The deployed card-testing risk model's honest evaluation — the one served in the request path.
  *
- * Carries the three things the slice is done when it shows — the ablation ladder, the risk-coverage
- * curve, and the four-class confusion matrix — plus the corpus-hardening outcome, because a
- * flattering score that was never hardened is not one to trust.
+ * This is the number the reader is shown precision/recall/PR-AUC for, and it is *this* model that
+ * scores the merchant's traffic. The per-origin breakdown is the heart of it: where the model is
+ * right and where it is wrong, so a high aggregate cannot hide a weakness. The labels are synthetic
+ * and the schema says so — `provenance.dataNote` carries the disclaimer verbatim.
  */
-export const incidentModelSchema = z.object({
-  classes: z.array(z.string()),
-  accuracy: z.number(),
-  macroF1: z.number(),
-  abstainRate: z.number(),
-  abstainThreshold: z.number(),
-  perClass: z.array(
-    z.object({
-      label: z.string(),
-      precision: z.number(),
-      recall: z.number(),
-      support: z.number().int(),
-    }),
-  ),
-  confusion: z.array(z.array(z.number().int())),
-  riskCoverage: z.array(
-    z.object({ threshold: z.number(), coverage: z.number(), selectiveAccuracy: z.number() }),
+export const riskModelMetricsSchema = z.object({
+  provenance: z.object({
+    /** "synthetic-cardtesting" — what the numbers are a claim about. Never real-world labels. */
+    dataSource: z.string(),
+    modelBackend: z.string(),
+    dataNote: z.string(),
+    seed: z.number().int(),
+    nRows: z.number().int(),
+    nGroups: z.number().int(),
+    positiveRate: z.number(),
+  }),
+  honest: z.object({
+    model: z.string(),
+    reviewCap: z.number(),
+    nTest: z.number().int(),
+    positives: z.number().int(),
+    threshold: z.number(),
+    precision: intervalSchema,
+    recall: intervalSchema,
+    f1: intervalSchema,
+    prAuc: intervalSchema,
+    rocAuc: z.number(),
+    brier: z.number(),
+    falseDeclineRate: z.number(),
+    blockRate: z.number(),
+    reviewRate: z.number(),
+    reviewThreshold: z.number(),
+    reliability: z.array(z.object({ predicted: z.number(), observed: z.number() })),
+    perOrigin: z.array(
+      z.object({
+        origin: z.string(),
+        n: z.number().int(),
+        positive: z.boolean(),
+        recall: z.number().nullable(),
+        falsePositiveRate: z.number().nullable(),
+        meanRisk: z.number(),
+      }),
+    ),
+  }),
+  /** The no-skill floor: the PR-AUC a ranker with no information reaches (the positive prevalence). */
+  baselineNoSkill: z.object({ prAuc: z.number() }),
+  leakage: z.object({
+    honestPrAuc: z.number(),
+    naivePrAuc: z.number(),
+    delta: z.number(),
+    honestGroupOverlap: z.number().int(),
+    naiveGroupOverlap: z.number().int(),
+  }),
+  cost: z.object({
+    falseNegativePaise: z.number().int(),
+    falsePositivePaise: z.number().int(),
+  }),
+  featureImportance: z.array(z.object({ feature: z.string(), importance: z.number() })),
+  learningCurve: z.array(
+    z.object({ trainFraction: z.number(), nTrain: z.number().int(), valPrAuc: z.number() }),
   ),
   ablation: z.array(
-    z.object({ features: z.string(), nFeatures: z.number().int(), macroF1: z.number() }),
+    z.object({ features: z.string(), nFeatures: z.number().int(), prAuc: z.number() }),
   ),
-  hardening: z.object({
-    triggered: z.boolean(),
-    baseMacroF1: z.number(),
-    hardenedMacroF1: z.number().nullable(),
-    note: z.string().nullable(),
-  }),
-  splitGroupOverlap: z.number().int(),
+  errorTaxonomy: z.array(
+    z.object({
+      amountBand: z.string(),
+      n: z.number().int(),
+      falsePositive: z.number().int(),
+      falseNegative: z.number().int(),
+    }),
+  ),
   registry: modelRegistrySchema,
 });
-export type IncidentModel = z.infer<typeof incidentModelSchema>;
+export type RiskModelMetrics = z.infer<typeof riskModelMetricsSchema>;
 
-export const incidentModelResponseSchema = z.discriminatedUnion('available', [
-  z.object({ available: z.literal(true), model: incidentModelSchema }),
+export const riskModelMetricsResponseSchema = z.discriminatedUnion('available', [
+  z.object({ available: z.literal(true), model: riskModelMetricsSchema }),
   z.object({ available: z.literal(false), reason: z.string() }),
 ]);
-export type IncidentModelResponse = z.infer<typeof incidentModelResponseSchema>;
+export type RiskModelMetricsResponse = z.infer<typeof riskModelMetricsResponseSchema>;
