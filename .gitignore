@@ -70,3 +70,4 @@ ml/models/transaction_risk/data/
 __pycache__/
 *.pyc
 .pytest_cache/
+ml/models/transaction_risk/artifacts/metrics.synthetic.json

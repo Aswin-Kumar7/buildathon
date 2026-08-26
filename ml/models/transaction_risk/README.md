@@ -12,19 +12,28 @@ make eval        # writes artifacts/metrics.json and artifacts/model_card.md
 make test        # split integrity and reproducibility (pytest)
 ```
 
-`make eval` is deterministic from a fixed seed: two runs produce byte-identical `metrics.json`, so
-CI can regenerate and diff it. Drift means the model changed, not that the run was noisy.
+`make eval` is deterministic from a fixed seed: two runs produce byte-identical `metrics.json`.
+`make check-metrics` regenerates and diffs it — verifying against the real data when the data is
+present, and falling back to a synthetic determinism check when it is not (a clean clone, or CI),
+so the gate never fails for want of data it is not allowed to hold.
 
-## The data
+## The data, and the model
 
-The IEEE-CIS competition data is **not in this repository and never will be** — the rules forbid
-redistribution, and Kaggle returns 403 on the download until you have joined the competition and
-accepted its terms. `python -m transaction_risk.download_data` documents the one legitimate path.
+**The committed `metrics.json` and `model_card.md` are from the real IEEE-CIS data.** What is *not*
+committed — and never will be — is the data itself: the competition rules forbid redistributing it
+(§7.B), Kaggle 403s the download until you have joined and accepted the terms, and it is gitignored
+here so it cannot slip in. Publishing a **model trained on the data**, and its metrics, is a
+different thing the rules permit — §8.B explicitly contemplates sharing a "model containing or
+depending on such Competition Code" under an open-source licence, which this repository carries
+(MIT). The data is used only for the non-commercial, educational purpose §7.A allows.
 
-Without it, the pipeline runs on a **deterministic synthetic stand-in** built to reproduce the one
-structure the method exists to handle: fraud clustered by card over time. The leakage delta on
-synthetic data is real; the absolute scores are a property of the generator, not of IEEE-CIS, and
-every artefact says which source it used. Drop `train_transaction.csv` into `data/` to run for real.
+So a reader of this repository sees the **real held-out numbers** without the data. To *reproduce*
+them, place `train_transaction.csv` in `data/` (see `download_data.py`) and re-run — `check-metrics`
+will then verify them against your machine. Absent the data, the pipeline falls back to a
+**deterministic synthetic stand-in** built to reproduce the one structure the method exists to
+handle (fraud clustered by card over time); a bare `make eval` on a clean clone writes those
+synthetic numbers to `metrics.synthetic.json` rather than overwriting the committed real result.
+Every artefact records which source produced it.
 
 ## Why the split is the point
 

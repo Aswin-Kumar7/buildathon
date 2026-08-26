@@ -11,13 +11,13 @@ on a split built so the model cannot cheat.
 
 ## Data
 
-- **Source:** `synthetic`
-- Synthetic stand-in — the competition data cannot be redistributed. It is built to reproduce the one structure the method exists to handle (fraud clustered by card over time), so the leakage delta is real; the absolute scores are not a claim about IEEE-CIS. Place train_transaction.csv in the data directory to run on the real thing.
-- 18,587 rows, 1,200 distinct cards, fraud rate 0.132, seed 20260826.
+- **Source:** `ieee-cis`
+- IEEE-CIS train_transaction.csv, the real competition data. Scores here are on a held-out split of labels this project did not author.
+- 590,540 rows, 265,864 distinct cards, fraud rate 0.035, seed 20260826.
 
 ## How it was measured
 
-The split groups whole cards together and orders them by time, with a 576-row
+The split groups whole cards together and orders them by time, with a 53928-row
 delay gap dropped before the test period. Grouping stops the model memorising a card and being
 rewarded for it; the time order and gap stop it training on a future, and on labels that would not
 yet have arrived. The test set below is cards the model never saw, from a period after it trained.
@@ -26,24 +26,24 @@ yet have arrived. The test set below is cards the model never saw, from a period
 
 | Metric | Value (95% CI) |
 |---|---|
-| Precision | 0.594  (0.546–0.638) |
-| Recall | 0.456  (0.413–0.498) |
-| PR-AUC | 0.512  (0.470–0.554) |
-| ROC-AUC | 0.851 |
-| Brier score | 0.089 (lower is better; calibration) |
+| Precision | 0.645  (0.624–0.665) |
+| Recall | 0.319  (0.305–0.334) |
+| PR-AUC | 0.363  (0.348–0.378) |
+| ROC-AUC | 0.792 |
+| Brier score | 0.034 (lower is better; calibration) |
 
 Operating threshold 0.333, chosen to minimise expected cost on validation given a
 missed fraud at ₹3,000 and a false block at
 ₹1,200. The logistic baseline reaches PR-AUC
-0.641.
+0.072.
 
 ## The operating point, as a desk runs it
 
 One threshold decides block-or-not; a real desk runs three actions, and review is a capacity, not a
-free tier. At the cost-optimal threshold this blocks **10.71%** of traffic and
-routes the riskiest non-blocked **0.98%** to a human — capped at the
-**1.0%** analyst budget, review threshold 0.250. The
-**false-decline rate is 5.06%**: legitimate shoppers wrongly blocked,
+free tier. At the cost-optimal threshold this blocks **2.29%** of traffic and
+routes the riskiest non-blocked **1.00%** to a human — capped at the
+**1.0%** analyst budget, review threshold 0.166. The
+**false-decline rate is 0.85%**: legitimate shoppers wrongly blocked,
 as a share of all legitimate traffic — the number a merchant actually feels and the one a precision
 figure hides when fraud is rare.
 
@@ -51,10 +51,10 @@ figure hides when fraud is rare.
 
 | Split | PR-AUC | Cards shared train↔test |
 |---|---|---|
-| Careless (random) | 0.610 | 1,119 |
-| Honest (grouped, time-ordered) | 0.512 | 0 |
+| Careless (random) | 0.527 | 42,628 |
+| Honest (grouped, time-ordered) | 0.363 | 0 |
 
-A random split inflates PR-AUC by **0.098** — the model looking better than it is,
+A random split inflates PR-AUC by **0.164** — the model looking better than it is,
 purely by recognising cards it will not see again. The honest split is the one the headline numbers
 come from. This delta is the single most important number here: it is the difference between a score
 and a claim.

@@ -310,18 +310,23 @@ cards ordered by time with a delay gap**, trains a calibrated gradient-boosted m
 baseline, and reports precision, recall, PR-AUC and calibration with **bootstrap confidence
 intervals** on a test set it never saw.
 
-The headline is the **leakage delta**: the same model scored on a careless random split next to the
-honest one. On the current run the careless split shares **1,119 cards** across train and test and
-scores PR-AUC 0.61; the honest split shares **zero** and scores 0.51 — a **+0.10** inflation that is
-purely the model memorising cards it will not see again. That gap is the difference between a score
-and a claim, and it is the number the whole slice exists to publish.
+The committed numbers are from the **real IEEE-CIS data**. The headline is the **leakage delta**: the
+same model scored on a careless random split next to the honest one. The careless split shares
+**42,628 cards** across train and test and scores PR-AUC **0.53**; the honest split shares **zero**
+and scores **0.36** — a **+0.16** inflation that is purely the model memorising cards it will not see
+again. The boosted model is ~5× the logistic baseline (0.36 vs 0.07), well-calibrated (Brier 0.034),
+and at its cost-optimal operating point declines only **0.85%** of legitimate shoppers. That leakage
+gap is the difference between a score and a claim, and it is the number the whole slice exists to
+publish.
 
-`make eval` is deterministic from a fixed seed (two runs are byte-identical), so `make check-metrics`
-can regenerate and diff the committed `metrics.json`. The competition data is **never committed** —
-the rules forbid it and the download 403s until you join — so a clean clone runs on a deterministic
-synthetic stand-in built to reproduce the one structure the method handles (fraud clustered by card
-over time). Every artefact records which source it used, and the metrics page carries that evidence
-label on the numbers.
+`make eval` is deterministic from a fixed seed (two runs byte-identical). The competition **data** is
+**never committed** — the rules forbid redistributing it (§7.B) and it is gitignored — but a **model
+trained on it and its metrics are publishable** under the repo's MIT licence (§8.B), so a reader sees
+the real held-out numbers without the data. `make check-metrics` verifies them against the real data
+when it is present, and falls back to a synthetic determinism check when it is not (a clean clone, or
+CI), so the gate never fails for want of data it may not hold. Absent the data the pipeline runs a
+deterministic synthetic stand-in (fraud clustered by card over time) and writes it to a side file
+rather than overwriting the real result. Every artefact records which source produced it.
 
 **Metrics page** — `/console/metrics` renders the artefact: the leakage delta first, the held-out
 numbers with their intervals, feature importance (card identifiers correctly near zero on the honest

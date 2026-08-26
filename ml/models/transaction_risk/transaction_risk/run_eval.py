@@ -93,8 +93,8 @@ def _error_taxonomy(y, probs, threshold, amounts) -> list[dict]:
     return buckets
 
 
-def run(write: bool = True) -> dict:
-    dataset = data_module.load(seed=SEED)
+def run(write: bool = True, force_synthetic: bool = False) -> dict:
+    dataset = data_module.load(seed=SEED, force_synthetic=force_synthetic)
     frame = dataset.frame
     uid = reconstruct_uid(frame)
 
@@ -170,9 +170,25 @@ def run(write: bool = True) -> dict:
 
     if write:
         ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
-        (ARTIFACTS_DIR / "metrics.json").write_text(
-            json.dumps(metrics, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        target = ARTIFACTS_DIR / "metrics.json"
+        serialized = json.dumps(metrics, indent=2, sort_keys=True) + "\n"
+
+        # Clobber guard: never overwrite a committed *real* (IEEE-CIS) metrics file with synthetic
+        # ones. On a clean clone the real data is absent, so a bare `make eval` produces the stand-in
+        # — which must not silently replace the published real result. It goes to a side file instead,
+        # and the real metrics.json is left exactly as committed.
+        if dataset.source == "synthetic" and target.exists():
+            existing = json.loads(target.read_text(encoding="utf-8"))
+            if existing.get("provenance", {}).get("data_source") == "ieee-cis":
+                (ARTIFACTS_DIR / "metrics.synthetic.json").write_text(serialized, encoding="utf-8")
+                print(
+                    "The committed metrics.json is from real IEEE-CIS; not overwriting it with "
+                    "synthetic numbers. Wrote metrics.synthetic.json instead. Place "
+                    "train_transaction.csv in the data directory to regenerate the real metrics."
+                )
+                return metrics
+
+        target.write_text(serialized, encoding="utf-8")
         (ARTIFACTS_DIR / "model_card.md").write_text(render_model_card(metrics), encoding="utf-8")
     return metrics
 

@@ -50,5 +50,6 @@
     "onlyBuiltDependencies": [
       "esbuild"
     ]
-  }
+  },
+  "license": "MIT"
 }

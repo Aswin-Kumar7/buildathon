@@ -42,15 +42,19 @@ class Dataset:
     note: str
 
 
-def load(seed: int) -> Dataset:
+def load(seed: int, force_synthetic: bool = False) -> Dataset:
     """The real data if a reviewer has placed it, otherwise a deterministic synthetic table.
 
     The real file is looked for at `data/train_transaction.csv` — the name the competition ships.
     It is never committed (see `download_data.py` and the README), so its absence is the normal
     case on a clean clone, not an error.
+
+    `force_synthetic` ignores any real file and always builds the stand-in. The determinism check
+    uses it to prove the pipeline is reproducible even on a machine that *does* have the real data,
+    without needing the real data to be present at all.
     """
     real = DATA_DIR / "train_transaction.csv"
-    if real.exists():
+    if real.exists() and not force_synthetic:
         frame = _read_real(real)
         return Dataset(
             frame=frame,
