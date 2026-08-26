@@ -11,6 +11,7 @@ import { csrfHeaders } from '../auth/api.js';
 import { ABSTENTION_REASON, phraseFor, ruleName, suggestedAction } from '../incidents/evidence.js';
 import { ContainmentPanel } from '../incidents/ContainmentPanel.js';
 import { AuditTrail } from '../incidents/AuditTrail.js';
+import { ModelOpinion } from '../incidents/ModelOpinion.js';
 import './IncidentsPage.css';
 
 async function fetchIncident(id: string): Promise<IncidentDetail> {
@@ -278,6 +279,7 @@ export function IncidentDetailPage(): React.JSX.Element {
 
       <Breakdown incident={it} />
       <Change incident={it} />
+      <ModelOpinion incident={it} />
       <ContainmentPanel incidentId={it.id} />
       <AuditTrail incidentId={it.id} />
 

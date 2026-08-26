@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Callout, Card } from '@sentinel/ui';
 import { modelMetricsResponseSchema, type ModelMetrics } from '@sentinel/contracts';
+import { IncidentModelSection } from './IncidentModelSection.js';
 import './MetricsPage.css';
 
 async function fetchMetrics() {
@@ -198,6 +199,7 @@ export function MetricsPage(): React.JSX.Element {
           <Leakage metrics={metrics.data.metrics} />
           <Held metrics={metrics.data.metrics} />
           <Extras metrics={metrics.data.metrics} />
+          <IncidentModelSection />
         </>
       )}
     </>

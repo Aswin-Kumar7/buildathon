@@ -59,6 +59,8 @@ function detail(overrides: Partial<IncidentDetail> = {}): IncidentDetail {
     abstentions: [{ rule: 'machine_cadence', reason: 'insufficient-data' }],
     change: null,
     arbitration: null,
+    modelOpinion: null,
+    modelAvailable: false,
     thresholdHash: 'a1b2c3d4',
     history: [],
     ...overrides,

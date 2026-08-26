@@ -2,9 +2,9 @@
 
 Single source of truth for where Sentinel actually stands. Updated with every change.
 
-**Last updated:** 2026-08-25
-**Current slice:** 12 — Model A, real labelled benchmark (built; JS/pytest suites written, not yet run)
-**Latest tag:** `v0.11.0` → `v0.12.0` pending
+**Last updated:** 2026-08-26
+**Current slice:** 13 — Model B, incident classifier served in the request path (built; JS/pytest suites written, not yet run)
+**Latest tag:** `v0.12.0` → `v0.13.0` pending
 
 ## Slice progress
 
@@ -22,8 +22,8 @@ Single source of truth for where Sentinel actually stands. Updated with every ch
 | 9 | Arbitration and suppression | `v0.9.0` | **done** |
 | 10 | Policy, approval and containment | `v0.10.0` | **done** |
 | 11 | Audit chain | `v0.11.0` | **done** |
-| 12 | Model A — real labelled benchmark | `v0.12.0` | **built (tests pending run)** |
-| 13 | Model B and ONNX serving | `v0.13.0` | not started |
+| 12 | Model A — real labelled benchmark | `v0.12.0` | **done** |
+| 13 | Model B — incident classifier, served | `v0.13.0` | **built (tests pending run)** |
 | 14 | Narration | `v0.14.0` | not started |
 | 15 | Performance and degradation | `v0.15.0` | not started |
 | 16 | Submission | `v1.0.0` | not started |
@@ -311,8 +311,8 @@ baseline, and reports precision, recall, PR-AUC and calibration with **bootstrap
 intervals** on a test set it never saw.
 
 The headline is the **leakage delta**: the same model scored on a careless random split next to the
-honest one. On the current run the careless split shares **1,560 cards** across train and test and
-scores PR-AUC 0.63; the honest split shares **zero** and scores 0.52 — a **+0.11** inflation that is
+honest one. On the current run the careless split shares **1,119 cards** across train and test and
+scores PR-AUC 0.61; the honest split shares **zero** and scores 0.51 — a **+0.10** inflation that is
 purely the model memorising cards it will not see again. That gap is the difference between a score
 and a claim, and it is the number the whole slice exists to publish.
 
@@ -326,6 +326,33 @@ label on the numbers.
 **Metrics page** — `/console/metrics` renders the artefact: the leakage delta first, the held-out
 numbers with their intervals, feature importance (card identifiers correctly near zero on the honest
 split), the cost-chosen threshold, and an error taxonomy — each under the synthetic-vs-real label.
+
+**Incident classifier (Model B)** — `ml/models/incident`, a second Python pipeline, and the first
+model that runs *in the request path*. It classifies an incident into one of four decidable causes —
+attack, outage, retry storm, healthy traffic — with an explicit **abstain** (a reject option, not a
+fifth label): below a confidence bar the model declines rather than guessing. Its training data is
+exported from the scenario corpus through `@sentinel/detect`'s `incidentFeatures` — the **same**
+function the API scores with — so the ten features a model trained on are byte-for-byte the ten it is
+served, and the feature definition is versioned (`fdv-…`) and pinned in a registry alongside the
+training-data hash. The split is grouped on scenario so no scenario is on both sides (zero overlap).
+
+The corpus turned out cleanly separable — macro-F1 1.0 — so **corpus hardening** fired automatically:
+feature noise added and the model re-scored to a harder, honest 0.976, which is the number quoted. The
+**ablation ladder** shows why the population-level view earns its keep — drop the traffic-context
+features and outage-versus-attack collapses to 0.79, because a per-entity view genuinely cannot tell
+them apart. `make eval` is deterministic (byte-identical runs), gated the same way as Model A.
+
+**Served, not shelled out to** — the model exports as a linear `model.json` (a scaler and a weight
+matrix folded through temperature scaling). `ModelScoringService` evaluates it in TypeScript as a few
+dot products and a softmax: no `onnxruntime-node` native dependency, exact per-feature contributions
+(SHAP is closed-form for a linear model) for the "why the model leans this way" panel, and a designed
+**degraded path** — when the artefact is absent the API reports unavailable, the console shows
+`degraded:model`, and the system runs on rules and arbitration alone. The model is advisory: arbitration
+still decides what is *done*; scoring is trigger-only and capped at 100 incidents a pass. The incident
+detail carries the opinion (predicted cause, calibrated distribution, top contributions) and the metrics
+page publishes the four-class confusion matrix, the ablation ladder and the risk–coverage curve. The
+served artefacts ship into the API image and are guarded as runtime files, so a container without them
+fails the build rather than silently degrading in production.
 
 **Audit chain** — `packages/audit`, and a `sentinel.audit_log` table. Every decision and every
 hand that touched one is appended as an entry carrying the hash of the entry before it, so
@@ -950,9 +977,22 @@ still failing beside it.
 
 ## Next
 
-Slices 11 and 12's suites still need a run — unit, integration, and end-to-end — before the slice is
-tagged. After that, Slice 13: Model B and ONNX serving — a second model, and the model moved out of Python
-and into the request path as a portable ONNX graph the detector can consult.
+Slices 11, 12 and 13's suites still need a run — unit, integration, and end-to-end — before those slices
+are tagged as tested. After that, Slice 14: narration — the incident told as a short, sourced account
+rather than a table, with every sentence tied back to the evidence that justifies it.
+
+Just built — Slice 13: Model B, an incident classifier that runs in the request path. A four-class model
+(attack, outage, retry storm, healthy traffic) with an explicit abstain, trained on the scenario corpus
+through the *same* `incidentFeatures` the API scores with — one feature definition, versioned, so the
+number a model trained on is the number it is served. It ships as a linear `model.json` the API evaluates
+directly: no native ONNX runtime, exact per-feature contributions for the "why" panel, and a designed
+degraded path — when the artefact is absent the system runs on rules and arbitration alone and says so
+(`degraded:model`) rather than leaving a silent gap. The model is advisory throughout: arbitration still
+decides what is done; the model only offers a second opinion, capped at 100 scored incidents a pass and
+only on incidents already warranted. The corpus proved cleanly separable (macro-F1 1.0), so corpus
+hardening fired — noise added, re-scored to a harder, honest 0.976 — and the metrics page publishes the
+ablation ladder (traffic-context features are what separate outage from attack), the four-class confusion
+matrix and the risk–coverage curve rather than a single flattering accuracy.
 
 Previously: Slice 11 — the audit chain. Every decision and every hand that touched one, in a tamper-evident
 sequence: containment already records who did what and when, and this makes that record
