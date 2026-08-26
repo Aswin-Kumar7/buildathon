@@ -3,8 +3,8 @@
 Single source of truth for where Sentinel actually stands. Updated with every change.
 
 **Last updated:** 2026-08-26
-**Current slice:** 14 — Narration: the model may emit only claim ids, values are bound in code (built; suites written, not yet run)
-**Latest tag:** `v0.13.0` → `v0.14.0` pending
+**Current slice:** 15 — Performance & graceful degradation: criticality taxonomy, load test, live shedding (built + measured)
+**Latest tag:** `v0.14.0` → `v0.15.0` pending
 
 ## Slice progress
 
@@ -24,8 +24,8 @@ Single source of truth for where Sentinel actually stands. Updated with every ch
 | 11 | Audit chain | `v0.11.0` | **done** |
 | 12 | Model A — real labelled benchmark | `v0.12.0` | **done** |
 | 13 | Model B — incident classifier, served | `v0.13.0` | **done** |
-| 14 | Narration — claim-id-only, bound in code | `v0.14.0` | **built (tests pending run)** |
-| 15 | Performance and degradation | `v0.15.0` | not started |
+| 14 | Narration — claim-id-only, bound in code | `v0.14.0` | **done** |
+| 15 | Performance & graceful degradation | `v0.15.0` | **built + measured** |
 | 16 | Submission | `v1.0.0` | not started |
 
 ## What exists right now
@@ -377,6 +377,44 @@ sheds load to the on-device tier instead of stalling every incident behind it.
 words came from, and a footer that names the evidence hash, any fact-guard drops, and whether the tier
 degraded below the one that was asked for. The default build ships no provider, so it runs on-device;
 the live tier is a provider adapter that slots in when one is configured.
+
+**Backpressure and graceful degradation (`packages/load`)** — Google SRE's criticality taxonomy as
+running code. Every unit of work is mapped to a tier: `CRITICAL_PLUS` ingestion (never shed — if we
+cannot persist, return non-2xx so Razorpay retries), `CRITICAL` decision (degrades to rules-only, never
+dropped), `SHEDDABLE_PLUS` model and enrichment (shed under real pressure, never substituting a default
+for missing state), and `SHEDDABLE` narration (dropped freely, template stands in). The `Shedder` decides
+**on the p99 tail against the SLO, not average utilisation** — because a service can sit at a healthy mean
+long after its tail has breached — sheds at the producer, and caps the queue at half the worker pool
+(SRE's ≤50% guidance). A `LatencyWindow` keeps fixed-memory percentiles (p50/p95/p99/p99.9/max), a
+`CircuitBreaker` (deterministic, clock injected) and absolute deadlines round it out.
+
+The API's `LoadService` owns the bounded warm-path pool and the shed/run tallies; narration and model
+scoring consult the same controller, so what the console shows being shed is exactly what is being shed.
+`GET /api/system/health` serves the live snapshot; two env-gated probe endpoints let a load generator
+drive the system without auth.
+
+**Measured, not asserted** — `scripts/loadtest.mjs` is an open-model (constant-arrival-rate) load harness
+that times each request from its intended send instant, so coordinated omission cannot understate the
+tail. The published run (docs/performance-report.md) shows the two-phase demonstration: below the knee the
+tail is flat and nothing sheds; past the knee the warm-path p99 collapses (~1,580x) while **ingestion
+holds at 2 ms** and ~15,600 enrichment and narration units shed — `dropped_iterations = 0`. The
+three-way latency split confirms the feature fetch dominates, not the model (inference p99 ~1 ms). Peak
+training RSS (Model A 255 MB, Model B 164 MB) is captured, and the parquet-pruning and
+distributed-was-slower stories are recorded as [ADR-0002](docs/adr/2026-08-26-0002-single-machine-compute.md)
+and [ADR-0003](docs/adr/2026-08-26-0003-latency-tail-and-shedding.md) — documented, not faked. Every number
+is labelled synthetic.
+
+**System-health page** — the console's health view leads with a live load section: which tiers are
+shedding right now, the three-way latency split, and the worker-pool/queue signals, refreshed every two
+seconds so shedding is visible as it happens. The existing ingestion-health view sits below it.
+
+**Scenario matrix** — `scripts/scenario-run.mjs` runs all eight synthetic scenario families through the
+full detection pipeline; the deterministic result (docs/performance/scenario-matrix.md) is **8/8 correct**
+— every attack caught, every benign or operational family left alone. It surfaced one real architectural
+finding: a *distributed* attack that arbitration judges correctly (attack/review) but the rule tier opens
+no incident for, so as currently wired it would not surface through the production incident pass. The
+detector's judgment is right; the plumbing between the rule tier and arbitration is the gap, and it is
+documented in the matrix.
 
 
 **Audit chain** — `packages/audit`, and a `sentinel.audit_log` table. Every decision and every
@@ -1002,11 +1040,23 @@ still failing beside it.
 
 ## Next
 
-The end-to-end suites still need a run before submission. After this, Slice 15: performance and
-degradation — load, backpressure and the degradation matrix under stress, so the system's behaviour
-when it is overwhelmed is designed and measured rather than discovered.
+Slice 16: submission — the README, the demo path, the one-command clean-clone run, and the final
+`v1.0.0` tag. The build is otherwise feature-complete against the plan.
 
-Just built — Slice 14: narration. The incident told as a short, plain-English account — and the model
+Just built — Slice 15: performance and graceful degradation. Google SRE's criticality taxonomy made
+concrete — CRITICAL_PLUS ingestion that is never shed, down to SHEDDABLE narration that drops freely —
+with a load controller that sheds **proactively on the p99 tail against the SLO**, at the producer, with
+the queue capped at half the worker pool. An open-model (constant-arrival-rate) load harness measures the
+tail honestly (each request timed from its intended send instant, so coordinated omission cannot hide the
+latency), and the measured result is the demonstration the architecture exists to produce: past the knee
+the warm-path p99 collapses ~1,580x while **ingestion latency stays flat at 2 ms** and tens of thousands
+of enrichment units shed. The three-way latency split shows the feature fetch dominating, not the model.
+The console's system-health page shows the shedding live. Training peak RSS (255 MB / 164 MB) and the
+distributed-was-slower decision are recorded as ADRs, and all eight scenario families were run through the
+detector (8/8 correct) — see docs/performance-report.md, docs/performance/scenario-matrix.md, and the ADRs.
+Everything is labelled synthetic.
+
+Previously — Slice 14: narration. The incident told as a short, plain-English account — and the model
 that writes it is allowed to emit only claim identifiers, never prose, not even a connective. A fixed
 catalog of atomic claims each bind their values from the incident's verified evidence in code, so a
 narrative physically cannot state a number the evidence did not carry; the model only chooses which

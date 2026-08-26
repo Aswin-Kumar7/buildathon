@@ -1,0 +1,391 @@
+{
+  "kind": "scenario-matrix",
+  "synthetic": true,
+  "generatedNote": "Synthetic, seed-deterministic scenarios from @sentinel/corpus. No live traffic, no database, no clock.",
+  "thresholdHash": "84bbf0ad",
+  "window": {
+    "windowMinutes": 600,
+    "halfLifeMinutes": 5
+  },
+  "familiesTotal": 8,
+  "familiesPassed": 8,
+  "results": [
+    {
+      "family": "normal_traffic",
+      "title": "An ordinary hour",
+      "classification": "benign",
+      "recommendedAction": "Nothing.",
+      "seed": 1001,
+      "specHash": "67b2371dba4cd565",
+      "counts": {
+        "orders": 48,
+        "events": 132,
+        "captured": 42,
+        "failed": 6,
+        "distinctSessions": 48,
+        "distinctNetworks": 48
+      },
+      "asOf": 1772359790000,
+      "best": "healthy_traffic",
+      "runnerUp": "insufficient_evidence",
+      "margin": 0.372,
+      "decision": "none",
+      "abstained": false,
+      "reasons": [
+        "suppressed_by_healthy_traffic"
+      ],
+      "incidentRaised": false,
+      "incidentsRaised": 0,
+      "incidentsOpened": 0,
+      "driver": {
+        "entityKind": "session",
+        "fromOpenedIncident": false,
+        "attempts": 1,
+        "failures": 1,
+        "distinctCards": 1,
+        "approvalRate": 0
+      },
+      "traffic": {
+        "attempts": 48,
+        "failures": 6,
+        "approvalRate": 0.875,
+        "infrastructureFailureShare": 0,
+        "failingSessions": 6,
+        "activeSessions": 48,
+        "topSessionFailureShare": 0.167,
+        "distinctCards": 48
+      },
+      "pass": true
+    },
+    {
+      "family": "customer_error",
+      "title": "People mistyping their cards",
+      "classification": "benign",
+      "recommendedAction": "Nothing. Every one of these is a paying customer.",
+      "seed": 1002,
+      "specHash": "b38b20b5b1c0b4be",
+      "counts": {
+        "orders": 43,
+        "events": 126,
+        "captured": 43,
+        "failed": 5,
+        "distinctSessions": 40,
+        "distinctNetworks": 39
+      },
+      "asOf": 1772360434000,
+      "best": "healthy_traffic",
+      "runnerUp": "insufficient_evidence",
+      "margin": 0.372,
+      "decision": "none",
+      "abstained": false,
+      "reasons": [
+        "suppressed_by_healthy_traffic"
+      ],
+      "incidentRaised": false,
+      "incidentsRaised": 0,
+      "incidentsOpened": 0,
+      "driver": {
+        "entityKind": "session",
+        "fromOpenedIncident": false,
+        "attempts": 3,
+        "failures": 2,
+        "distinctCards": 1,
+        "approvalRate": 0.333
+      },
+      "traffic": {
+        "attempts": 48,
+        "failures": 5,
+        "approvalRate": 0.896,
+        "infrastructureFailureShare": 0,
+        "failingSessions": 4,
+        "activeSessions": 40,
+        "topSessionFailureShare": 0.4,
+        "distinctCards": 43
+      },
+      "pass": true
+    },
+    {
+      "family": "gateway_outage",
+      "title": "The acquirer falls over",
+      "classification": "operational",
+      "recommendedAction": "Tell somebody the gateway is unwell. Blocking anything would punish customers for the acquirer being down.",
+      "seed": 1003,
+      "specHash": "bd32070736643721",
+      "counts": {
+        "orders": 59,
+        "events": 119,
+        "captured": 30,
+        "failed": 29,
+        "distinctSessions": 59,
+        "distinctNetworks": 59
+      },
+      "asOf": 1772358568000,
+      "best": "outage",
+      "runnerUp": "insufficient_evidence",
+      "margin": 0.393,
+      "decision": "monitor",
+      "abstained": false,
+      "reasons": [
+        "suppressed_by_outage"
+      ],
+      "incidentRaised": false,
+      "incidentsRaised": 0,
+      "incidentsOpened": 0,
+      "driver": {
+        "entityKind": "session",
+        "fromOpenedIncident": false,
+        "attempts": 1,
+        "failures": 1,
+        "distinctCards": 1,
+        "approvalRate": 0
+      },
+      "traffic": {
+        "attempts": 59,
+        "failures": 29,
+        "approvalRate": 0.508,
+        "infrastructureFailureShare": 1,
+        "failingSessions": 29,
+        "activeSessions": 59,
+        "topSessionFailureShare": 0.034,
+        "distinctCards": 59
+      },
+      "pass": true
+    },
+    {
+      "family": "retry_storm",
+      "title": "Legitimate dunning",
+      "classification": "operational",
+      "recommendedAction": "Nothing, or a note to whoever owns the retry schedule. Blocking would stop the merchant collecting money it is owed.",
+      "seed": 1004,
+      "specHash": "149e2fb2cf481a45",
+      "counts": {
+        "orders": 48,
+        "events": 72,
+        "captured": 12,
+        "failed": 36,
+        "distinctSessions": 2,
+        "distinctNetworks": 2
+      },
+      "asOf": 1772362898000,
+      "best": "retry_storm",
+      "runnerUp": "attack",
+      "margin": 0.171,
+      "decision": "none",
+      "abstained": false,
+      "reasons": [
+        "suppressed_by_retry_storm"
+      ],
+      "incidentRaised": false,
+      "incidentsRaised": 0,
+      "incidentsOpened": 0,
+      "driver": {
+        "entityKind": "session",
+        "fromOpenedIncident": false,
+        "attempts": 24,
+        "failures": 19,
+        "distinctCards": 4,
+        "approvalRate": 0.208
+      },
+      "traffic": {
+        "attempts": 48,
+        "failures": 36,
+        "approvalRate": 0.25,
+        "infrastructureFailureShare": 0,
+        "failingSessions": 2,
+        "activeSessions": 2,
+        "topSessionFailureShare": 0.528,
+        "distinctCards": 8
+      },
+      "pass": true
+    },
+    {
+      "family": "flash_sale",
+      "title": "A sale opening",
+      "classification": "benign",
+      "recommendedAction": "Nothing.",
+      "seed": 1005,
+      "specHash": "be630049645b1274",
+      "counts": {
+        "orders": 176,
+        "events": 488,
+        "captured": 156,
+        "failed": 20,
+        "distinctSessions": 165,
+        "distinctNetworks": 166
+      },
+      "asOf": 1772356975000,
+      "best": "healthy_traffic",
+      "runnerUp": "insufficient_evidence",
+      "margin": 0.352,
+      "decision": "none",
+      "abstained": false,
+      "reasons": [
+        "suppressed_by_healthy_traffic"
+      ],
+      "incidentRaised": false,
+      "incidentsRaised": 0,
+      "incidentsOpened": 0,
+      "driver": {
+        "entityKind": "session",
+        "fromOpenedIncident": false,
+        "attempts": 2,
+        "failures": 1,
+        "distinctCards": 2,
+        "approvalRate": 0.5
+      },
+      "traffic": {
+        "attempts": 176,
+        "failures": 20,
+        "approvalRate": 0.886,
+        "infrastructureFailureShare": 0,
+        "failingSessions": 20,
+        "activeSessions": 165,
+        "topSessionFailureShare": 0.05,
+        "distinctCards": 176
+      },
+      "pass": true
+    },
+    {
+      "family": "attack_loud",
+      "title": "Card enumeration, undisguised",
+      "classification": "attack",
+      "recommendedAction": "Contain it: challenge or block that session and network. The cost of being wrong is one inconvenienced shopper.",
+      "seed": 1006,
+      "specHash": "3a3864034355dbbf",
+      "counts": {
+        "orders": 63,
+        "events": 67,
+        "captured": 2,
+        "failed": 61,
+        "distinctSessions": 1,
+        "distinctNetworks": 1
+      },
+      "asOf": 1772355922000,
+      "best": "attack",
+      "runnerUp": "retry_storm",
+      "margin": 0.466,
+      "decision": "contain",
+      "abstained": false,
+      "reasons": [
+        "attack_clearly_best_supported"
+      ],
+      "incidentRaised": true,
+      "incidentsRaised": 1,
+      "incidentsOpened": 1,
+      "driver": {
+        "entityKind": "session",
+        "fromOpenedIncident": true,
+        "attempts": 63,
+        "failures": 61,
+        "distinctCards": 63,
+        "approvalRate": 0.032
+      },
+      "traffic": {
+        "attempts": 63,
+        "failures": 61,
+        "approvalRate": 0.032,
+        "infrastructureFailureShare": 0,
+        "failingSessions": 1,
+        "activeSessions": 1,
+        "topSessionFailureShare": 1,
+        "distinctCards": 63
+      },
+      "pass": true
+    },
+    {
+      "family": "attack_low_amplitude",
+      "title": "Account testing, patient",
+      "classification": "attack",
+      "recommendedAction": "Contain it, but expect to need a longer window than a burst detector uses.",
+      "seed": 1007,
+      "specHash": "67f7beec604ffb32",
+      "counts": {
+        "orders": 43,
+        "events": 43,
+        "captured": 0,
+        "failed": 43,
+        "distinctSessions": 3,
+        "distinctNetworks": 2
+      },
+      "asOf": 1772360323000,
+      "best": "attack",
+      "runnerUp": "retry_storm",
+      "margin": 0.466,
+      "decision": "contain",
+      "abstained": false,
+      "reasons": [
+        "attack_clearly_best_supported"
+      ],
+      "incidentRaised": true,
+      "incidentsRaised": 5,
+      "incidentsOpened": 5,
+      "driver": {
+        "entityKind": "session",
+        "fromOpenedIncident": true,
+        "attempts": 15,
+        "failures": 15,
+        "distinctCards": 15,
+        "approvalRate": 0
+      },
+      "traffic": {
+        "attempts": 43,
+        "failures": 43,
+        "approvalRate": 0,
+        "infrastructureFailureShare": 0,
+        "failingSessions": 3,
+        "activeSessions": 3,
+        "topSessionFailureShare": 0.349,
+        "distinctCards": 43
+      },
+      "pass": true
+    },
+    {
+      "family": "attack_distributed",
+      "title": "Enumeration behind many addresses",
+      "classification": "attack",
+      "recommendedAction": "Contain by the correlation that actually holds, which is not the network. Blocking addresses here blocks thirty innocent ones tomorrow.",
+      "seed": 1008,
+      "specHash": "b3c8de871259665c",
+      "counts": {
+        "orders": 78,
+        "events": 86,
+        "captured": 4,
+        "failed": 74,
+        "distinctSessions": 37,
+        "distinctNetworks": 29
+      },
+      "asOf": 1772357149000,
+      "best": "attack",
+      "runnerUp": "insufficient_evidence",
+      "margin": 0,
+      "decision": "review",
+      "abstained": true,
+      "reasons": [
+        "margin_too_narrow",
+        "runner_up_insufficient_evidence"
+      ],
+      "incidentRaised": true,
+      "incidentsRaised": 0,
+      "incidentsOpened": 0,
+      "driver": {
+        "entityKind": "session",
+        "fromOpenedIncident": false,
+        "attempts": 3,
+        "failures": 3,
+        "distinctCards": 3,
+        "approvalRate": 0
+      },
+      "traffic": {
+        "attempts": 78,
+        "failures": 74,
+        "approvalRate": 0.051,
+        "infrastructureFailureShare": 0,
+        "failingSessions": 36,
+        "activeSessions": 37,
+        "topSessionFailureShare": 0.041,
+        "distinctCards": 78
+      },
+      "pass": true
+    }
+  ]
+}

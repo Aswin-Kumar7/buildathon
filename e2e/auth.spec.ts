@@ -166,11 +166,15 @@ test.describe('console shell', () => {
     await expect(page.getByTestId('current-user')).toContainText('analyst');
   });
 
-  test('marks unbuilt sections as unavailable rather than faking them', async ({ page }) => {
+  test('links every console section for real — nothing is faked', async ({ page }) => {
     await signIn(page);
-    // Present as text, but deliberately not a link — the slice number is shown instead.
-    await expect(page.getByText('Audit')).toBeVisible();
-    await expect(page.getByRole('link', { name: /Audit/ })).toHaveCount(0);
+    // Every section is now built, so the shell shows real, navigable links rather than placeholder
+    // slice numbers. Audit and System health were the last to arrive; they are links, and they work.
+    await expect(page.getByRole('link', { name: /Audit/ })).toHaveCount(1);
+    await expect(page.getByRole('link', { name: /System health/ })).toHaveCount(1);
+
+    await page.getByRole('link', { name: /Audit/ }).click();
+    await expect(page).toHaveURL(/\/console\/audit/);
   });
 
   test('signs out and loses access to the console', async ({ page }) => {

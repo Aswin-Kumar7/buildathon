@@ -1,0 +1,188 @@
+{
+  "generatedNote": "SYNTHETIC LOAD. Numbers are a property of this machine and the probe workload.",
+  "base": "http://127.0.0.1:3001",
+  "warmupSecondsDiscarded": 15,
+  "phases": [
+    {
+      "name": "below-knee",
+      "warmRate": 40,
+      "ingestRate": 40,
+      "seconds": 60,
+      "warm": {
+        "rate": 40,
+        "achievedRate": 40,
+        "dropped": 0,
+        "maxBacklog": 1,
+        "client": {
+          "count": 1800,
+          "p50": 65.57,
+          "p95": 77.97,
+          "p99": 79.36,
+          "p999": 88.86,
+          "max": 89.92,
+          "mean": 67.17
+        }
+      },
+      "ingest": {
+        "rate": 40,
+        "achievedRate": 40,
+        "dropped": 0,
+        "maxBacklog": 1,
+        "client": {
+          "count": 1800,
+          "p50": 38.85,
+          "p95": 48.69,
+          "p99": 50.02,
+          "p999": 53.25,
+          "max": 55.34,
+          "mean": 40.28
+        }
+      },
+      "health": {
+        "health": {
+          "sloMs": 200,
+          "inFlight": 0,
+          "queueDepth": 0,
+          "poolSize": 4,
+          "featureFetch": {
+            "count": 2400,
+            "p50": 26.079799999999523,
+            "p95": 29.5370000000039,
+            "p99": 30.283400000000256,
+            "p999": 35.483100000001286,
+            "max": 48.21970000000147
+          },
+          "inference": {
+            "count": 2400,
+            "p50": 1.0017000000007101,
+            "p95": 1.0056000000004133,
+            "p99": 1.0110999999960768,
+            "p999": 1.1495999999970081,
+            "max": 1.282599999998638
+          },
+          "warmPath": {
+            "count": 2400,
+            "p50": 28,
+            "p95": 31,
+            "p99": 32,
+            "p999": 37,
+            "max": 49
+          },
+          "ingestion": {
+            "count": 2402,
+            "p50": 2.0015999999995984,
+            "p95": 2.0040999999982887,
+            "p99": 2.0069000000003143,
+            "p999": 2.056399999997666,
+            "max": 2.1124000000017986
+          },
+          "shedding": [],
+          "shed": {
+            "CRITICAL_PLUS": 0,
+            "CRITICAL": 0,
+            "SHEDDABLE_PLUS": 0,
+            "SHEDDABLE": 0
+          },
+          "ran": {
+            "CRITICAL_PLUS": 2402,
+            "CRITICAL": 0,
+            "SHEDDABLE_PLUS": 2400,
+            "SHEDDABLE": 2400
+          }
+        }
+      }
+    },
+    {
+      "name": "past-knee",
+      "warmRate": 260,
+      "ingestRate": 40,
+      "seconds": 60,
+      "warm": {
+        "rate": 260,
+        "achievedRate": 260,
+        "dropped": 0,
+        "maxBacklog": 5,
+        "client": {
+          "count": 11700,
+          "p50": 27830.77,
+          "p95": 48491.29,
+          "p99": 50342.41,
+          "p999": 50764.51,
+          "max": 50803.35,
+          "mean": 29210.74
+        }
+      },
+      "ingest": {
+        "rate": 40,
+        "achievedRate": 40,
+        "dropped": 0,
+        "maxBacklog": 1,
+        "client": {
+          "count": 1800,
+          "p50": 42.69,
+          "p95": 55.21,
+          "p99": 56.69,
+          "p999": 59.18,
+          "max": 65.46,
+          "mean": 43.01
+        }
+      },
+      "health": {
+        "health": {
+          "sloMs": 200,
+          "inFlight": 0,
+          "queueDepth": 0,
+          "poolSize": 4,
+          "featureFetch": {
+            "count": 4096,
+            "p50": 30.274499999999534,
+            "p95": 31.76439999998547,
+            "p99": 32.37010000000009,
+            "p999": 32.811900000000605,
+            "max": 33.046599999972386
+          },
+          "inference": {
+            "count": 2403,
+            "p50": 1.0017000000007101,
+            "p95": 1.0056000000004133,
+            "p99": 1.0110999999960768,
+            "p999": 1.1495999999970081,
+            "max": 1.282599999998638
+          },
+          "warmPath": {
+            "count": 4096,
+            "p50": 42719,
+            "p95": 49981,
+            "p99": 50632,
+            "p999": 50776,
+            "max": 50790
+          },
+          "ingestion": {
+            "count": 4096,
+            "p50": 2.0011000000013155,
+            "p95": 2.003499999998894,
+            "p99": 2.006099999998696,
+            "p999": 2.0705999999772757,
+            "max": 2.6142999999865424
+          },
+          "shedding": [
+            "SHEDDABLE_PLUS",
+            "SHEDDABLE"
+          ],
+          "shed": {
+            "CRITICAL_PLUS": 0,
+            "CRITICAL": 0,
+            "SHEDDABLE_PLUS": 15597,
+            "SHEDDABLE": 15597
+          },
+          "ran": {
+            "CRITICAL_PLUS": 4802,
+            "CRITICAL": 0,
+            "SHEDDABLE_PLUS": 2403,
+            "SHEDDABLE": 2403
+          }
+        }
+      }
+    }
+  ]
+}

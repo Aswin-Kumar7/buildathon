@@ -23,7 +23,9 @@
     "check:docker": "node scripts/check-docker.mjs",
     "metrics": "pnpm --filter @sentinel/detect metrics",
     "check:metrics": "pnpm --filter @sentinel/detect check:metrics",
-    "audit:verify": "node scripts/audit-verify.mjs"
+    "audit:verify": "node scripts/audit-verify.mjs",
+    "loadtest": "node scripts/loadtest.mjs",
+    "scenario-run": "node scripts/scenario-run.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
