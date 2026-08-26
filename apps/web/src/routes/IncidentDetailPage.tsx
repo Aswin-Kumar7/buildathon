@@ -12,6 +12,7 @@ import { ABSTENTION_REASON, phraseFor, ruleName, suggestedAction } from '../inci
 import { ContainmentPanel } from '../incidents/ContainmentPanel.js';
 import { AuditTrail } from '../incidents/AuditTrail.js';
 import { ModelOpinion } from '../incidents/ModelOpinion.js';
+import { NarrativePanel } from '../incidents/NarrativePanel.js';
 import './IncidentsPage.css';
 
 async function fetchIncident(id: string): Promise<IncidentDetail> {
@@ -276,6 +277,8 @@ export function IncidentDetailPage(): React.JSX.Element {
       </header>
 
       <Facts incident={it} />
+
+      <NarrativePanel incidentId={it.id} />
 
       <Breakdown incident={it} />
       <Change incident={it} />

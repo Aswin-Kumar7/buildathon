@@ -127,3 +127,66 @@
 .history {
   counter-reset: step;
 }
+
+/* The narrative panel: the plain-English account, with a per-line badge for where the words came
+   from. The badge is deliberately prominent — knowing whether a sentence came from a model or the
+   deterministic floor is part of reading it. */
+.narrative {
+  list-style: none;
+  margin: var(--s-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.narrative__line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-top: 1px solid var(--s-line);
+}
+
+.narrative__line:first-child {
+  border-top: none;
+}
+
+.narrative__text {
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-1);
+  line-height: 1.5;
+}
+
+.narrative__badge {
+  flex: none;
+  font-size: var(--s-text-xs);
+  font-family: var(--s-mono);
+  padding: 2px var(--s-2);
+  border-radius: var(--s-radius-sm, 4px);
+  white-space: nowrap;
+  color: var(--s-ink-2);
+  background: var(--s-surface-2);
+}
+
+.narrative__badge--live {
+  color: var(--s-ok);
+  background: var(--s-ok-soft);
+}
+
+.narrative__badge--replay {
+  color: var(--s-warn);
+  background: var(--s-warn-soft);
+}
+
+.narrative__badge--template {
+  color: var(--s-ink-2);
+  background: var(--s-surface-2);
+}
+
+.incident__meta-note {
+  margin: var(--s-3) 0 0;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-2);
+}

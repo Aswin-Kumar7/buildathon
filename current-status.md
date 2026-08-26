@@ -3,8 +3,8 @@
 Single source of truth for where Sentinel actually stands. Updated with every change.
 
 **Last updated:** 2026-08-26
-**Current slice:** 13 — Model B, incident classifier served in the request path (built; JS/pytest suites written, not yet run)
-**Latest tag:** `v0.12.0` → `v0.13.0` pending
+**Current slice:** 14 — Narration: the model may emit only claim ids, values are bound in code (built; suites written, not yet run)
+**Latest tag:** `v0.13.0` → `v0.14.0` pending
 
 ## Slice progress
 
@@ -23,8 +23,8 @@ Single source of truth for where Sentinel actually stands. Updated with every ch
 | 10 | Policy, approval and containment | `v0.10.0` | **done** |
 | 11 | Audit chain | `v0.11.0` | **done** |
 | 12 | Model A — real labelled benchmark | `v0.12.0` | **done** |
-| 13 | Model B — incident classifier, served | `v0.13.0` | **built (tests pending run)** |
-| 14 | Narration | `v0.14.0` | not started |
+| 13 | Model B — incident classifier, served | `v0.13.0` | **done** |
+| 14 | Narration — claim-id-only, bound in code | `v0.14.0` | **built (tests pending run)** |
 | 15 | Performance and degradation | `v0.15.0` | not started |
 | 16 | Submission | `v1.0.0` | not started |
 
@@ -353,6 +353,31 @@ detail carries the opinion (predicted cause, calibrated distribution, top contri
 page publishes the four-class confusion matrix, the ablation ladder and the risk–coverage curve. The
 served artefacts ship into the API image and are guarded as runtime files, so a container without them
 fails the build rather than silently degrading in production.
+
+**Narration (`packages/narrate`)** — the plain-English account of an incident, built so a model can
+never state a fact it was not given. The package is a frozen **catalog of atomic claims**: each has a
+stable id, a `bind` that resolves its typed slots from the incident's verified evidence, and a `render`
+that fixes the wording. The split is the safety property — a model chooses *which* claims by id and in
+what order; `bind` supplies every number from the evidence; `render` owns every word. There is no path
+by which a narrative contains a sentence that is not one of these renderers run over values that came
+from the evidence, so the class of failure where an LLM invents a figure is designed out rather than
+guarded against after the fact.
+
+A **fact guard** sits between selection and rendering: a claim id that is unknown to the catalog is a
+hallucination and is dropped; a known claim that does not apply to these facts is unresolvable and is
+dropped; the number dropped is returned as a **hallucination SLI**, so a narrator going wrong is
+countable rather than invisible. The source **degrades live → local → replay → template**, each tier
+choosing only the ordering, with a per-line badge. Because the words are bound and not generated, every
+tier renders the *same* sentences — so pulling the provider changes the badge and nothing else, and
+`replay` reproduces a recorded live run byte-for-byte. A **circuit breaker** (deterministic, clock
+injected), a hard timeout and bounded, queue-capped concurrency front the provider so a slow narrator
+sheds load to the on-device tier instead of stalling every incident behind it.
+
+**Narrative panel** — the incident detail leads with the account, every line tagged with where its
+words came from, and a footer that names the evidence hash, any fact-guard drops, and whether the tier
+degraded below the one that was asked for. The default build ships no provider, so it runs on-device;
+the live tier is a provider adapter that slots in when one is configured.
+
 
 **Audit chain** — `packages/audit`, and a `sentinel.audit_log` table. Every decision and every
 hand that touched one is appended as an entry carrying the hash of the entry before it, so
@@ -977,9 +1002,20 @@ still failing beside it.
 
 ## Next
 
-Slices 11, 12 and 13's suites still need a run — unit, integration, and end-to-end — before those slices
-are tagged as tested. After that, Slice 14: narration — the incident told as a short, sourced account
-rather than a table, with every sentence tied back to the evidence that justifies it.
+The end-to-end suites still need a run before submission. After this, Slice 15: performance and
+degradation — load, backpressure and the degradation matrix under stress, so the system's behaviour
+when it is overwhelmed is designed and measured rather than discovered.
+
+Just built — Slice 14: narration. The incident told as a short, plain-English account — and the model
+that writes it is allowed to emit only claim identifiers, never prose, not even a connective. A fixed
+catalog of atomic claims each bind their values from the incident's verified evidence in code, so a
+narrative physically cannot state a number the evidence did not carry; the model only chooses which
+claims to make and in what order. A fact guard drops any claim id that is unknown or does not apply,
+and counts the drops as a hallucination signal. The source degrades live -> local -> replay -> template
+with a per-line badge, and because the words are bound rather than generated, pulling the provider
+changes the badge and not a word of the account — replay reproduces a recorded live run byte-for-byte.
+A circuit breaker, a hard timeout and bounded, queue-capped concurrency sit in front of the provider so
+a slow narrator sheds to the local tier instead of stalling the request.
 
 Just built — Slice 13: Model B, an incident classifier that runs in the request path. A four-class model
 (attack, outage, retry storm, healthy traffic) with an explicit abstain, trained on the scenario corpus
