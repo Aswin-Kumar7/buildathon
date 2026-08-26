@@ -1,35 +1,62 @@
 .s-callout {
-  border-radius: var(--s-radius-lg);
+  border: 1px solid var(--callout-border);
+  background: var(--callout-soft);
+  border-radius: var(--s-radius);
   padding: var(--s-3) var(--s-4);
-  border-left: 3px solid;
+  position: relative;
+  padding-left: var(--s-5);
 }
-.s-callout > :first-child {
-  margin-top: 0;
+.s-callout::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: var(--s-3);
+  bottom: var(--s-3);
+  width: 3px;
+  border-radius: var(--s-radius-full);
+  background: var(--callout-bar);
 }
-.s-callout > :last-child {
-  margin-bottom: 0;
-}
-.s-callout__title {
-  font-weight: 600;
-  margin: 0 0 var(--s-1);
-}
-.s-callout--neutral {
-  background: var(--s-surface-2);
-  border-color: var(--s-ink-2);
-}
+
 .s-callout--info {
-  background: var(--s-info-soft);
-  border-color: var(--s-info);
+  --callout-soft: var(--s-info-soft);
+  --callout-border: var(--s-info-border);
+  --callout-bar: var(--s-info);
 }
 .s-callout--ok {
-  background: var(--s-ok-soft);
-  border-color: var(--s-ok);
+  --callout-soft: var(--s-ok-soft);
+  --callout-border: var(--s-ok-border);
+  --callout-bar: var(--s-ok);
 }
 .s-callout--warn {
-  background: var(--s-warn-soft);
-  border-color: var(--s-warn);
+  --callout-soft: var(--s-warn-soft);
+  --callout-border: var(--s-warn-border);
+  --callout-bar: var(--s-warn);
 }
 .s-callout--critical {
-  background: var(--s-critical-soft);
-  border-color: var(--s-critical);
+  --callout-soft: var(--s-critical-soft);
+  --callout-border: var(--s-critical-border);
+  --callout-bar: var(--s-critical);
+}
+.s-callout--neutral,
+.s-callout--accent {
+  --callout-soft: var(--s-accent-soft);
+  --callout-border: var(--s-accent-border);
+  --callout-bar: var(--s-accent);
+}
+
+.s-callout__title {
+  margin: 0 0 var(--s-1);
+  font-weight: 600;
+  font-size: var(--s-text-base);
+  color: var(--s-ink);
+}
+.s-callout p {
+  margin: 0;
+  color: var(--s-ink-2);
+  font-size: var(--s-text-sm);
+  line-height: 1.55;
+}
+.s-callout__title + p,
+.s-callout p + p {
+  margin-top: var(--s-2);
 }

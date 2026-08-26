@@ -117,9 +117,11 @@ describe('IncidentDetailPage', () => {
     stub(detail({ status: 'contained' }));
     render(wrap(<IncidentDetailPage />));
 
-    expect(await screen.findByRole('button', { name: /Mark resolved/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Mark under review/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Mark contained/ })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: /Resolve — confirmed abuse/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Move to review/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Contain/ })).not.toBeInTheDocument();
   });
 
   it('offers nothing on a terminal incident, and says why', async () => {
@@ -127,7 +129,9 @@ describe('IncidentDetailPage', () => {
     render(wrap(<IncidentDetailPage />));
 
     expect(await screen.findByText(/Resolved is final/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^Mark/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Resolve|Contain|Move to review/ }),
+    ).not.toBeInTheDocument();
   });
 
   it('sends the transition the analyst picked', async () => {
@@ -135,11 +139,27 @@ describe('IncidentDetailPage', () => {
     render(wrap(<IncidentDetailPage />));
     await screen.findByText('+0.35');
 
-    await userEvent.click(screen.getByRole('button', { name: /Mark under review/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Move to review/ }));
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/incidents/a1/transition',
       expect.objectContaining({ method: 'POST', body: JSON.stringify({ to: 'under_review' }) }),
+    );
+  });
+
+  it('labels a resolution as a confirmed verdict for retraining', async () => {
+    const fetchMock = stub(detail());
+    render(wrap(<IncidentDetailPage />));
+    await screen.findByText('+0.35');
+
+    await userEvent.click(screen.getByRole('button', { name: /Resolve — false positive/ }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/incidents/a1/transition',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ to: 'resolved', verdict: 'false_positive' }),
+      }),
     );
   });
 
@@ -155,7 +175,7 @@ describe('IncidentDetailPage', () => {
     render(wrap(<IncidentDetailPage />));
 
     expect(await screen.findByText(/Open → Under review/)).toBeInTheDocument();
-    expect(screen.getByText(/by Ana/)).toBeInTheDocument();
+    expect(screen.getByText(/Ana/)).toBeInTheDocument();
     expect(screen.getByText(/checking/)).toBeInTheDocument();
   });
 
@@ -170,7 +190,7 @@ describe('IncidentDetailPage', () => {
     );
     render(wrap(<IncidentDetailPage />));
 
-    expect(await screen.findByText(/by the system/)).toBeInTheDocument();
+    expect(await screen.findByText(/system/)).toBeInTheDocument();
   });
 
   it('explains a change-detection alarm in its own terms', async () => {
@@ -186,10 +206,10 @@ describe('IncidentDetailPage', () => {
     render(wrap(<IncidentDetailPage />));
 
     expect(await screen.findByText(/Cumulative deviation reached 18.40/)).toBeInTheDocument();
-    expect(screen.getByText(/after 16 minutes of accumulating/)).toBeInTheDocument();
+    expect(screen.getByText(/after 16 minutes/)).toBeInTheDocument();
     // Said plainly, because it is about the shop rather than this entity. A session has no
     // history to have changed from, so attributing the alarm to one would be misleading.
-    expect(screen.getByText(/not this entity on its own/)).toBeInTheDocument();
+    expect(screen.getByText(/not this entity alone/)).toBeInTheDocument();
   });
 
   it('surfaces a failure rather than a blank page', async () => {

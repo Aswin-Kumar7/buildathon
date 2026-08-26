@@ -1,192 +1,179 @@
-/* The entity/traffic picker is the feature inspector's, doing the same job here. */
-@import './FeaturesPage.css';
-
-.incident-bar {
+.inc-toolbar {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-3);
-  margin-bottom: var(--s-4);
 }
 
-.incident-meta {
-  margin: var(--s-3) 0 0;
-  font-size: var(--s-text-xs);
-  color: var(--s-ink-2);
+/* source segmented control */
+.inc-source {
+  display: inline-flex;
+  border: 1px solid var(--s-line-2);
+  border-radius: var(--s-radius);
+  overflow: hidden;
+  background: var(--s-surface);
 }
-
-.incident-meta code,
-.incident__what code {
-  font-family: var(--s-mono);
-}
-
-.incidents {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
-  gap: var(--s-3);
-}
-
-.incident__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-2);
-  margin-bottom: var(--s-2);
-}
-
-.incident__what {
-  margin: 0 0 var(--s-3);
+.inc-source button {
+  font-family: inherit;
   font-size: var(--s-text-sm);
-  text-transform: capitalize;
+  font-weight: 600;
+  color: var(--s-ink-2);
+  background: transparent;
+  border: 0;
+  padding: 0.4375rem var(--s-3);
+  cursor: pointer;
+  transition:
+    background-color var(--s-transition),
+    color var(--s-transition);
+}
+.inc-source button + button {
+  border-left: 1px solid var(--s-line);
+}
+.inc-source button:hover {
+  color: var(--s-ink);
+}
+.inc-source button.is-active {
+  background: var(--s-accent-soft);
+  color: var(--s-accent-ink);
 }
 
-.incident__facts {
-  margin: 0 0 var(--s-3);
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
-  gap: var(--s-3);
+.inc-panel {
+  background: var(--s-surface);
+  border: 1px solid var(--s-line);
+  border-radius: var(--s-radius-lg);
+  box-shadow: var(--s-shadow-sm);
+  overflow: hidden;
 }
 
-.incident__facts dt {
+.inc-table-wrap {
+  overflow-x: auto;
+}
+.inc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--s-text-sm);
+}
+.inc-table thead th {
+  text-align: left;
   font-size: var(--s-text-xs);
-  letter-spacing: 0.06em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--s-ink-2);
+  color: var(--s-ink-3);
+  background: var(--s-surface-2);
+  padding: var(--s-3);
+  border-bottom: 1px solid var(--s-line);
+  white-space: nowrap;
+}
+.inc-table thead th:first-child {
+  padding-left: var(--s-5);
+}
+.inc-table tbody td {
+  padding: var(--s-3);
+  border-bottom: 1px solid var(--s-line);
+  vertical-align: middle;
+}
+.inc-table tbody td:first-child {
+  padding-left: var(--s-5);
+}
+.inc-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.inc-table tbody tr {
+  transition: background-color var(--s-transition);
+}
+.inc-table tbody tr:hover {
+  background: var(--s-surface-2);
 }
 
-.incident__facts dd {
-  margin: 2px 0 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.incident__band {
-  display: block;
-  font-size: var(--s-text-xs);
-  color: var(--s-ink-2);
-}
-
-.incident__rules {
-  margin: 0 0 var(--s-2);
-  font-size: var(--s-text-sm);
-}
-
-.incident__suggestion {
-  margin: 0;
-  font-size: var(--s-text-sm);
-  color: var(--s-ink-2);
-}
-
-/* The score as the sum it actually is. Signs are shown so the arithmetic can be followed,
-   and mitigating terms sit in the same list rather than in a panel one scroll away. */
-.breakdown,
-.abstentions,
-.history {
-  margin: 0 0 var(--s-3);
-  padding: 0;
-  list-style: none;
+.inc-entity {
   display: flex;
   flex-direction: column;
-  gap: var(--s-2);
+  gap: 0.0625rem;
+  min-width: 8rem;
 }
-
-.breakdown li {
-  display: flex;
-  gap: var(--s-3);
-  padding: var(--s-2) 0;
-  border-top: 1px solid var(--s-line);
+.inc-entity__kind {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-3);
+  text-transform: capitalize;
 }
-
-.breakdown__weight {
-  flex: 0 0 3.5rem;
+.inc-entity__kind em {
+  font-style: normal;
+  color: var(--s-warn-ink);
+}
+.inc-entity code {
   font-family: var(--s-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink);
+}
+
+.inc-risk {
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+  font-size: var(--s-text-base);
+}
+.inc-band {
+  display: block;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-3);
+}
+
+.inc-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+  max-width: 18rem;
+}
+.inc-chip {
+  font-size: var(--s-text-xs);
+  font-weight: 500;
+  color: var(--s-ink-2);
+  background: var(--s-surface-3);
+  border: 1px solid var(--s-line);
+  border-radius: var(--s-radius-sm);
+  padding: 0.125rem 0.4375rem;
+  white-space: nowrap;
+}
+.inc-muted {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-3);
+  font-style: italic;
+}
+
+.inc-ttd {
+  font-variant-numeric: tabular-nums;
+  color: var(--s-ink-2);
+  white-space: nowrap;
+}
+.inc-open {
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.inc-open:hover {
+  text-decoration: underline;
+}
+.inc-openc {
   text-align: right;
 }
 
-.breakdown__text {
+.inc-meta {
   font-size: var(--s-text-sm);
-  line-height: 1.5;
+  color: var(--s-ink-3);
 }
-
-.breakdown .is-mitigating .breakdown__weight {
-  color: var(--s-ok-ink, var(--s-ink-2));
-}
-
-.breakdown__total {
-  border-top: 2px solid var(--s-line-strong, var(--s-line));
-  font-weight: 600;
-}
-
-.abstentions li,
-.history li {
-  font-size: var(--s-text-sm);
-  line-height: 1.5;
-}
-
-.history {
-  counter-reset: step;
-}
-
-/* The narrative panel: the plain-English account, with a per-line badge for where the words came
-   from. The badge is deliberately prominent — knowing whether a sentence came from a model or the
-   deterministic floor is part of reading it. */
-.narrative {
-  list-style: none;
-  margin: var(--s-2) 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-}
-
-.narrative__line {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--s-3);
-  padding: var(--s-2) 0;
-  border-top: 1px solid var(--s-line);
-}
-
-.narrative__line:first-child {
-  border-top: none;
-}
-
-.narrative__text {
-  font-size: var(--s-text-sm);
-  color: var(--s-ink-1);
-  line-height: 1.5;
-}
-
-.narrative__badge {
-  flex: none;
-  font-size: var(--s-text-xs);
+.inc-meta code {
   font-family: var(--s-mono);
-  padding: 2px var(--s-2);
-  border-radius: var(--s-radius-sm, 4px);
-  white-space: nowrap;
-  color: var(--s-ink-2);
-  background: var(--s-surface-2);
-}
-
-.narrative__badge--live {
-  color: var(--s-ok);
-  background: var(--s-ok-soft);
-}
-
-.narrative__badge--replay {
-  color: var(--s-warn);
-  background: var(--s-warn-soft);
-}
-
-.narrative__badge--template {
-  color: var(--s-ink-2);
-  background: var(--s-surface-2);
-}
-
-.incident__meta-note {
-  margin: var(--s-3) 0 0;
   font-size: var(--s-text-xs);
-  color: var(--s-ink-2);
+  background: var(--s-surface-2);
+  border: 1px solid var(--s-line);
+  border-radius: var(--s-radius-sm);
+  padding: 0.0625rem 0.3125rem;
+}
+
+@media (max-width: 40rem) {
+  .inc-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }

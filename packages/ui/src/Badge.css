@@ -1,30 +1,73 @@
 .s-badge {
-  display: inline-block;
-  font-family: var(--s-mono);
-  font-size: var(--s-text-xs);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 0.1rem 0.4rem;
-  border-radius: var(--s-radius);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-weight: 600;
+  line-height: 1;
   white-space: nowrap;
+  border-radius: var(--s-radius-full);
+  border: 1px solid transparent;
 }
+.s-badge--md {
+  font-size: var(--s-text-xs);
+  padding: 0.25rem var(--s-2);
+}
+.s-badge--sm {
+  font-size: 0.6875rem;
+  padding: 0.1875rem 0.4375rem;
+}
+
+.s-badge__dot {
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* Per-tone colour, applied to the soft (default), solid and outline variants. */
 .s-badge--neutral {
-  background: var(--s-surface-2);
-  color: var(--s-ink-2);
+  --badge: var(--s-ink-2);
+  --badge-soft: var(--s-surface-3);
+  --badge-border: var(--s-line-2);
 }
 .s-badge--critical {
-  background: var(--s-critical-soft);
-  color: var(--s-critical);
+  --badge: var(--s-critical-ink);
+  --badge-soft: var(--s-critical-soft);
+  --badge-border: var(--s-critical-border);
 }
 .s-badge--warn {
-  background: var(--s-warn-soft);
-  color: var(--s-warn);
+  --badge: var(--s-warn-ink);
+  --badge-soft: var(--s-warn-soft);
+  --badge-border: var(--s-warn-border);
 }
 .s-badge--ok {
-  background: var(--s-ok-soft);
-  color: var(--s-ok);
+  --badge: var(--s-ok-ink);
+  --badge-soft: var(--s-ok-soft);
+  --badge-border: var(--s-ok-border);
 }
 .s-badge--info {
-  background: var(--s-info-soft);
-  color: var(--s-info);
+  --badge: var(--s-info-ink);
+  --badge-soft: var(--s-info-soft);
+  --badge-border: var(--s-info-border);
+}
+.s-badge--accent {
+  --badge: var(--s-accent-ink);
+  --badge-soft: var(--s-accent-soft);
+  --badge-border: var(--s-accent-border);
+}
+
+.s-badge--soft {
+  background: var(--badge-soft);
+  color: var(--badge);
+  border-color: var(--badge-border);
+}
+.s-badge--solid {
+  background: var(--badge);
+  color: #fff;
+}
+.s-badge--outline {
+  background: var(--s-surface);
+  color: var(--badge);
+  border-color: var(--badge-border);
 }

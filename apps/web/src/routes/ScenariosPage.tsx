@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Badge, Button, Callout, Card } from '@sentinel/ui';
+import { Badge, Button, Callout, Card, PageHeader } from '@sentinel/ui';
 import {
   replayResultSchema,
   scenarioListResponseSchema,
@@ -103,15 +103,11 @@ export function ScenariosPage(): React.JSX.Element {
 
   return (
     <>
-      <header className="page-head">
-        <h1>Scenarios</h1>
-        <p>
-          Eight labelled traffic shapes, generated from specifications committed before any detector
-          existed to be tuned against them. Replaying one writes it through the real ingestion path
-          &mdash; the same signature-free insert, encryption, drain and state resolution that live
-          traffic takes.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="System"
+        title="Simulation"
+        description="Replay any of eight labelled traffic shapes through the real ingestion path — the same signature-free insert, encryption, drain and state resolution live traffic takes. Fire an attack, then watch the console light up."
+      />
 
       {scenarios.isError && (
         <Callout tone="critical" title="Could not read the scenario catalogue">

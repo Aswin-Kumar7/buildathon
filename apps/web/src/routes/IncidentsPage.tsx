@@ -1,55 +1,50 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { Badge, Button, Callout, Card } from '@sentinel/ui';
+import {
+  Badge,
+  Button,
+  EmptyState,
+  ErrorState,
+  Loading,
+  PageHeader,
+  StatusDot,
+  Tabs,
+} from '@sentinel/ui';
 import {
   incidentListResponseSchema,
   type IncidentListResponse,
   type IncidentSummary,
 } from '@sentinel/contracts';
 import { csrfHeaders } from '../auth/api.js';
-import { suggestedAction, ruleName } from '../incidents/evidence.js';
+import { ruleName } from '../incidents/evidence.js';
 import './IncidentsPage.css';
 
 type StatusFilter = 'all' | IncidentSummary['status'];
 type Source = 'all' | IncidentSummary['source'];
 
-const SOURCE_LABEL: Record<Source, string> = {
-  all: 'Both',
-  razorpay: 'Real traffic',
-  replay: 'Replayed',
-};
-
-const FILTERS: { value: StatusFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'open', label: 'Open' },
-  { value: 'under_review', label: 'Under review' },
-  { value: 'contained', label: 'Contained' },
-  { value: 'resolved', label: 'Resolved' },
-  { value: 'expired', label: 'Expired' },
+const FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'open', label: 'Open' },
+  { id: 'under_review', label: 'Review' },
+  { id: 'contained', label: 'Contained' },
+  { id: 'resolved', label: 'Resolved' },
 ];
 
-async function fetchIncidents(status: StatusFilter, source: Source): Promise<IncidentListResponse> {
-  const params = new URLSearchParams();
-  if (status !== 'all') params.set('status', status);
-  if (source !== 'all') params.set('source', source);
-  const query = params.size === 0 ? '' : `?${params.toString()}`;
-
-  const response = await fetch(`/api/incidents${query}`, { credentials: 'include' });
-  if (!response.ok) throw new Error(`api returned ${response.status}`);
-  return incidentListResponseSchema.parse(await response.json());
-}
-
-function duration(ms: number): string {
-  const seconds = Math.round(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
-  if (seconds < 86_400) return `${Math.round(seconds / 3600)}h`;
-  return `${Math.round(seconds / 86_400)}d`;
-}
+const SOURCES: { id: Source; label: string }[] = [
+  { id: 'all', label: 'Both' },
+  { id: 'razorpay', label: 'Live' },
+  { id: 'replay', label: 'Replayed' },
+];
 
 const SEVERITY_TONE = { high: 'critical', medium: 'warn', low: 'neutral' } as const;
-
+const STATUS_TONE: Record<IncidentSummary['status'], 'critical' | 'warn' | 'ok' | 'neutral'> = {
+  open: 'critical',
+  under_review: 'warn',
+  contained: 'ok',
+  resolved: 'neutral',
+  expired: 'neutral',
+};
 const STATUS_LABEL: Record<IncidentSummary['status'], string> = {
   open: 'Open',
   under_review: 'Under review',
@@ -58,63 +53,86 @@ const STATUS_LABEL: Record<IncidentSummary['status'], string> = {
   expired: 'Expired',
 };
 
-function Row({ incident }: { incident: IncidentSummary }): React.JSX.Element {
-  const expired = incident.status === 'expired' || incident.status === 'resolved';
+async function fetchIncidents(status: StatusFilter, source: Source): Promise<IncidentListResponse> {
+  const params = new URLSearchParams();
+  if (status !== 'all') params.set('status', status);
+  if (source !== 'all') params.set('source', source);
+  const query = params.size === 0 ? '' : `?${params.toString()}`;
+  const response = await fetch(`/api/incidents${query}`, { credentials: 'include' });
+  if (!response.ok) throw new Error(`api returned ${response.status}`);
+  return incidentListResponseSchema.parse(await response.json());
+}
 
+function duration(ms: number): string {
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.round(s / 60)}m`;
+  if (s < 86_400) return `${Math.round(s / 3600)}h`;
+  return `${Math.round(s / 86_400)}d`;
+}
+
+function Table({ incidents }: { incidents: IncidentSummary[] }): React.JSX.Element {
   return (
-    <Card>
-      <header className="incident__head">
-        <div>
-          <Badge tone={SEVERITY_TONE[incident.severity]}>{incident.severity}</Badge>{' '}
-          <Badge tone="neutral">{STATUS_LABEL[incident.status]}</Badge>{' '}
-          {incident.source === 'replay' && <Badge tone="warn">replayed</Badge>}
-        </div>
-        <Link to="/console/incidents/$id" params={{ id: incident.id }}>
-          Open
-        </Link>
-      </header>
-
-      <p className="incident__what">
-        {incident.entityKind} <code>{incident.entityKey.replace(/^v\d+:/, '').slice(0, 12)}</code>
-      </p>
-
-      <dl className="incident__facts">
-        <div>
-          <dt>Score</dt>
-          <dd>
-            {incident.score.toFixed(2)}
-            <span className="incident__band">
-              {incident.band === 'high'
-                ? 'confident'
-                : `could be ${incident.scoreLower.toFixed(2)}–${incident.scoreUpper.toFixed(2)}`}
-            </span>
-          </dd>
-        </div>
-        <div>
-          <dt>Time to detect</dt>
-          <dd>{duration(incident.timeToDetectMs)}</dd>
-        </div>
-        <div>
-          <dt>Age</dt>
-          <dd>{duration(incident.lastActivityAt - incident.firstAttemptAt)}</dd>
-        </div>
-        <div>
-          <dt>{expired ? 'Expired' : 'Expires'}</dt>
-          <dd>{new Date(incident.expiresAt).toLocaleTimeString()}</dd>
-        </div>
-      </dl>
-
-      <p className="incident__rules">
-        {incident.firedRules.map((rule) => ruleName(rule)).join(' · ')}
-      </p>
-
-      {/* A suggestion, labelled as one. Nothing in this console acts — containment and its
-          approval arrive in a later slice, and implying otherwise would claim a power it
-          does not have. */}
-      <p className="incident__suggestion">
-        <strong>Suggested:</strong> {suggestedAction(incident.severity, incident.firedRules)}
-      </p>
-    </Card>
+    <div className="inc-table-wrap">
+      <table className="inc-table">
+        <thead>
+          <tr>
+            <th>Severity</th>
+            <th>Entity</th>
+            <th>Status</th>
+            <th>Risk</th>
+            <th>Signals</th>
+            <th>Detected in</th>
+            <th aria-label="Open" />
+          </tr>
+        </thead>
+        <tbody>
+          {incidents.map((incident) => (
+            <tr key={incident.id}>
+              <td>
+                <Badge tone={SEVERITY_TONE[incident.severity]} size="sm">
+                  {incident.severity}
+                </Badge>
+              </td>
+              <td>
+                <div className="inc-entity">
+                  <span className="inc-entity__kind">
+                    {incident.entityKind}
+                    {incident.source === 'replay' && <em> · replayed</em>}
+                  </span>
+                  <code>{incident.entityKey.replace(/^v\d+:/, '').slice(0, 18)}</code>
+                </div>
+              </td>
+              <td>
+                <StatusDot tone={STATUS_TONE[incident.status]}>
+                  {STATUS_LABEL[incident.status]}
+                </StatusDot>
+              </td>
+              <td>
+                <span className="inc-risk">{incident.score.toFixed(2)}</span>
+                {incident.band !== 'high' && <span className="inc-band">wide band</span>}
+              </td>
+              <td className="inc-signals">
+                {incident.firedRules.slice(0, 3).map((rule) => (
+                  <span key={rule} className="inc-chip">
+                    {ruleName(rule)}
+                  </span>
+                ))}
+                {incident.firedRules.length === 0 && (
+                  <span className="inc-muted">model-flagged</span>
+                )}
+              </td>
+              <td className="inc-ttd">{duration(incident.timeToDetectMs)}</td>
+              <td className="inc-openc">
+                <Link to="/console/incidents/$id" params={{ id: incident.id }} className="inc-open">
+                  Open →
+                </Link>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -123,52 +141,28 @@ function Toolbar({
   setStatus,
   source,
   setSource,
-  onEvaluate,
-  evaluating,
 }: {
   status: StatusFilter;
-  setStatus: (status: StatusFilter) => void;
+  setStatus: (s: StatusFilter) => void;
   source: Source;
-  setSource: (source: Source) => void;
-  onEvaluate: () => void;
-  evaluating: boolean;
+  setSource: (s: Source) => void;
 }): React.JSX.Element {
   return (
-    <div className="incident-bar">
-      <div className="kinds" role="group" aria-label="Status">
-        {FILTERS.map((filter) => (
+    <div className="inc-toolbar">
+      <Tabs items={FILTERS} active={status} onChange={(id) => setStatus(id as StatusFilter)} />
+      <div className="inc-source" role="group" aria-label="Traffic source">
+        {SOURCES.map((option) => (
           <button
-            key={filter.value}
+            key={option.id}
             type="button"
-            className={filter.value === status ? 'is-current' : undefined}
-            aria-pressed={filter.value === status}
-            onClick={() => setStatus(filter.value)}
+            className={option.id === source ? 'is-active' : undefined}
+            aria-pressed={option.id === source}
+            onClick={() => setSource(option.id)}
           >
-            {filter.label}
+            {option.label}
           </button>
         ))}
       </div>
-
-      {/* Real and replayed kept apart, as everywhere else. Detection runs over whichever is
-          being looked at: the feature window anchors to the newest event whatever its source,
-          so evaluating both while showing one would hide a scenario behind a live attempt. */}
-      <div className="kinds" role="group" aria-label="Traffic">
-        {(['all', 'razorpay', 'replay'] as const).map((option) => (
-          <button
-            key={option}
-            type="button"
-            className={option === source ? 'is-current' : undefined}
-            aria-pressed={option === source}
-            onClick={() => setSource(option)}
-          >
-            {SOURCE_LABEL[option]}
-          </button>
-        ))}
-      </div>
-
-      <Button variant="ghost" onClick={onEvaluate} disabled={evaluating}>
-        {evaluating ? 'Evaluating…' : 'Run detection'}
-      </Button>
     </div>
   );
 }
@@ -186,9 +180,6 @@ export function IncidentsPage(): React.JSX.Element {
 
   const evaluate = useMutation({
     mutationFn: async () => {
-      // Detection runs over the traffic being looked at. Evaluating everything while showing
-      // one source would let a replayed scenario be hidden behind a single live attempt — the
-      // feature window anchors to the newest event, whichever source it came from.
       const scope = source === 'all' ? '' : `?source=${source}`;
       const response = await fetch(`/api/incidents/evaluate${scope}`, {
         method: 'POST',
@@ -201,55 +192,54 @@ export function IncidentsPage(): React.JSX.Element {
     onSuccess: () => client.invalidateQueries({ queryKey: ['incidents'] }),
   });
 
+  const list = incidents.data?.incidents ?? [];
+
   return (
     <>
-      <header className="page-head">
-        <h1>Incidents</h1>
-        <p>
-          One episode per row, not one alert per attempt. Every incident carries the evidence that
-          opened it and the evidence against it, and nothing here has taken an action — the queue is
-          for deciding, not for having decided.
-        </p>
-      </header>
-
-      <Toolbar
-        status={status}
-        setStatus={setStatus}
-        source={source}
-        setSource={setSource}
-        onEvaluate={() => evaluate.mutate()}
-        evaluating={evaluate.isPending}
+      <PageHeader
+        eyebrow="Monitor"
+        title="Incidents"
+        description="One episode per row, not one alert per attempt — each carries the evidence that opened it, the model's opinion, and the decision the rules and model reached together."
+        actions={
+          <Button
+            variant="secondary"
+            icon="↻"
+            onClick={() => evaluate.mutate()}
+            disabled={evaluate.isPending}
+          >
+            {evaluate.isPending ? 'Running…' : 'Run detection'}
+          </Button>
+        }
       />
 
-      {incidents.isError && (
-        <Callout tone="critical" title="Could not load incidents">
-          <p role="alert">{incidents.error.message}</p>
-        </Callout>
-      )}
+      <Toolbar status={status} setStatus={setStatus} source={source} setSource={setSource} />
 
-      {incidents.isPending && <p role="status">Loading incidents…</p>}
+      <div className="inc-panel">
+        {incidents.isPending ? (
+          <Loading label="Loading incidents…" />
+        ) : incidents.isError ? (
+          <ErrorState message={incidents.error.message} />
+        ) : list.length === 0 ? (
+          <EmptyState
+            icon="🛡"
+            title="Nothing in the queue"
+            description="No incidents match this filter. Run a simulation to open a case, or wait for live traffic."
+            action={
+              <Link to="/console/scenarios">
+                <Button size="sm">Go to Simulation</Button>
+              </Link>
+            }
+          />
+        ) : (
+          <Table incidents={list} />
+        )}
+      </div>
 
-      {incidents.data !== undefined && incidents.data.incidents.length === 0 && (
-        <Callout tone="neutral" title="Nothing here">
-          <p>
-            No incidents{status === 'all' ? '' : ` with status ${STATUS_LABEL[status]}`}. Replay a
-            scenario and run detection, or wait for real traffic.
-          </p>
-        </Callout>
-      )}
-
-      {incidents.data !== undefined && incidents.data.incidents.length > 0 && (
-        <>
-          <p className="incident-meta">
-            Judged by threshold set <code>{incidents.data.thresholdHash}</code>. A score means
-            nothing without what it was compared against.
-          </p>
-          <section className="incidents">
-            {incidents.data.incidents.map((incident) => (
-              <Row key={incident.id} incident={incident} />
-            ))}
-          </section>
-        </>
+      {incidents.data !== undefined && list.length > 0 && (
+        <p className="inc-meta">
+          Judged by threshold set <code>{incidents.data.thresholdHash}</code>. A score means nothing
+          without what it was compared against.
+        </p>
       )}
     </>
   );

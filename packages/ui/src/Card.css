@@ -2,16 +2,76 @@
   background: var(--s-surface);
   border: 1px solid var(--s-line);
   border-radius: var(--s-radius-lg);
-  padding: var(--s-4);
+  box-shadow: var(--s-shadow-sm);
+  overflow: clip;
 }
+
+.s-card--interactive {
+  transition:
+    box-shadow var(--s-transition),
+    border-color var(--s-transition),
+    transform var(--s-transition);
+  cursor: pointer;
+}
+.s-card--interactive:hover {
+  box-shadow: var(--s-shadow-md);
+  border-color: var(--s-line-2);
+  transform: translateY(-1px);
+}
+
+.s-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-5);
+  border-bottom: 1px solid var(--s-line);
+}
+
 .s-card__title {
-  margin: 0 0 var(--s-2);
+  margin: 0;
   font-size: var(--s-text-md);
   font-weight: 600;
+  color: var(--s-ink);
 }
-.s-card__body > :first-child {
+
+.s-card__subtitle {
+  margin: var(--s-1) 0 0;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-2);
+}
+
+.s-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-shrink: 0;
+}
+
+.s-card__body {
+  padding: var(--s-5);
+}
+.s-card__body--flush {
+  padding: 0;
+}
+
+/* Sensible defaults for prose that pages drop straight into a card body. */
+.s-card__body > h2 {
+  margin: 0 0 var(--s-2);
+  font-size: var(--s-text-lg);
+  font-weight: 600;
+}
+.s-card__body > h3 {
+  margin: var(--s-5) 0 var(--s-2);
+  font-size: var(--s-text-base);
+  font-weight: 600;
+  color: var(--s-ink);
+}
+.s-card__body > h3:first-child,
+.s-card__body > h2 + h3 {
   margin-top: 0;
 }
-.s-card__body > :last-child {
-  margin-bottom: 0;
+.s-card__body > p {
+  margin: 0 0 var(--s-3);
+  color: var(--s-ink-2);
 }

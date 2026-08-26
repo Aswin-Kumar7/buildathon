@@ -1,58 +1,81 @@
 /*
- * Sentinel design tokens.
+ * Sentinel design tokens — the single source of truth for the console and the storefront.
  *
- * This is an operations console, not a marketing site: dense, calm, precise.
- * Semantic colour (critical / warn / ok / info) is deliberately separate from the
+ * A serious fintech product: calm, precise, white-first, with restrained colour and generous
+ * space. Semantic colour (critical / warn / ok / info) is deliberately kept apart from the brand
  * accent, so "this needs attention" never reads as "this is branded".
  *
- * Light theme only, by decision. A single committed look removes a whole class of
- * contrast bugs and keeps every screenshot, recording and printed page consistent —
- * which matters when the demo video is part of the deliverable.
+ * Light theme only, by decision. A single committed look removes a whole class of contrast bugs and
+ * keeps every screenshot, recording and printed page consistent — which matters when the demo video
+ * is part of the deliverable.
  *
- * A system font stack is used on purpose: a risk console should render instantly and
- * must never depend on a font host being reachable.
+ * The system font stack renders instantly and never depends on a font host being reachable — the one
+ * webfont (Inter) is an optional enhancement layered on top, never required for the layout to hold.
  */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
   color-scheme: light;
 
-  /* neutrals, very slightly cool so they sit with the teal accent */
-  --s-bg: #f7f9fa;
-  --s-surface: #ffffff;
-  --s-surface-2: #eef2f4;
-  --s-line: #d5dde0;
-  --s-ink: #101a1d;
-  --s-ink-2: #566468;
+  /* ── neutrals: cool slate, white-first ─────────────────────────────────── */
+  --s-bg: #f5f7fb; /* app canvas */
+  --s-bg-2: #eef1f7; /* recessed areas */
+  --s-surface: #ffffff; /* cards, panels */
+  --s-surface-2: #f6f8fc; /* subtle fills, table stripes, inputs */
+  --s-surface-3: #eef2f8; /* hover fills */
+  --s-line: #e6eaf2; /* hairline borders */
+  --s-line-2: #d3dae7; /* stronger borders, dividers */
+  --s-ink: #0d1526; /* primary text */
+  --s-ink-2: #4a5670; /* secondary text */
+  --s-ink-3: #8a94ab; /* muted text, captions */
 
-  /* accent — deliberately teal so it never collides with semantic blue */
-  --s-accent: #0f766e;
-  --s-accent-ink: #0b5a54;
-  --s-accent-soft: #d9f0ed;
+  /* ── brand accent: a confident indigo-blue ─────────────────────────────── */
+  --s-accent: #4f46e5;
+  --s-accent-hover: #4338ca;
+  --s-accent-ink: #3730a3; /* accent text on light */
+  --s-accent-soft: #eef2ff; /* accent tint background */
+  --s-accent-border: #c7d2fe;
+  --s-accent-grad: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
 
-  /* semantic */
-  --s-critical: #b42318;
-  --s-critical-soft: #fdeae8;
-  --s-warn: #b54708;
-  --s-warn-soft: #fdf0e3;
-  --s-ok: #067647;
-  --s-ok-soft: #e2f5ea;
-  --s-info: #1d4ed8;
-  --s-info-soft: #e6ecfd;
+  /* ── semantic ──────────────────────────────────────────────────────────── */
+  --s-critical: #d92d20;
+  --s-critical-ink: #b42318;
+  --s-critical-soft: #fef3f2;
+  --s-critical-border: #fbd5d0;
 
-  --s-focus: #1d4ed8;
+  --s-warn: #dc6803;
+  --s-warn-ink: #b54708;
+  --s-warn-soft: #fffaeb;
+  --s-warn-border: #fce4b6;
 
-  /* type */
-  --s-font: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --s-mono: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
-  --s-text-xs: 0.75rem;
-  --s-text-sm: 0.8125rem;
-  --s-text-base: 0.875rem;
-  --s-text-md: 1rem;
-  --s-text-lg: 1.25rem;
-  --s-text-xl: 1.75rem;
-  --s-text-2xl: 2.25rem;
+  --s-ok: #12854a;
+  --s-ok-ink: #027a48;
+  --s-ok-soft: #ecfdf3;
+  --s-ok-border: #bbecd0;
 
-  /* spacing — 4px base */
+  --s-info: #2563eb;
+  --s-info-ink: #1d4ed8;
+  --s-info-soft: #eff5ff;
+  --s-info-border: #c9daf9;
+
+  --s-focus: #4f46e5;
+
+  /* ── type ──────────────────────────────────────────────────────────────── */
+  --s-font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --s-mono: ui-monospace, 'Cascadia Code', 'SF Mono', 'JetBrains Mono', Consolas, monospace;
+  --s-text-xs: 0.75rem; /* 12 */
+  --s-text-sm: 0.8125rem; /* 13 */
+  --s-text-base: 0.875rem; /* 14 */
+  --s-text-md: 1rem; /* 16 */
+  --s-text-lg: 1.1875rem; /* 19 */
+  --s-text-xl: 1.5rem; /* 24 */
+  --s-text-2xl: 2rem; /* 32 */
+  --s-text-3xl: 2.75rem; /* 44 — hero */
+  --s-tracking-tight: -0.011em;
+  --s-tracking-tighter: -0.02em;
+
+  /* ── spacing: 4px base ─────────────────────────────────────────────────── */
   --s-1: 0.25rem;
   --s-2: 0.5rem;
   --s-3: 0.75rem;
@@ -60,17 +83,42 @@
   --s-5: 1.5rem;
   --s-6: 2rem;
   --s-7: 3rem;
+  --s-8: 4rem;
+  --s-9: 6rem;
 
-  --s-radius: 4px;
-  --s-radius-lg: 6px;
+  /* ── radii ─────────────────────────────────────────────────────────────── */
+  --s-radius-sm: 6px;
+  --s-radius: 10px;
+  --s-radius-lg: 14px;
+  --s-radius-xl: 20px;
+  --s-radius-full: 999px;
 
-  --s-shadow: 0 1px 2px rgb(16 26 29 / 6%);
+  /* ── elevation: a soft, layered ramp ───────────────────────────────────── */
+  --s-shadow-xs: 0 1px 2px rgb(13 21 38 / 6%);
+  --s-shadow-sm: 0 1px 3px rgb(13 21 38 / 6%), 0 1px 2px rgb(13 21 38 / 4%);
+  --s-shadow: 0 4px 12px -2px rgb(13 21 38 / 8%), 0 2px 6px -2px rgb(13 21 38 / 5%);
+  --s-shadow-md: 0 12px 28px -6px rgb(13 21 38 / 12%), 0 4px 10px -4px rgb(13 21 38 / 6%);
+  --s-shadow-lg: 0 24px 48px -12px rgb(13 21 38 / 18%);
+  --s-ring: 0 0 0 4px rgb(79 70 229 / 12%);
+
+  /* ── glass: used sparingly, for the sticky top bar and overlays ────────── */
+  --s-glass-bg: rgb(255 255 255 / 72%);
+  --s-glass-border: rgb(255 255 255 / 60%);
+  --s-glass-blur: saturate(180%) blur(12px);
+
+  /* ── motion ────────────────────────────────────────────────────────────── */
+  --s-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --s-transition: 0.16s var(--s-ease);
 }
 
 *,
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -80,11 +128,39 @@ body {
   font-family: var(--s-font);
   font-size: var(--s-text-base);
   line-height: 1.5;
+  letter-spacing: var(--s-tracking-tight);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: var(--s-tracking-tighter);
+}
+
+a {
+  color: var(--s-accent-ink);
 }
 
 :focus-visible {
   outline: 2px solid var(--s-focus);
   outline-offset: 2px;
-  border-radius: 2px;
+  border-radius: var(--s-radius-sm);
+}
+
+::selection {
+  background: var(--s-accent-soft);
+  color: var(--s-accent-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

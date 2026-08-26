@@ -1,0 +1,74 @@
+.s-stat {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  background: var(--s-surface);
+  border: 1px solid var(--s-line);
+  border-radius: var(--s-radius-lg);
+  box-shadow: var(--s-shadow-sm);
+  padding: var(--s-4);
+  position: relative;
+}
+
+.s-stat__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--s-radius);
+  font-size: 1.125rem;
+  background: var(--stat-soft, var(--s-surface-3));
+  color: var(--stat-ink, var(--s-ink-2));
+  flex-shrink: 0;
+}
+
+.s-stat__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  min-width: 0;
+}
+
+.s-stat__label {
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--s-ink-3);
+}
+
+.s-stat__value {
+  font-size: var(--s-text-xl);
+  font-weight: 700;
+  letter-spacing: var(--s-tracking-tighter);
+  color: var(--s-ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.s-stat__hint {
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-2);
+}
+
+.s-stat--critical {
+  --stat-soft: var(--s-critical-soft);
+  --stat-ink: var(--s-critical-ink);
+}
+.s-stat--warn {
+  --stat-soft: var(--s-warn-soft);
+  --stat-ink: var(--s-warn-ink);
+}
+.s-stat--ok {
+  --stat-soft: var(--s-ok-soft);
+  --stat-ink: var(--s-ok-ink);
+}
+.s-stat--info {
+  --stat-soft: var(--s-info-soft);
+  --stat-ink: var(--s-info-ink);
+}
+.s-stat--accent {
+  --stat-soft: var(--s-accent-soft);
+  --stat-ink: var(--s-accent-ink);
+}

@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Badge, Button, Callout, Card } from '@sentinel/ui';
+import { Badge, Button, Callout, Card, PageHeader } from '@sentinel/ui';
 import {
   auditListResponseSchema,
   auditVerifyResponseSchema,
@@ -92,15 +92,11 @@ export function AuditPage(): React.JSX.Element {
 
   return (
     <>
-      <header className="page-head">
-        <h1>Audit</h1>
-        <p>
-          Every decision and every hand that touched one, in a chain where each entry carries the
-          hash of the one before it. You cannot quietly change a past entry: doing so breaks the
-          link the next one recorded, and the verifier walks the whole chain and reports the first
-          place the arithmetic stops adding up.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Govern"
+        title="Audit trail"
+        description="Every decision and every hand that touched one, in a hash-linked chain. You cannot quietly change a past entry: doing so breaks the link the next one recorded, and the verifier walks the whole chain and reports the first place the arithmetic stops adding up."
+      />
 
       <Card>
         <div className="incident-bar">

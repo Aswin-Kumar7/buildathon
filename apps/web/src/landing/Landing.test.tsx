@@ -9,82 +9,62 @@ vi.mock('@tanstack/react-router', () => ({
   Link: ({ to, children }: { to: string; children: ReactNode }) => <a href={to}>{children}</a>,
 }));
 
+const layer = (id: string, name: string) => ({
+  id,
+  name,
+  source: 'source',
+  proves: 'proves',
+  status: 'not-started' as const,
+  arrivesIn: 'Slice 1',
+});
 const meta = {
   name: 'Sentinel',
   claim: 'Detects suspicious failed-payment clusters and tells them apart from outages.',
-  version: '0.1.0',
+  version: '0.16.1',
   commit: 'abc1234',
-  slice: { number: 1, name: 'Landing page' },
-  evidenceLayers: [
-    {
-      id: 'L1',
-      name: 'Integration',
-      source: 'Real Razorpay test-mode webhooks',
-      proves: 'The ingestion contract works',
-      status: 'not-started',
-      arrivesIn: 'Slice 4',
-    },
-    {
-      id: 'L2',
-      name: 'Scenario compliance',
-      source: 'Seeded synthetic corpus',
-      proves: 'The detector complies with the specifications',
-      status: 'not-started',
-      arrivesIn: 'Slice 9',
-    },
-    {
-      id: 'L3',
-      name: 'Benchmark',
-      source: 'Public labelled fraud data',
-      proves: 'Precision and recall on labels we did not author',
-      status: 'not-started',
-      arrivesIn: 'Slice 12',
-    },
-  ],
+  slice: { number: 16, name: 'Redesign' },
+  evidenceLayers: [layer('L1', 'Integration'), layer('L2', 'Compliance'), layer('L3', 'Benchmark')],
 };
 
 afterEach(() => vi.unstubAllGlobals());
 
+function stubDown(): void {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
+}
 function stubMeta(): void {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => meta }));
 }
 
 describe('Landing', () => {
-  it('renders the product name without waiting for the api', () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
+  it('renders the hero immediately, without waiting for the api', () => {
+    stubDown();
     render(<Landing />);
-    expect(screen.getByRole('heading', { level: 1, name: 'Sentinel' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/catch card testing/i);
   });
 
-  it('always states what the project is not', () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
+  it('leads the reader to the console', () => {
+    stubDown();
     render(<Landing />);
-    expect(screen.getByText(/not equivalent to Razorpay/i)).toBeInTheDocument();
+    // Two entry points (hero + final CTA), both routing to the login/console.
+    expect(screen.getAllByRole('button', { name: /open the console/i }).length).toBeGreaterThan(0);
   });
 
-  it('renders the evidence layers from the api', async () => {
+  it('offers the storefront as the other half of the demo', () => {
+    stubDown();
+    render(<Landing />);
+    expect(screen.getByRole('button', { name: /view the storefront/i })).toBeInTheDocument();
+  });
+
+  it('states the product’s differentiator plainly', () => {
+    stubDown();
+    render(<Landing />);
+    expect(screen.getByText(/the model you’re shown is the model that runs/i)).toBeInTheDocument();
+    expect(screen.getByText(/A model you can trust/i)).toBeInTheDocument();
+  });
+
+  it('shows the build version once the api answers', async () => {
     stubMeta();
     render(<Landing />);
-    expect(await screen.findByText(/L1 — Integration/)).toBeInTheDocument();
-    expect(screen.getByText(/L3 — Benchmark/)).toBeInTheDocument();
-  });
-
-  it('shows the claim reported by the api rather than a hardcoded one', async () => {
-    stubMeta();
-    render(<Landing />);
-    expect(await screen.findByText(meta.claim)).toBeInTheDocument();
-  });
-
-  it('surfaces an unreachable api instead of silently showing nothing', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('connection refused')));
-    render(<Landing />);
-    expect(await screen.findByRole('alert')).toHaveTextContent('connection refused');
-  });
-
-  it('disables actions that are not real yet', () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }));
-    render(<Landing />);
-    expect(screen.getByRole('button', { name: 'Replay demo' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Integration verification' })).toBeDisabled();
+    expect(await screen.findByText(/0\.16\.1/)).toBeInTheDocument();
   });
 });

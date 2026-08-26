@@ -67,29 +67,20 @@ describe('IncidentsPage', () => {
     expect(screen.getByText('high')).toBeInTheDocument();
   });
 
-  it('labels a suggestion as a suggestion', async () => {
-    // Nothing in this console acts. Implying otherwise would claim a power it does not have
-    // until policy and approval arrive.
-    stub(response());
-    render(wrap(<IncidentsPage />));
-
-    expect(await screen.findByText(/Suggested:/)).toBeInTheDocument();
-  });
-
   it('marks replayed incidents as replayed', async () => {
     // The same separation the health page and the feature inspector make. A replayed incident
     // is not evidence the system works against Razorpay.
     stub(response());
     render(wrap(<IncidentsPage />));
 
-    expect(await screen.findByText('replayed')).toBeInTheDocument();
+    expect(await screen.findByText(/replayed/)).toBeInTheDocument();
   });
 
-  it('shows the uncertainty when the score is not confident', async () => {
+  it('flags a wide band when the score is not confident', async () => {
     stub(response({ incidents: [incident({ band: 'medium', scoreLower: 0.5, scoreUpper: 0.9 })] }));
     render(wrap(<IncidentsPage />));
 
-    expect(await screen.findByText(/could be 0.50–0.90/)).toBeInTheDocument();
+    expect(await screen.findByText(/wide band/i)).toBeInTheDocument();
   });
 
   it('names the threshold set that judged them', async () => {
@@ -105,7 +96,7 @@ describe('IncidentsPage', () => {
     render(wrap(<IncidentsPage />));
     await screen.findByText(/Card spread/);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Contained' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Contained' }));
     expect(fetchMock).toHaveBeenCalledWith('/api/incidents?status=contained', expect.anything());
   });
 
@@ -130,8 +121,8 @@ describe('IncidentsPage', () => {
     stub(response({ incidents: [] }));
     render(wrap(<IncidentsPage />));
 
-    expect(await screen.findByText(/Nothing here/)).toBeInTheDocument();
-    expect(screen.getByText(/Replay a scenario/)).toBeInTheDocument();
+    expect(await screen.findByText(/Nothing in the queue/)).toBeInTheDocument();
+    expect(screen.getByText(/Run a simulation/)).toBeInTheDocument();
   });
 
   it('surfaces a failure rather than an empty queue', async () => {

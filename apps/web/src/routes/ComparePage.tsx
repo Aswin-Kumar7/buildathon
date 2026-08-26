@@ -151,20 +151,22 @@ function Column({ item }: { item: ComparisonCase }): React.JSX.Element {
   );
 }
 
-export function ComparePage(): React.JSX.Element {
+export function ComparePage({ embedded = false }: { embedded?: boolean } = {}): React.JSX.Element {
   const comparison = useQuery({ queryKey: ['comparison'], queryFn: fetchComparison });
 
   return (
     <>
-      <header className="page-head">
-        <h1>Three that look alike</h1>
-        <p>
-          A card-testing attack, an acquirer outage and a subscription biller working through
-          renewals. All three are one entity failing over and over, and the only thing that tells
-          them apart is what the rest of the shop was doing at the time. The same thresholds judge
-          all three — nothing below is configured per scenario.
-        </p>
-      </header>
+      {!embedded && (
+        <header className="page-head">
+          <h1>Three that look alike</h1>
+          <p>
+            A card-testing attack, an acquirer outage and a subscription biller working through
+            renewals. All three are one entity failing over and over, and the only thing that tells
+            them apart is what the rest of the shop was doing at the time. The same thresholds judge
+            all three — nothing below is configured per scenario.
+          </p>
+        </header>
+      )}
 
       {comparison.isError && (
         <Callout tone="critical" title="Could not load the comparison">

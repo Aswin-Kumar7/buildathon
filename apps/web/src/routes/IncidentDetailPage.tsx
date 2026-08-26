@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
-import { Badge, Button, Callout, Card } from '@sentinel/ui';
+import { Badge, Button, Card, ErrorState, Loading, StatusDot } from '@sentinel/ui';
 import {
   incidentDetailResponseSchema,
   type EvidenceDto,
@@ -8,12 +8,15 @@ import {
   type IncidentStatusDto,
 } from '@sentinel/contracts';
 import { csrfHeaders } from '../auth/api.js';
-import { ABSTENTION_REASON, phraseFor, ruleName, suggestedAction } from '../incidents/evidence.js';
+import { ABSTENTION_REASON, phraseFor, ruleName } from '../incidents/evidence.js';
 import { ContainmentPanel } from '../incidents/ContainmentPanel.js';
 import { AuditTrail } from '../incidents/AuditTrail.js';
 import { ModelOpinion } from '../incidents/ModelOpinion.js';
 import { NarrativePanel } from '../incidents/NarrativePanel.js';
 import './IncidentsPage.css';
+import './IncidentDetailPage.css';
+
+type Verdict = 'confirmed_abuse' | 'false_positive';
 
 async function fetchIncident(id: string): Promise<IncidentDetail> {
   const response = await fetch(`/api/incidents/${id}`, { credentials: 'include' });
@@ -21,7 +24,6 @@ async function fetchIncident(id: string): Promise<IncidentDetail> {
   return incidentDetailResponseSchema.parse(await response.json()).incident;
 }
 
-/** What an analyst may do from here. Kept in step with the state machine the API enforces. */
 const NEXT: Record<IncidentStatusDto, IncidentStatusDto[]> = {
   open: ['under_review', 'contained', 'resolved'],
   under_review: ['contained', 'resolved'],
@@ -37,21 +39,23 @@ const STATUS_LABEL: Record<IncidentStatusDto, string> = {
   resolved: 'Resolved',
   expired: 'Expired',
 };
+const STATUS_TONE: Record<IncidentStatusDto, 'critical' | 'warn' | 'ok' | 'neutral'> = {
+  open: 'critical',
+  under_review: 'warn',
+  contained: 'ok',
+  resolved: 'neutral',
+  expired: 'neutral',
+};
+const SEVERITY_TONE = { high: 'critical', medium: 'warn', low: 'neutral' } as const;
 
-/**
- * The score, as the sum it actually is.
- *
- * Every term is shown with its sign, so the arithmetic can be followed and checked. Mitigating
- * evidence sits in the same list rather than in a separate panel — a reader deciding whether to
- * act on somebody needs to see what argued against it in the same glance, not one scroll away.
- */
+type Move = { to: IncidentStatusDto; verdict?: Verdict };
+
 function Breakdown({ incident }: { incident: IncidentDetail }): React.JSX.Element {
   const rows = [...incident.evidence].sort((a, b) => b.weight - a.weight);
   const total = rows.reduce((sum, item) => sum + item.weight, 0);
 
   return (
-    <Card>
-      <h2>Why this score</h2>
+    <Card title="Why this score" subtitle="Every term signed, so the arithmetic can be checked.">
       <ul className="breakdown">
         {rows.map((item: EvidenceDto) => (
           <li key={`${item.rule}:${item.code}`} className={item.weight < 0 ? 'is-mitigating' : ''}>
@@ -80,8 +84,6 @@ function Breakdown({ incident }: { incident: IncidentDetail }): React.JSX.Elemen
 
       {incident.abstentions.length > 0 && (
         <>
-          {/* Not the same as a rule that found nothing. A console that showed both as silence
-              would invite a reader to treat missing information as evidence of innocence. */}
           <h3>What could not be judged</h3>
           <ul className="abstentions">
             {incident.abstentions.map((abstention) => (
@@ -103,16 +105,10 @@ function Change({ incident }: { incident: IncidentDetail }): React.JSX.Element |
   if (!ewma.fired && !cusum.fired) return null;
 
   return (
-    <Card>
-      <h2>Change detection, across the shop</h2>
-      {/* Across the shop rather than this entity, which is the level the method is good for: a
-          session has no history by construction, so asking whether it changed can only answer
-          "it is new". Reported beside the rules rather than folded into the score — "is this
-          above a threshold" and "has this changed" are different questions. */}
-      <p className="incident__what">
+    <Card title="Change across the shop">
+      <p className="detail-note">
         Normal for this shop was {baseline.mean.toFixed(1)} attempts a minute, learned over{' '}
-        {baseline.buckets} minutes. This describes the shop's overall traffic at the time, not this
-        entity on its own.
+        {baseline.buckets} minutes — the shop’s overall traffic, not this entity alone.
       </p>
       <ul className="abstentions">
         {ewma.fired && (
@@ -124,8 +120,8 @@ function Change({ incident }: { incident: IncidentDetail }): React.JSX.Element |
         {cusum.fired && (
           <li>
             Cumulative deviation reached {cusum.statistic.toFixed(2)} against a limit of{' '}
-            {cusum.limit.toFixed(2)}, after {cusum.buckets} minutes of accumulating — a shift too
-            small to trip any fixed threshold that did not stop.
+            {cusum.limit.toFixed(2)}, after {cusum.buckets} minutes — a shift too small to trip a
+            fixed threshold.
           </li>
         )}
       </ul>
@@ -133,90 +129,140 @@ function Change({ incident }: { incident: IncidentDetail }): React.JSX.Element |
   );
 }
 
-function Facts({ incident }: { incident: IncidentDetail }): React.JSX.Element {
+function Summary({ incident }: { incident: IncidentDetail }): React.JSX.Element {
+  const rows: [string, string][] = [
+    ['First attempt', new Date(incident.firstAttemptAt).toLocaleString()],
+    ['Detected', new Date(incident.detectedAt).toLocaleString()],
+    ['Time to detect', `${Math.round(incident.timeToDetectMs / 1000)}s`],
+    ['Last activity', new Date(incident.lastActivityAt).toLocaleString()],
+    ['Expires', new Date(incident.expiresAt).toLocaleString()],
+    ['Evaluations', String(incident.observations)],
+  ];
   return (
-    <Card>
-      <h2>What happened</h2>
-      <dl className="incident__facts">
-        <div>
-          <dt>First attempt</dt>
-          <dd>{new Date(incident.firstAttemptAt).toLocaleString()}</dd>
-        </div>
-        <div>
-          <dt>Detected</dt>
-          <dd>{new Date(incident.detectedAt).toLocaleString()}</dd>
-        </div>
-        <div>
-          <dt>Time to detect</dt>
-          <dd>{Math.round(incident.timeToDetectMs / 1000)}s</dd>
-        </div>
-        <div>
-          <dt>Last activity</dt>
-          <dd>{new Date(incident.lastActivityAt).toLocaleString()}</dd>
-        </div>
-        <div>
-          <dt>Expires</dt>
-          <dd>{new Date(incident.expiresAt).toLocaleString()}</dd>
-        </div>
-        <div>
-          <dt>Evaluations</dt>
-          <dd>{incident.observations}</dd>
-        </div>
+    <Card title="Summary">
+      <dl className="detail-facts">
+        {rows.map(([k, v]) => (
+          <div key={k}>
+            <dt>{k}</dt>
+            <dd>{v}</dd>
+          </div>
+        ))}
       </dl>
-      <p className="incident__suggestion">
-        <strong>Suggested:</strong> {suggestedAction(incident.severity, incident.firedRules)} — this
-        console takes no action of its own.
-      </p>
     </Card>
   );
 }
 
-function History({
+function Actions({
+  status,
+  onMove,
+  pending,
+}: {
+  status: IncidentStatusDto;
+  onMove: (move: Move) => void;
+  pending: boolean;
+}): React.JSX.Element {
+  const next = NEXT[status];
+  if (next.length === 0) {
+    return (
+      <p className="detail-note">
+        {STATUS_LABEL[status]} is final — an incident that could be reopened is a record whose
+        history can be rewritten.
+      </p>
+    );
+  }
+  return (
+    <div className="detail-actions">
+      {next.includes('under_review') && (
+        <Button
+          variant="secondary"
+          block
+          onClick={() => onMove({ to: 'under_review' })}
+          disabled={pending}
+        >
+          Move to review
+        </Button>
+      )}
+      {next.includes('contained') && (
+        <Button
+          variant="danger"
+          block
+          onClick={() => onMove({ to: 'contained' })}
+          disabled={pending}
+        >
+          Contain — confirmed abuse
+        </Button>
+      )}
+      {next.includes('resolved') && (
+        <>
+          <Button
+            variant="secondary"
+            block
+            onClick={() => onMove({ to: 'resolved', verdict: 'confirmed_abuse' })}
+            disabled={pending}
+          >
+            Resolve — confirmed abuse
+          </Button>
+          <Button
+            variant="ghost"
+            block
+            onClick={() => onMove({ to: 'resolved', verdict: 'false_positive' })}
+            disabled={pending}
+          >
+            Resolve — false positive
+          </Button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Resolution({
   incident,
   onMove,
   pending,
   error,
 }: {
   incident: IncidentDetail;
-  onMove: (to: IncidentStatusDto) => void;
+  onMove: (move: Move) => void;
   pending: boolean;
   error: string | null;
 }): React.JSX.Element {
   return (
-    <Card>
-      <h2>History</h2>
-      {incident.history.length === 0 ? (
-        <p>Nobody has moved this yet.</p>
-      ) : (
-        <ol className="history">
-          {incident.history.map((entry, index) => (
-            <li key={`${entry.at}-${index}`}>
-              <strong>
-                {STATUS_LABEL[entry.from]} → {STATUS_LABEL[entry.to]}
-              </strong>{' '}
-              by {entry.actor ?? 'the system'} at {new Date(entry.at).toLocaleString()}
-              {entry.note !== null && <> — {entry.note}</>}
-            </li>
-          ))}
-        </ol>
-      )}
-
-      {NEXT[incident.status].length > 0 ? (
-        <div className="incident-bar">
-          {NEXT[incident.status].map((to) => (
-            <Button key={to} variant="ghost" onClick={() => onMove(to)} disabled={pending}>
-              Mark {STATUS_LABEL[to].toLowerCase()}
-            </Button>
-          ))}
-        </div>
-      ) : (
-        <p className="incident__band">
-          {STATUS_LABEL[incident.status]} is final. An incident that could be reopened is a record
-          whose history can be rewritten.
+    <Card title="Resolution" subtitle="What you decide here becomes a label the model retrains on.">
+      {incident.label !== null && (
+        <p className="detail-label">
+          Confirmed as{' '}
+          <Badge tone={incident.label === 1 ? 'critical' : 'ok'}>
+            {incident.label === 1 ? 'abuse' : 'false positive'}
+          </Badge>{' '}
+          <span className="detail-note">({incident.labelSource ?? 'analyst'})</span>
         </p>
       )}
 
-      {error !== null && <p role="alert">{error}</p>}
+      <Actions status={incident.status} onMove={onMove} pending={pending} />
+
+      {error !== null && (
+        <p className="detail-note" role="alert" style={{ color: 'var(--s-critical-ink)' }}>
+          {error}
+        </p>
+      )}
+
+      {incident.history.length > 0 && (
+        <>
+          <h3>History</h3>
+          <ol className="history">
+            {incident.history.map((entry, index) => (
+              <li key={`${entry.at}-${index}`}>
+                <strong>
+                  {STATUS_LABEL[entry.from]} → {STATUS_LABEL[entry.to]}
+                </strong>{' '}
+                · {entry.actor ?? 'system'} · {new Date(entry.at).toLocaleString()}
+                {entry.note !== null && <> — {entry.note}</>}
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
     </Card>
   );
 }
@@ -228,12 +274,12 @@ export function IncidentDetailPage(): React.JSX.Element {
   const incident = useQuery({ queryKey: ['incident', id], queryFn: () => fetchIncident(id) });
 
   const move = useMutation({
-    mutationFn: async (to: IncidentStatusDto) => {
+    mutationFn: async ({ to, verdict }: Move) => {
       const response = await fetch(`/api/incidents/${id}/transition`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'content-type': 'application/json', ...csrfHeaders() },
-        body: JSON.stringify({ to }),
+        body: JSON.stringify({ to, ...(verdict !== undefined && { verdict }) }),
       });
       if (!response.ok) throw new Error(`api returned ${response.status}`);
       return response.json();
@@ -244,58 +290,62 @@ export function IncidentDetailPage(): React.JSX.Element {
     },
   });
 
-  if (incident.isPending) return <p role="status">Loading incident…</p>;
-
+  if (incident.isPending) return <Loading label="Loading incident…" />;
   if (incident.isError) {
-    return (
-      <Callout tone="critical" title="Could not load this incident">
-        <p role="alert">{incident.error.message}</p>
-      </Callout>
-    );
+    return <ErrorState title="Could not load this incident" message={incident.error.message} />;
   }
 
   const it = incident.data;
 
   return (
-    <>
-      <header className="page-head">
-        <Link to="/console/incidents">← Incidents</Link>
-        <h1>
-          {it.entityKind} <code>{it.entityKey.replace(/^v\d+:/, '').slice(0, 16)}</code>
-        </h1>
-        <p>
-          <Badge
-            tone={
-              it.severity === 'high' ? 'critical' : it.severity === 'medium' ? 'warn' : 'neutral'
-            }
-          >
-            {it.severity}
-          </Badge>{' '}
-          <Badge tone="neutral">{STATUS_LABEL[it.status]}</Badge>{' '}
-          {it.source === 'replay' && <Badge tone="warn">replayed</Badge>}
-        </p>
+    <div className="detail">
+      <Link to="/console/incidents" className="detail-back">
+        ← Back to incidents
+      </Link>
+
+      <header className="detail-head">
+        <div className="detail-head__text">
+          <span className="detail-eyebrow">{it.entityKind} incident</span>
+          <h1>
+            <code>{it.entityKey.replace(/^v\d+:/, '').slice(0, 22)}</code>
+          </h1>
+          <div className="detail-badges">
+            <Badge tone={SEVERITY_TONE[it.severity]}>{it.severity} severity</Badge>
+            <StatusDot tone={STATUS_TONE[it.status]}>{STATUS_LABEL[it.status]}</StatusDot>
+            <Badge tone={it.source === 'replay' ? 'neutral' : 'info'}>
+              {it.source === 'replay' ? 'replayed' : 'live'}
+            </Badge>
+          </div>
+        </div>
+        <div className="detail-score">
+          <span className="detail-score__label">Risk score</span>
+          <span className="detail-score__value">{it.score.toFixed(2)}</span>
+        </div>
       </header>
 
-      <Facts incident={it} />
+      <div className="detail-grid">
+        <div className="detail-main">
+          <NarrativePanel incidentId={it.id} />
+          <Breakdown incident={it} />
+          <Change incident={it} />
+          <ModelOpinion incident={it} />
+          <ContainmentPanel incidentId={it.id} />
+          <AuditTrail incidentId={it.id} />
+        </div>
 
-      <NarrativePanel incidentId={it.id} />
-
-      <Breakdown incident={it} />
-      <Change incident={it} />
-      <ModelOpinion incident={it} />
-      <ContainmentPanel incidentId={it.id} />
-      <AuditTrail incidentId={it.id} />
-
-      <History
-        incident={it}
-        onMove={(to) => move.mutate(to)}
-        pending={move.isPending}
-        error={move.isError ? move.error.message : null}
-      />
-
-      <p className="incident-meta">
-        Judged by threshold set <code>{it.thresholdHash}</code>.
-      </p>
-    </>
+        <aside className="detail-side">
+          <Resolution
+            incident={it}
+            onMove={(m) => move.mutate(m)}
+            pending={move.isPending}
+            error={move.isError ? move.error.message : null}
+          />
+          <Summary incident={it} />
+          <p className="detail-thresh">
+            Judged by threshold set <code>{it.thresholdHash}</code>.
+          </p>
+        </aside>
+      </div>
+    </div>
   );
 }

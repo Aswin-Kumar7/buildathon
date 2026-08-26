@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Badge, Button, Callout, Card } from '@sentinel/ui';
+import { Badge, Button, Callout, Card, PageHeader } from '@sentinel/ui';
 import {
   policyResponseSchema,
   simulationResponseSchema,
@@ -167,14 +167,11 @@ export function PolicyPage(): React.JSX.Element {
 
   return (
     <>
-      <header className="page-head">
-        <h1>Policy</h1>
-        <p>
-          Everything the system is allowed to do to a shopper. Five actions, all reversible, all
-          expiring; containment never happens without a person agreeing, and nothing at all happens
-          while the kill switch is engaged.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Govern"
+        title="Policies"
+        description="Everything the system is allowed to do to a shopper. Five actions, all reversible, all expiring; containment never happens without a person agreeing, and nothing at all happens while the kill switch is engaged."
+      />
 
       {policy.isError && (
         <Callout tone="critical" title="Could not load the policy">

@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Badge, Callout, Card } from '@sentinel/ui';
+import { Badge, Callout, Card, ErrorState, Loading, PageHeader, Tabs } from '@sentinel/ui';
 import { riskModelMetricsResponseSchema, type RiskModelMetrics } from '@sentinel/contracts';
+import { ComparePage } from './ComparePage.js';
 import './MetricsPage.css';
 
 async function fetchMetrics() {
@@ -327,46 +329,53 @@ function Extras({ metrics }: { metrics: RiskModelMetrics }): React.JSX.Element {
   );
 }
 
-export function MetricsPage(): React.JSX.Element {
+function Evaluation(): React.JSX.Element {
   const metrics = useQuery({ queryKey: ['model-metrics'], queryFn: fetchMetrics });
+
+  if (metrics.isPending) return <Loading label="Loading the model…" />;
+  if (metrics.isError)
+    return <ErrorState title="Could not load the model" message={metrics.error.message} />;
+  if (metrics.data.available === false) {
+    return (
+      <Callout tone="neutral" title="The model has not been generated">
+        <p>{metrics.data.reason}</p>
+      </Callout>
+    );
+  }
+  const model = metrics.data.model;
+  return (
+    <>
+      <Callout tone="warn" title="These labels are synthetic, not real-world outcomes">
+        <p>{model.provenance.dataNote}</p>
+      </Callout>
+      <Held metrics={model} />
+      <PerOrigin metrics={model} />
+      <OperatingPoint metrics={model} />
+      <Calibration metrics={model} />
+      <Leakage metrics={model} />
+      <Extras metrics={model} />
+    </>
+  );
+}
+
+const TABS = [
+  { id: 'evaluation', label: 'Model evaluation' },
+  { id: 'decides', label: 'How it decides' },
+];
+
+export function MetricsPage(): React.JSX.Element {
+  const [tab, setTab] = useState('evaluation');
 
   return (
     <>
-      <header className="page-head">
-        <h1>The deployed model</h1>
-        <p>
-          The card-testing risk model the request path actually scores with, measured on a held-out
-          grouped split of the synthetic scenario corpus. There is no separate benchmark: the model
-          you see precision, recall and PR-AUC for is the one the merchant runs.
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Analyze"
+        title="Risk & Model"
+        description="The card-testing risk model the request path actually scores with — measured on a held-out split, and shown deciding three cases that look identical until you see the whole shop."
+        actions={<Tabs items={TABS} active={tab} onChange={setTab} />}
+      />
 
-      {metrics.isError && (
-        <Callout tone="critical" title="Could not load the model">
-          <p role="alert">{metrics.error.message}</p>
-        </Callout>
-      )}
-      {metrics.isPending && <p role="status">Loading the model…</p>}
-
-      {metrics.data !== undefined && metrics.data.available === false && (
-        <Callout tone="neutral" title="The model has not been generated">
-          <p>{metrics.data.reason}</p>
-        </Callout>
-      )}
-
-      {metrics.data !== undefined && metrics.data.available === true && (
-        <>
-          <Callout tone="warn" title="These labels are synthetic, not real-world outcomes">
-            <p>{metrics.data.model.provenance.dataNote}</p>
-          </Callout>
-          <Held metrics={metrics.data.model} />
-          <PerOrigin metrics={metrics.data.model} />
-          <OperatingPoint metrics={metrics.data.model} />
-          <Calibration metrics={metrics.data.model} />
-          <Leakage metrics={metrics.data.model} />
-          <Extras metrics={metrics.data.model} />
-        </>
-      )}
+      {tab === 'evaluation' ? <Evaluation /> : <ComparePage embedded />}
     </>
   );
 }

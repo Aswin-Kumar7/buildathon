@@ -1,37 +1,66 @@
 .s-table-wrap {
+  width: 100%;
   overflow-x: auto;
-  border: 1px solid var(--s-line);
-  border-radius: var(--s-radius-lg);
-  background: var(--s-surface);
+  border-radius: var(--s-radius);
 }
+
 .s-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--s-text-sm);
+  font-variant-numeric: tabular-nums;
 }
+
 .s-table__caption {
+  caption-side: top;
   text-align: left;
-  padding: var(--s-3) var(--s-4) 0;
   color: var(--s-ink-2);
-  font-size: var(--s-text-xs);
+  font-size: var(--s-text-sm);
+  padding-bottom: var(--s-2);
 }
-.s-table th {
+
+.s-table thead th {
   text-align: left;
-  font-family: var(--s-mono);
+  font-weight: 600;
   font-size: var(--s-text-xs);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: var(--s-ink-2);
+  color: var(--s-ink-3);
   background: var(--s-surface-2);
   padding: var(--s-2) var(--s-3);
   border-bottom: 1px solid var(--s-line);
   white-space: nowrap;
 }
-.s-table td {
-  padding: var(--s-2) var(--s-3);
-  border-bottom: 1px solid var(--s-line);
-  vertical-align: top;
+.s-table thead th:first-child {
+  padding-left: var(--s-4);
 }
-.s-table tr:last-child td {
+.s-table thead th:last-child {
+  padding-right: var(--s-4);
+}
+
+.s-table tbody td {
+  padding: var(--s-3);
+  border-bottom: 1px solid var(--s-line);
+  color: var(--s-ink);
+  vertical-align: middle;
+}
+.s-table tbody td:first-child {
+  padding-left: var(--s-4);
+}
+.s-table tbody td:last-child {
+  padding-right: var(--s-4);
+}
+.s-table tbody tr:last-child td {
   border-bottom: 0;
+}
+.s-table tbody tr {
+  transition: background-color var(--s-transition);
+}
+.s-table tbody tr:hover {
+  background: var(--s-surface-2);
+}
+
+/* A row that is itself a link/action. */
+.s-table tbody tr.is-clickable {
+  cursor: pointer;
 }

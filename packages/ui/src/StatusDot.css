@@ -1,0 +1,52 @@
+.s-statusdot {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+  white-space: nowrap;
+}
+
+.s-statusdot__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--dot, var(--s-ink-3));
+  flex-shrink: 0;
+}
+
+.s-statusdot--neutral {
+  --dot: var(--s-ink-3);
+}
+.s-statusdot--critical {
+  --dot: var(--s-critical);
+}
+.s-statusdot--warn {
+  --dot: var(--s-warn);
+}
+.s-statusdot--ok {
+  --dot: var(--s-ok);
+}
+.s-statusdot--info {
+  --dot: var(--s-info);
+}
+.s-statusdot--accent {
+  --dot: var(--s-accent);
+}
+
+.s-statusdot__dot.is-pulse {
+  box-shadow: 0 0 0 0 var(--dot);
+  animation: s-pulse 1.8s var(--s-ease) infinite;
+}
+
+@keyframes s-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--dot) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 0.4rem transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}

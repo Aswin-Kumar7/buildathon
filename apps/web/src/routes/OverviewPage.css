@@ -1,0 +1,164 @@
+.ov-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--s-4);
+}
+
+.ov-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  gap: var(--s-5);
+  align-items: start;
+}
+
+.ov-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+/* recent-incidents table */
+.ov-table-wrap {
+  overflow-x: auto;
+}
+.ov-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--s-text-sm);
+}
+.ov-table thead th {
+  text-align: left;
+  font-size: var(--s-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--s-ink-3);
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--s-line);
+}
+.ov-table thead th:first-child {
+  padding-left: var(--s-5);
+}
+.ov-table tbody td {
+  padding: var(--s-3);
+  border-bottom: 1px solid var(--s-line);
+  vertical-align: middle;
+}
+.ov-table tbody td:first-child {
+  padding-left: var(--s-5);
+}
+.ov-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.ov-table tbody tr {
+  transition: background-color var(--s-transition);
+}
+.ov-table tbody tr:hover {
+  background: var(--s-surface-2);
+}
+
+.ov-entity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+}
+.ov-entity__kind {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-3);
+  text-transform: capitalize;
+}
+.ov-entity code {
+  font-family: var(--s-mono);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink);
+}
+.ov-num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.ov-open a {
+  font-weight: 600;
+  font-size: var(--s-text-sm);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.ov-open a:hover {
+  text-decoration: underline;
+}
+
+.ov-viewall {
+  font-size: var(--s-text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.ov-viewall:hover {
+  text-decoration: underline;
+}
+
+/* model snapshot */
+.ov-modelrow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
+}
+.ov-modellabel {
+  display: block;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+  margin-bottom: 0.125rem;
+}
+.ov-modelval {
+  font-size: var(--s-text-lg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--s-ink);
+}
+.ov-modelnote {
+  margin-bottom: var(--s-3) !important;
+}
+.ov-muted {
+  color: var(--s-ink-2);
+  font-size: var(--s-text-sm);
+}
+
+/* system status list */
+.ov-status {
+  list-style: none;
+  margin: 0 0 var(--s-3);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.ov-status li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@media (max-width: 64rem) {
+  .ov-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .ov-grid {
+    grid-template-columns: 1fr;
+  }
+  .ov-side {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .ov-side > * {
+    flex: 1 1 16rem;
+  }
+}
+
+@media (max-width: 40rem) {
+  .ov-stats {
+    grid-template-columns: 1fr;
+  }
+}

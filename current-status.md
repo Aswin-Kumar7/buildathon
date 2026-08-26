@@ -3,13 +3,16 @@
 Single source of truth for where Sentinel actually stands. Updated with every change.
 
 **Last updated:** 2026-08-26
-**Current work:** ML redesign — one deployed card-testing risk model. Gates 1–4 of 5 done (hardened
-synthetic corpus; binary P(abuse) risk model with the honest evaluation on the *deployed* model;
-request-path rewire with a benign veto and /24 train/serve alignment; **retraining seam** — confirmed
-incidents captured as real labels, exported and consumed by `make eval` so the model can move off
-synthetic labels onto the merchant's own outcomes, see ADR-0004). Pending: Gate 5 — a full UI redesign
-of the console and storefront as a polished fintech SaaS product.
-**Latest tag:** `v0.16.0` → `v0.16.1` (Gate 4) pending
+**Current work:** ML redesign (one deployed card-testing risk model) is done — Gates 1–4 shipped in
+`v0.16.0`/`v0.16.1` (hardened corpus; binary P(abuse) risk model measured on the *deployed* model;
+request-path rewire with a benign veto and /24 train/serve alignment; retraining seam per ADR-0004).
+**Now: a full UI redesign** — a Razorpay-inspired design system (elevated tokens + a real component
+library), a consolidated product IA (grouped sidebar: Monitor / Analyze / Govern / System; the
+scattered dev pages folded into Settings → Diagnostics), a proper Overview dashboard, redesigned
+Incidents queue + case view (with the confirm-abuse / false-positive verdict feeding retraining), a
+tabbed Risk & Model page, a marketing Landing, and a real "Brew & Co" storefront — all on one visual
+system.
+**Latest tag:** `v0.16.1` → `v0.17.0` (UI redesign) pending
 
 ## Slice progress
 

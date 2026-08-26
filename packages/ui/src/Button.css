@@ -1,33 +1,71 @@
 .s-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
   font-family: inherit;
-  font-size: var(--s-text-base);
-  font-weight: 500;
-  padding: var(--s-2) var(--s-4);
+  font-weight: 600;
+  letter-spacing: var(--s-tracking-tight);
+  line-height: 1;
+  white-space: nowrap;
   border-radius: var(--s-radius);
   border: 1px solid transparent;
   cursor: pointer;
   transition:
-    background-color 0.12s ease,
-    border-color 0.12s ease;
+    background-color var(--s-transition),
+    border-color var(--s-transition),
+    box-shadow var(--s-transition),
+    transform var(--s-transition);
+}
+.s-button:active:not(:disabled) {
+  transform: translateY(0.5px);
 }
 .s-button:disabled {
-  opacity: 0.5;
+  opacity: 0.55;
   cursor: not-allowed;
 }
+.s-button__icon {
+  display: inline-flex;
+  font-size: 1.05em;
+  line-height: 0;
+}
+
+/* sizes */
+.s-button--sm {
+  font-size: var(--s-text-sm);
+  padding: var(--s-2) var(--s-3);
+}
+.s-button--md {
+  font-size: var(--s-text-base);
+  padding: 0.5625rem var(--s-4);
+}
+.s-button--lg {
+  font-size: var(--s-text-md);
+  padding: 0.75rem var(--s-5);
+}
+.s-button--block {
+  width: 100%;
+}
+
+/* variants */
 .s-button--primary {
   background: var(--s-accent);
   color: #fff;
+  box-shadow: var(--s-shadow-xs);
 }
 .s-button--primary:hover:not(:disabled) {
-  background: var(--s-accent-ink);
+  background: var(--s-accent-hover);
+  box-shadow: var(--s-shadow-sm);
 }
 .s-button--secondary {
   background: var(--s-surface);
   color: var(--s-ink);
-  border-color: var(--s-line);
+  border-color: var(--s-line-2);
+  box-shadow: var(--s-shadow-xs);
 }
 .s-button--secondary:hover:not(:disabled) {
-  border-color: var(--s-accent);
+  border-color: var(--s-ink-3);
+  background: var(--s-surface-2);
 }
 .s-button--ghost {
   background: transparent;
@@ -35,4 +73,12 @@
 }
 .s-button--ghost:hover:not(:disabled) {
   background: var(--s-accent-soft);
+}
+.s-button--danger {
+  background: var(--s-critical);
+  color: #fff;
+  box-shadow: var(--s-shadow-xs);
+}
+.s-button--danger:hover:not(:disabled) {
+  background: var(--s-critical-ink);
 }
