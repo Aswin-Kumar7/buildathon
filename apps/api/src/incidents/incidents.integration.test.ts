@@ -240,6 +240,24 @@ describe('incidents', () => {
     });
   });
 
+  it('captures a confirmed incident as a labelled example for retraining', async () => {
+    const list = (await h.get('/api/incidents')).body as IncidentListResponse;
+    const id = list.incidents[0]!.id;
+
+    // Until a human resolves it there is no label — nothing to train on yet.
+    const before = (await h.get(`/api/incidents/${id}`)).body as IncidentDetailResponse;
+    expect(before.incident.label).toBeNull();
+    // The model scored the loud attack, so the example rests on a real risk, not a degraded gap.
+    expect(before.incident.modelOpinion?.risk).toBeGreaterThan(0.5);
+
+    // Containing it is itself a statement that it is abuse, so it labels the example 1, by the analyst.
+    const contained = await h.post(`/api/incidents/${id}/transition`, { to: 'contained' });
+    expect(contained.status).toBe(201);
+    const after = (contained.body as IncidentDetailResponse).incident;
+    expect(after.label).toBe(1);
+    expect(after.labelSource).toBe('analyst');
+  });
+
   it('refuses an illegal move rather than silently ignoring it', async () => {
     // An analyst who thinks they contained something and did not is worse off than one who
     // got an error.

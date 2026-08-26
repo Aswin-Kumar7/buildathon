@@ -226,6 +226,8 @@ async function createIncidentTables(handle: DbHandle): Promise<void> {
     ALTER TABLE sentinel.incidents ADD COLUMN IF NOT EXISTS model_opinion jsonb;
   `);
 
+  await addIncidentLabelColumns(handle);
+
   await handle.db.execute(sql`
     CREATE INDEX IF NOT EXISTS incidents_status_idx
       ON sentinel.incidents (status, detected_at);
@@ -254,6 +256,33 @@ async function createIncidentTables(handle: DbHandle): Promise<void> {
   await handle.db.execute(sql`
     CREATE INDEX IF NOT EXISTS incident_transitions_incident_idx
       ON sentinel.incident_transitions (incident_id, at);
+  `);
+}
+
+/**
+ * The retraining seam: the feature vector a decision was made on, and the label a human or a
+ * chargeback later attaches to it. Together they turn a confirmed incident into a real training
+ * example — the path off synthetic labels and onto the merchant's own outcomes. Added by ALTER
+ * because the table predates them.
+ */
+async function addIncidentLabelColumns(handle: DbHandle): Promise<void> {
+  await handle.db.execute(sql`
+    ALTER TABLE sentinel.incidents ADD COLUMN IF NOT EXISTS features jsonb;
+  `);
+  await handle.db.execute(sql`
+    ALTER TABLE sentinel.incidents ADD COLUMN IF NOT EXISTS model_risk double precision;
+  `);
+  await handle.db.execute(sql`
+    ALTER TABLE sentinel.incidents ADD COLUMN IF NOT EXISTS label integer;
+  `);
+  await handle.db.execute(sql`
+    ALTER TABLE sentinel.incidents ADD COLUMN IF NOT EXISTS label_source text;
+  `);
+  await handle.db.execute(sql`
+    ALTER TABLE sentinel.incidents ADD COLUMN IF NOT EXISTS labeled_at timestamptz;
+  `);
+  await handle.db.execute(sql`
+    ALTER TABLE sentinel.incidents ADD COLUMN IF NOT EXISTS labeled_by uuid REFERENCES sentinel.users(id) ON DELETE SET NULL;
   `);
 }
 

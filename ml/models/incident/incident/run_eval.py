@@ -162,16 +162,25 @@ def run(write: bool = True) -> dict:
     # prevalence. The model earns only the distance above this.
     no_skill = float(data.y[split.test].mean())
 
+    real = data.real_label_count
     metrics = {
         "provenance": {
-            "data_source": "synthetic-cardtesting",
+            "data_source": "synthetic-cardtesting" if real == 0 else "synthetic+merchant",
             "model_backend": "logistic-temperature",
+            "real_label_count": real,
             "data_note": (
                 "Synthetic scenario corpus, not real-world labels. Every row is an entity from a "
                 "seeded scenario the project authored; the label is the scenario's ground truth, not "
                 "a confirmed chargeback. Scores measure the deployed model on a held-out grouped "
                 "split of this corpus. The path to real labels is the merchant's own confirmed "
                 "incidents — see the retraining design."
+                if real == 0
+                else (
+                    f"Synthetic scenario corpus plus {real} confirmed merchant labels (real outcomes "
+                    "from incidents an analyst confirmed or a chargeback settled). The synthetic rows "
+                    "are the cold start; the merchant rows are the real signal, and as they accumulate "
+                    "the score comes to describe the model on the merchant's own traffic."
+                )
             ),
             "seed": SEED,
             "n_rows": int(len(data.y)),

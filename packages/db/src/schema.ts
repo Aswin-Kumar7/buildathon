@@ -313,9 +313,29 @@ export const incidents = sentinel.table(
      */
     arbitration: jsonb('arbitration'),
 
-    /** Model B's advisory opinion, or null when the model was unavailable or the entity was
-     * not scored. Advisory only — it informs the decision the rules made, never replaces it. */
+    /** The deployed risk model's opinion, or null when the model was unavailable or the entity
+     * was not scored. It informs the decision the rules made, on a leash — never replaces it. */
     modelOpinion: jsonb('model_opinion'),
+
+    /**
+     * The exact feature vector the decision was made on, captured at each evaluation. Kept so that
+     * when an analyst later confirms or disputes this incident, the label attaches to the numbers
+     * the model actually saw — which is what turns a confirmed incident into a real training example.
+     */
+    features: jsonb('features'),
+    /** P(abuse) at the last evaluation, or null on the degraded (model-absent) path. */
+    modelRisk: doublePrecision('model_risk'),
+
+    /**
+     * The label, once a human (or a chargeback) has confirmed it: 1 = real abuse, 0 = false alarm.
+     * Null while the incident is unresolved. This is the seed of the retraining set — the merchant's
+     * own confirmed outcomes, which is the only source of *real* card-testing labels there is.
+     */
+    label: integer('label'),
+    /** Where the label came from: an analyst's verdict, or a chargeback that landed later. */
+    labelSource: text('label_source'),
+    labeledAt: timestamp('labeled_at', { withTimezone: true }),
+    labeledBy: uuid('labeled_by').references(() => users.id, { onDelete: 'set null' }),
 
     /** Kept apart for the same reason every other count is: replayed traffic is not evidence. */
     source: eventSourceEnum('source').notNull().default('razorpay'),

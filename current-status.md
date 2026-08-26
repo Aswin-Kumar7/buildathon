@@ -3,11 +3,13 @@
 Single source of truth for where Sentinel actually stands. Updated with every change.
 
 **Last updated:** 2026-08-26
-**Current work:** ML redesign — one deployed card-testing risk model. Gates 1–3 of 5 done (hardened
-synthetic corpus with realistic overlap; binary P(abuse) risk model with the honest evaluation on the
-*deployed* model; request-path rewire — serving, decision, policy, UI — with a benign veto and /24
-train/serve alignment). Pending: retraining/label plumbing (Gate 4) and UI/research presentation (Gate 5).
-**Latest tag:** `v0.15.3` → `v0.16.0` pending (the redesign)
+**Current work:** ML redesign — one deployed card-testing risk model. Gates 1–4 of 5 done (hardened
+synthetic corpus; binary P(abuse) risk model with the honest evaluation on the *deployed* model;
+request-path rewire with a benign veto and /24 train/serve alignment; **retraining seam** — confirmed
+incidents captured as real labels, exported and consumed by `make eval` so the model can move off
+synthetic labels onto the merchant's own outcomes, see ADR-0004). Pending: Gate 5 — a full UI redesign
+of the console and storefront as a polished fintech SaaS product.
+**Latest tag:** `v0.16.0` → `v0.16.1` (Gate 4) pending
 
 ## Slice progress
 

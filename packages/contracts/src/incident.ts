@@ -90,6 +90,13 @@ export const incidentDetailSchema = incidentSummarySchema.extend({
   modelOpinion: modelOpinionSchema.nullable(),
   /** False means the model artefact is absent — the decision ran rules-only, degraded:model. */
   modelAvailable: z.boolean(),
+  /**
+   * The confirmed label, once a human resolved this: 1 = real abuse, 0 = false alarm, null while
+   * unresolved. This is what turns the incident into a retraining example — shown so an analyst can
+   * see their own verdict, and where it came from.
+   */
+  label: z.number().int().nullable(),
+  labelSource: z.string().nullable(),
   /** Which threshold set judged this. A score means nothing without what it was compared to. */
   thresholdHash: z.string(),
   history: z.array(
@@ -125,6 +132,12 @@ export type IncidentDetailResponse = z.infer<typeof incidentDetailResponseSchema
 export const transitionRequestSchema = z.object({
   to: incidentStatusSchema,
   note: z.string().max(500).optional(),
+  /**
+   * The analyst's verdict on what this incident actually was. Optional — a routine move needs none —
+   * but when given it labels the incident for retraining: the merchant's own confirmed outcome, which
+   * is the only real card-testing label there is. Containing implies `confirmed_abuse` on its own.
+   */
+  verdict: z.enum(['confirmed_abuse', 'false_positive']).optional(),
 });
 export type TransitionRequest = z.infer<typeof transitionRequestSchema>;
 

@@ -61,6 +61,8 @@ function detail(overrides: Partial<IncidentDetail> = {}): IncidentDetail {
     arbitration: null,
     modelOpinion: null,
     modelAvailable: false,
+    label: null,
+    labelSource: null,
     thresholdHash: 'a1b2c3d4',
     history: [],
     ...overrides,

@@ -85,8 +85,8 @@ export class IncidentsController {
     @Body() body: unknown,
     @Req() request: AuthedRequest,
   ): Promise<IncidentDetailResponse> {
-    const { to, note } = transitionRequestSchema.parse(body);
-    const incident = await this.incidents.transition(id, to, request.user!.id, note);
+    const { to, note, verdict } = transitionRequestSchema.parse(body);
+    const incident = await this.incidents.transition(id, to, request.user!.id, note, verdict);
 
     return incidentDetailResponseSchema.parse({ incident });
   }

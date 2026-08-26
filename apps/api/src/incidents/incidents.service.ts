@@ -15,6 +15,8 @@ import {
   dropDuplicateViews,
   evaluateRules,
   firedRules,
+  incidentFeatures,
+  INCIDENT_FEATURE_NAMES,
   modelFlagsMissedEntity,
   openIncident,
   timeToDetect,
@@ -157,6 +159,7 @@ export class IncidentsService {
         provenance.get(computed.entityKey) ?? 'razorpay',
         decided,
         opinion,
+        vector === undefined ? null : IncidentsService.featuresObject(vector, traffic),
       );
       if (wrote === 'opened') opened += 1;
       else updated += 1;
@@ -258,6 +261,7 @@ export class IncidentsService {
         provenance.get(kept.entityKey) ?? 'razorpay',
         decided,
         entry.opinion,
+        IncidentsService.featuresObject(vector, traffic),
       );
       if (wrote === 'opened') opened += 1;
       else updated += 1;
@@ -348,13 +352,23 @@ export class IncidentsService {
    * Status is never touched here. A pass that reset an analyst's `under_review` back to `open`
    * would quietly undo their work every time the detector ran.
    */
+  /** The feature vector as a named object, so a stored incident carries exactly what the model saw. */
+  private static featuresObject(
+    vector: FeatureVector,
+    traffic: TrafficContext,
+  ): Record<string, number> {
+    const values = incidentFeatures(vector, traffic);
+    return Object.fromEntries(INCIDENT_FEATURE_NAMES.map((name, i) => [name, values[i]!]));
+  }
+
   private async upsert(
     computed: ComputedIncident,
     change: ChangeResult | null,
     hash: string,
     source: EventSource,
     arbitration: StoredArbitration | null,
-    modelOpinion: unknown,
+    modelOpinion: ModelOpinion | null,
+    features: Record<string, number> | null,
   ): Promise<'opened' | 'updated'> {
     const values = {
       key: computed.key,
@@ -370,6 +384,9 @@ export class IncidentsService {
       change,
       arbitration,
       modelOpinion,
+      // The retraining seam: the exact numbers the decision rested on, and the model's risk on them.
+      features,
+      modelRisk: modelOpinion?.risk ?? null,
       // Taken from the events behind this entity, never from the scope that was asked for.
       // Evaluating "both" and labelling the result `razorpay` would present replayed traffic
       // as a real detection — the one thing this system claims it never does.
@@ -411,6 +428,8 @@ export class IncidentsService {
         change: values.change,
         arbitration: values.arbitration,
         modelOpinion: values.modelOpinion,
+        features: values.features,
+        modelRisk: values.modelRisk,
         source: values.source,
         lastActivityAt: values.lastActivityAt,
         expiresAt: values.expiresAt,
@@ -560,6 +579,8 @@ export class IncidentsService {
       arbitration: row.arbitration as IncidentDetail['arbitration'],
       modelOpinion: (row.modelOpinion as IncidentDetail['modelOpinion']) ?? null,
       modelAvailable: this.scoring.available,
+      label: row.label ?? null,
+      labelSource: row.labelSource ?? null,
       thresholdHash: row.thresholdHash,
       history: history.map((entry) => ({
         from: entry.from,
@@ -583,6 +604,7 @@ export class IncidentsService {
     to: IncidentStatus,
     actorId: string,
     note?: string,
+    verdict?: 'confirmed_abuse' | 'false_positive',
   ): Promise<IncidentDetail> {
     const [row] = await this.handle.db
       .select()
@@ -595,9 +617,25 @@ export class IncidentsService {
       throw new BadRequestException(`an incident cannot go from ${row.status} to ${to}`);
     }
 
+    // The label the analyst is confirming. An explicit verdict wins; failing that, containing an
+    // incident is itself a statement that it is abuse. Anything else leaves the label untouched, so a
+    // routine move (open -> under_review) never fabricates a training example.
+    const label =
+      verdict === 'confirmed_abuse'
+        ? 1
+        : verdict === 'false_positive'
+          ? 0
+          : to === 'contained'
+            ? 1
+            : null;
+    const labelling =
+      label === null
+        ? {}
+        : { label, labelSource: 'analyst', labeledAt: sql`now()`, labeledBy: actorId };
+
     await this.handle.db
       .update(incidents)
-      .set({ status: to, updatedAt: sql`now()` })
+      .set({ status: to, updatedAt: sql`now()`, ...labelling })
       .where(eq(incidents.id, id));
 
     await this.handle.db.insert(incidentTransitions).values({
@@ -613,7 +651,7 @@ export class IncidentsService {
       kind: 'incident.transition',
       subjectType: 'incident',
       subjectId: id,
-      payload: { from: row.status, to, note: note ?? null },
+      payload: { from: row.status, to, note: note ?? null, ...(label !== null && { label }) },
       featureSnapshotHash: row.thresholdHash,
     });
 

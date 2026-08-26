@@ -353,6 +353,7 @@
     "n_groups": 640,
     "n_rows": 5225,
     "positive_rate": 0.196746,
+    "real_label_count": 0,
     "seed": 20260826
   },
   "split_integrity": {
