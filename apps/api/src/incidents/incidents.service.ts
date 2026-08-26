@@ -19,20 +19,35 @@ import {
   type Evaluation,
   type Arbitration,
   type FeatureVector,
+  type TrafficContext,
   type Incident as ComputedIncident,
   type IncidentStatus,
   type Observation,
 } from '@sentinel/detect';
-import type { EvaluateResponse, IncidentDetail, IncidentSummary } from '@sentinel/contracts';
+import type {
+  EvaluateResponse,
+  IncidentDetail,
+  IncidentSummary,
+  ModelOpinion,
+} from '@sentinel/contracts';
 import { DB } from '../db/db.module.js';
 import { FeaturesService, type EventSource } from '../features/features.service.js';
 import { AuditService } from '../audit/audit.service.js';
+import { ModelScoringService } from '../model-scoring/model-scoring.service.js';
 
 /** Entity kinds evaluated on every pass. An attacker rotating one is caught by another. */
 const KINDS: readonly EntityKind[] = ['session', 'device', 'network'];
 
 /** How many entities per kind get the exact-confirmation pass before rules run against them. */
 const CANDIDATES = 40;
+
+/**
+ * The trigger-rate cap on model scoring. The model runs only on entities that became incidents —
+ * never on every event — and even then no more than this many per pass, so a burst cannot turn the
+ * scorer into an unbounded cost. Beyond the cap an incident simply carries no model opinion, which
+ * the console shows as "not scored" rather than pretending to one.
+ */
+const MAX_SCORED_PER_PASS = 100;
 
 type Row = typeof incidents.$inferSelect;
 type Source = 'razorpay' | 'replay' | 'all';
@@ -43,6 +58,7 @@ export class IncidentsService {
     @Inject(DB) private readonly handle: DbHandle,
     private readonly features: FeaturesService,
     private readonly audit: AuditService,
+    private readonly scoring: ModelScoringService,
   ) {}
 
   /**
@@ -92,9 +108,15 @@ export class IncidentsService {
     // One machine has one session, one device and one network, so evaluating all three kinds
     // finds the same burst three times. Three rows for one thing is the same failure as sixty
     // alerts for one burst, just smaller — the analyst still has to work out they are the same.
+    let scored = 0;
     for (const computed of dropDuplicateViews(found)) {
       const vector = vectors.get(`${computed.entityKind}:${computed.entityKey}`);
       const arbitration = vector === undefined ? null : arbitrate(vector, traffic);
+
+      // Trigger only, and capped. The exact counts are already confirmed on these vectors, which
+      // is the precondition for letting a model near a decision at all.
+      const opinion = this.scoreWhenWarranted(vector, traffic, scored);
+      if (opinion !== null) scored += 1;
 
       // Arbitration has the final say on whether anybody needs to see this. The rules decide
       // that something is *unusual*; arbitration decides what it is, and an outage, a biller's
@@ -110,6 +132,7 @@ export class IncidentsService {
         hash,
         provenance.get(computed.entityKey) ?? 'razorpay',
         arbitration,
+        opinion,
       );
       if (wrote === 'opened') opened += 1;
       else updated += 1;
@@ -126,6 +149,21 @@ export class IncidentsService {
       // evidence that time has passed for the incidents that do exist.
       expired: asOf === 0 ? 0 : await this.expireIdle(asOf, source),
     };
+  }
+
+  /**
+   * The learned second opinion, only when it is warranted and within the per-pass cap.
+   *
+   * Extracted so the decision loop stays legible: the model is advisory, so the conditions under
+   * which it does *not* run belong in one place rather than tangled into the arbitration branch.
+   */
+  private scoreWhenWarranted(
+    vector: FeatureVector | undefined,
+    traffic: TrafficContext,
+    scoredSoFar: number,
+  ): ModelOpinion | null {
+    if (vector === undefined || scoredSoFar >= MAX_SCORED_PER_PASS) return null;
+    return this.scoring.score(vector, traffic);
   }
 
   /**
@@ -176,6 +214,7 @@ export class IncidentsService {
     hash: string,
     source: EventSource,
     arbitration: Arbitration | null,
+    modelOpinion: unknown,
   ): Promise<'opened' | 'updated'> {
     const values = {
       key: computed.key,
@@ -190,6 +229,7 @@ export class IncidentsService {
       abstentions: computed.score.abstentions,
       change,
       arbitration,
+      modelOpinion,
       // Taken from the events behind this entity, never from the scope that was asked for.
       // Evaluating "both" and labelling the result `razorpay` would present replayed traffic
       // as a real detection — the one thing this system claims it never does.
@@ -230,6 +270,7 @@ export class IncidentsService {
         abstentions: values.abstentions,
         change: values.change,
         arbitration: values.arbitration,
+        modelOpinion: values.modelOpinion,
         source: values.source,
         lastActivityAt: values.lastActivityAt,
         expiresAt: values.expiresAt,
@@ -377,6 +418,8 @@ export class IncidentsService {
       abstentions: row.abstentions as IncidentDetail['abstentions'],
       change: row.change as IncidentDetail['change'],
       arbitration: row.arbitration as IncidentDetail['arbitration'],
+      modelOpinion: (row.modelOpinion as IncidentDetail['modelOpinion']) ?? null,
+      modelAvailable: this.scoring.available,
       thresholdHash: row.thresholdHash,
       history: history.map((entry) => ({
         from: entry.from,

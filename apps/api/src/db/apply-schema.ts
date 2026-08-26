@@ -205,6 +205,7 @@ async function createIncidentTables(handle: DbHandle): Promise<void> {
       abstentions jsonb NOT NULL,
       change jsonb,
       arbitration jsonb,
+      model_opinion jsonb,
       source sentinel.event_source NOT NULL DEFAULT 'razorpay',
       first_attempt_at timestamptz NOT NULL,
       detected_at timestamptz NOT NULL,
@@ -220,6 +221,9 @@ async function createIncidentTables(handle: DbHandle): Promise<void> {
   // Added after the table existed, so an existing database gains it rather than needing a drop.
   await handle.db.execute(sql`
     ALTER TABLE sentinel.incidents ADD COLUMN IF NOT EXISTS arbitration jsonb;
+  `);
+  await handle.db.execute(sql`
+    ALTER TABLE sentinel.incidents ADD COLUMN IF NOT EXISTS model_opinion jsonb;
   `);
 
   await handle.db.execute(sql`

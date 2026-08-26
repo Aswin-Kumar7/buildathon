@@ -77,6 +77,13 @@ COPY --from=build /repo/policy.yaml policy.yaml
 # whole point of having a metrics page.
 COPY --from=build /repo/ml/models/transaction_risk/artifacts/metrics.json      ml/models/transaction_risk/artifacts/metrics.json
 
+# Model B's served artefacts, read by the scoring service and the metrics endpoint. The model.json
+# is the linear model the request path evaluates; without it, scoring degrades to rules-only, which
+# is a designed and tested path — but shipping it is the point of having a model.
+COPY --from=build /repo/ml/models/incident/artifacts/model.json      ml/models/incident/artifacts/model.json
+COPY --from=build /repo/ml/models/incident/artifacts/registry.json      ml/models/incident/artifacts/registry.json
+COPY --from=build /repo/ml/models/incident/artifacts/metrics.json      ml/models/incident/artifacts/metrics.json
+
 # The console, served from the same origin as the API that authenticates it. main.ts looks
 # for this directory relative to the working directory and simply serves nothing if it is
 # absent, so an API-only image is still valid.

@@ -1,0 +1,11 @@
+{
+  "featureDefinitionVersion": "fdv-bfe27ae905dd",
+  "metricsSnapshot": {
+    "abstainRate": 0.0,
+    "accuracy": 1.0,
+    "macroF1": 1.0
+  },
+  "onnxExported": false,
+  "trainingDataHash": "sha256:6b0f29c5965bbc82",
+  "version": "b1"
+}

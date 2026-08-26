@@ -313,6 +313,10 @@ export const incidents = sentinel.table(
      */
     arbitration: jsonb('arbitration'),
 
+    /** Model B's advisory opinion, or null when the model was unavailable or the entity was
+     * not scored. Advisory only — it informs the decision the rules made, never replaces it. */
+    modelOpinion: jsonb('model_opinion'),
+
     /** Kept apart for the same reason every other count is: replayed traffic is not evidence. */
     source: eventSourceEnum('source').notNull().default('razorpay'),
 

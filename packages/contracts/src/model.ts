@@ -72,3 +72,91 @@ export const modelMetricsResponseSchema = z.discriminatedUnion('available', [
   z.object({ available: z.literal(false), reason: z.string() }),
 ]);
 export type ModelMetricsResponse = z.infer<typeof modelMetricsResponseSchema>;
+
+/** One feature's signed push toward the predicted class — exact SHAP for a linear model. */
+export const contributionSchema = z.object({
+  feature: z.string(),
+  contribution: z.number(),
+});
+
+/**
+ * The model's advisory opinion on an incident.
+ *
+ * Advisory is the operative word: the deterministic rules and arbitration decide what is done, and
+ * this sits beside that decision to inform it, never to override it. It carries the predicted class,
+ * how confident it is, whether it abstained, and — for the "why flagged" panel — the per-feature
+ * contributions that add up to the score.
+ */
+export const modelOpinionSchema = z.object({
+  predictedClass: z.string(),
+  confidence: z.number(),
+  abstained: z.boolean(),
+  probabilities: z.array(z.object({ label: z.string(), probability: z.number() })),
+  contributions: z.array(contributionSchema),
+  modelVersion: z.string(),
+});
+export type ModelOpinion = z.infer<typeof modelOpinionSchema>;
+
+export const modelRegistrySchema = z.object({
+  version: z.string(),
+  trainingDataHash: z.string(),
+  featureDefinitionVersion: z.string(),
+  onnxExported: z.boolean(),
+  metricsSnapshot: z.object({
+    accuracy: z.number(),
+    macroF1: z.number(),
+    abstainRate: z.number(),
+  }),
+});
+export type ModelRegistry = z.infer<typeof modelRegistrySchema>;
+
+export const modelRegistryResponseSchema = z.discriminatedUnion('available', [
+  z.object({ available: z.literal(true), registry: modelRegistrySchema }),
+  z.object({ available: z.literal(false), reason: z.string() }),
+]);
+export type ModelRegistryResponse = z.infer<typeof modelRegistryResponseSchema>;
+
+/**
+ * Model B's benchmark artefact: the four-class classifier's honest evaluation.
+ *
+ * Carries the three things the slice is done when it shows — the ablation ladder, the risk-coverage
+ * curve, and the four-class confusion matrix — plus the corpus-hardening outcome, because a
+ * flattering score that was never hardened is not one to trust.
+ */
+export const incidentModelSchema = z.object({
+  classes: z.array(z.string()),
+  accuracy: z.number(),
+  macroF1: z.number(),
+  abstainRate: z.number(),
+  abstainThreshold: z.number(),
+  perClass: z.array(
+    z.object({
+      label: z.string(),
+      precision: z.number(),
+      recall: z.number(),
+      support: z.number().int(),
+    }),
+  ),
+  confusion: z.array(z.array(z.number().int())),
+  riskCoverage: z.array(
+    z.object({ threshold: z.number(), coverage: z.number(), selectiveAccuracy: z.number() }),
+  ),
+  ablation: z.array(
+    z.object({ features: z.string(), nFeatures: z.number().int(), macroF1: z.number() }),
+  ),
+  hardening: z.object({
+    triggered: z.boolean(),
+    baseMacroF1: z.number(),
+    hardenedMacroF1: z.number().nullable(),
+    note: z.string().nullable(),
+  }),
+  splitGroupOverlap: z.number().int(),
+  registry: modelRegistrySchema,
+});
+export type IncidentModel = z.infer<typeof incidentModelSchema>;
+
+export const incidentModelResponseSchema = z.discriminatedUnion('available', [
+  z.object({ available: z.literal(true), model: incidentModelSchema }),
+  z.object({ available: z.literal(false), reason: z.string() }),
+]);
+export type IncidentModelResponse = z.infer<typeof incidentModelResponseSchema>;

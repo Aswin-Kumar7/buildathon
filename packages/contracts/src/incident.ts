@@ -1,3 +1,4 @@
+import { modelOpinionSchema } from './model.js';
 import { z } from 'zod';
 
 export const incidentStatusSchema = z.enum([
@@ -85,6 +86,10 @@ export const incidentDetailSchema = incidentSummarySchema.extend({
   change: changeResultSchema.nullable(),
   /** Null for incidents recorded before arbitration existed. */
   arbitration: z.lazy(() => arbitrationSchema).nullable(),
+  /** Model B's advisory opinion, or null when unavailable or not scored this pass. */
+  modelOpinion: modelOpinionSchema.nullable(),
+  /** False means the model artefact is absent — the decision ran rules-only, degraded:model. */
+  modelAvailable: z.boolean(),
   /** Which threshold set judged this. A score means nothing without what it was compared to. */
   thresholdHash: z.string(),
   history: z.array(

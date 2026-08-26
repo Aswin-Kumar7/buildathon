@@ -1,7 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { ModelMetrics, ModelMetricsResponse } from '@sentinel/contracts';
+import type {
+  IncidentModel,
+  IncidentModelResponse,
+  ModelMetrics,
+  ModelMetricsResponse,
+} from '@sentinel/contracts';
 
 /**
  * Serves the model benchmark artefact the Python pipeline generates.
@@ -38,6 +43,78 @@ export class ModelMetricsService {
         'The model benchmark has not been generated. Run `make eval` in ' +
         'ml/models/transaction_risk to produce it.',
     };
+  }
+
+  /**
+   * Model B's benchmark, mapped from the incident pipeline's metrics.json. Same graceful-absence
+   * behaviour as Model A: a clone where nobody ran `make eval` gets an honest "not generated".
+   */
+  loadIncident(): IncidentModelResponse {
+    const bases = [
+      'ml/models/incident/artifacts',
+      '../../ml/models/incident/artifacts',
+      '../ml/models/incident/artifacts',
+    ];
+    for (const base of bases) {
+      try {
+        const metrics = JSON.parse(
+          readFileSync(resolve(process.cwd(), `${base}/metrics.json`), 'utf8'),
+        );
+        const registry = JSON.parse(
+          readFileSync(resolve(process.cwd(), `${base}/registry.json`), 'utf8'),
+        );
+        return { available: true, model: ModelMetricsService.mapIncident(metrics, registry) };
+      } catch {
+        continue;
+      }
+    }
+    return {
+      available: false,
+      reason:
+        'The incident classifier has not been generated. Run `make eval` in ml/models/incident.',
+    };
+  }
+
+  private static mapIncident(raw: Record<string, unknown>, registry: unknown): IncidentModel {
+    const e = raw.evaluation as Record<string, unknown>;
+    const perClass = e.per_class as Record<
+      string,
+      { precision: number; recall: number; support: number }
+    >;
+    const h = raw.hardening as Record<string, unknown>;
+
+    return {
+      classes: e.classes as string[],
+      accuracy: e.accuracy as number,
+      macroF1: e.macro_f1 as number,
+      abstainRate: e.abstain_rate as number,
+      abstainThreshold: e.abstain_threshold as number,
+      perClass: Object.entries(perClass).map(([label, m]) => ({
+        label,
+        precision: m.precision,
+        recall: m.recall,
+        support: m.support,
+      })),
+      confusion: e.confusion as number[][],
+      riskCoverage: (e.risk_coverage as Record<string, number>[]).map((row) => ({
+        threshold: row.threshold,
+        coverage: row.coverage,
+        selectiveAccuracy: row.selective_accuracy,
+      })),
+      ablation: (raw.ablation_ladder as Record<string, unknown>[]).map((row) => ({
+        features: row.features as string,
+        nFeatures: row.n_features as number,
+        macroF1: row.macro_f1 as number,
+      })),
+      hardening: {
+        triggered: h.triggered as boolean,
+        baseMacroF1: h.base_macro_f1 as number,
+        hardenedMacroF1: (h.hardened_macro_f1 as number | undefined) ?? null,
+        note: (h.note as string | undefined) ?? null,
+      },
+      splitGroupOverlap: (raw.split_integrity as Record<string, number>).train_test_group_overlap,
+      registry: registry as IncidentModel['registry'],
+    } as IncidentModel;
   }
 
   private static map(raw: Record<string, unknown>): ModelMetrics {

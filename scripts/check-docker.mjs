@@ -90,7 +90,13 @@ for (const dependency of runtimeClosure('@sentinel/api', byName)) {
  * because the alternative is acting on defaults nobody chose. An image that shipped the parser
  * and not the file would build cleanly and then fail to boot.
  */
-const RUNTIME_FILES = ['policy.yaml', 'ml/models/transaction_risk/artifacts/metrics.json'];
+const RUNTIME_FILES = [
+  'policy.yaml',
+  'ml/models/transaction_risk/artifacts/metrics.json',
+  'ml/models/incident/artifacts/model.json',
+  'ml/models/incident/artifacts/registry.json',
+  'ml/models/incident/artifacts/metrics.json',
+];
 
 for (const file of RUNTIME_FILES) {
   if (!api.includes(`COPY --from=build /repo/${file}`)) {

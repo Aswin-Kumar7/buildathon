@@ -37,7 +37,9 @@
     "turbo": "^2.3.3",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.19.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "@sentinel/corpus": "workspace:*",
+    "@sentinel/detect": "workspace:*"
   },
   "lint-staged": {
     "*.{ts,tsx,js,mjs,json,md,yml,yaml}": "prettier --write"

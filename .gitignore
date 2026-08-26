@@ -60,6 +60,13 @@ project-*-*.json
 # The IEEE-CIS competition data is never committed — the rules forbid redistribution. The
 # generated artefacts (metrics.json, model_card.md) ARE committed; only the raw data is ignored.
 ml/models/transaction_risk/data/
+
+# Model B's training data IS ours — the scenario corpus rendered to a table by
+# ml/models/incident/export_training.mjs, deterministic from fixed seeds and free of any restricted
+# source. Committing it is what makes `make eval` and `make check-metrics` reproduce on a clone
+# without first rebuilding the TypeScript corpus. (The blanket *.csv rule above would hide it.)
+!ml/models/incident/data/
+!ml/models/incident/data/training.csv
 __pycache__/
 *.pyc
 .pytest_cache/

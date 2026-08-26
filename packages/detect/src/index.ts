@@ -25,3 +25,4 @@ export * from './changepoint.js';
 export * from './incident.js';
 export * from './traffic.js';
 export * from './hypothesis.js';
+export * from './incident-features.js';
