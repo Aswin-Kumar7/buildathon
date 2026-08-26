@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Callout, Card } from '@sentinel/ui';
 import { ingestionMetricsSchema, type IngestionMetrics } from '@sentinel/contracts';
+import { SystemLoad } from './SystemLoad.js';
 import './HealthPage.css';
 
 const REFRESH_MS = 5_000;
@@ -62,6 +63,8 @@ export function HealthPage(): React.JSX.Element {
           counter held in memory that a restart would reset.
         </p>
       </header>
+
+      <SystemLoad />
 
       {metrics.isError && (
         <Callout tone="critical" title="Could not read ingestion metrics">

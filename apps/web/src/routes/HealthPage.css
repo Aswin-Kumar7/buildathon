@@ -50,3 +50,77 @@
 .muted {
   color: var(--s-ink-2);
 }
+
+/* System-under-load section: shedding visible in real time, and the three-way latency split. */
+.load {
+  margin-bottom: var(--s-5, 2rem);
+}
+
+.load__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
+}
+
+.load__signals {
+  display: flex;
+  gap: var(--s-5, 2rem);
+  margin: 0 0 var(--s-3);
+}
+
+.load__signals dt {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-2);
+}
+
+.load__signals dd {
+  margin: 0;
+  font-size: var(--s-text-lg, 1.25rem);
+  font-family: var(--s-mono);
+}
+
+.load__signals dd.is-hot {
+  color: var(--s-warn);
+}
+
+.load__tiers {
+  list-style: none;
+  margin: var(--s-2) 0 var(--s-4);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.load__tiers li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-2);
+  border: 1px solid var(--s-line);
+  border-radius: var(--s-radius-sm, 4px);
+}
+
+.load__tiers li.is-shedding {
+  border-color: var(--s-warn);
+  background: var(--s-warn-soft);
+}
+
+.load__tier-name {
+  font-size: var(--s-text-sm);
+}
+
+.load__counts {
+  font-size: var(--s-text-xs);
+  font-family: var(--s-mono);
+  color: var(--s-ink-2);
+}
+
+.load__note {
+  margin: var(--s-3) 0 0;
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-2);
+}
