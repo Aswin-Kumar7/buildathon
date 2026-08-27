@@ -17,6 +17,7 @@ const sensor = {
 /** The real sequence from the deployed instance: declined card, then a successful retry. */
 const recovered: ResolvedOrder = {
   razorpayOrderId: 'order_TTyyheY7fRMZnW',
+  source: 'razorpay',
   outcome: 'paid',
   recovered: true,
   amountPaise: 149_900,

@@ -34,6 +34,8 @@ export class AttemptsService {
    * a second one, and the two drift the first time an event arrives that the writer handled
    * and the reader did not.
    */
+  // The two query shapes are intentionally explicit: unfiltered live reads and entity-scoped reads.
+  // eslint-disable-next-line complexity
   async listOrders(
     limit = 50,
     filter?: {
@@ -83,7 +85,8 @@ export class AttemptsService {
       .map((row) => row.orderId)
       .filter((id): id is string => id !== null && id !== '');
 
-    const orders = orderIds.length === 0 ? [] : await this.resolveMany(orderIds);
+    const orders =
+      orderIds.length === 0 ? [] : await this.resolveMany(orderIds, filter?.source ?? 'razorpay');
 
     return {
       orders: orders.sort((a, b) => Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt)),
@@ -93,7 +96,12 @@ export class AttemptsService {
   }
 
   async getOrder(razorpayOrderId: string): Promise<ResolvedOrder> {
-    const [order] = await this.resolveMany([razorpayOrderId]);
+    const [sourceRow] = await this.handle.db
+      .select({ source: canonicalEvents.source })
+      .from(canonicalEvents)
+      .where(eq(canonicalEvents.razorpayOrderId, razorpayOrderId))
+      .limit(1);
+    const [order] = await this.resolveMany([razorpayOrderId], sourceRow?.source ?? 'razorpay');
     if (order === undefined) throw new NotFoundException(`No events for ${razorpayOrderId}`);
     return order;
   }
@@ -131,10 +139,13 @@ export class AttemptsService {
     const orderIds = rows
       .map((row) => row.orderId)
       .filter((id): id is string => id !== null && id !== '');
-    return this.resolveMany(orderIds);
+    return this.resolveMany(orderIds, input.source);
   }
 
-  private async resolveMany(orderIds: readonly string[]): Promise<ResolvedOrder[]> {
+  private async resolveMany(
+    orderIds: readonly string[],
+    source: 'razorpay' | 'replay',
+  ): Promise<ResolvedOrder[]> {
     const rows = await this.handle.db
       .select()
       .from(canonicalEvents)
@@ -171,12 +182,17 @@ export class AttemptsService {
     return [...byOrder.entries()]
       .map(([orderId, events]) => resolveOrder(orderId, events))
       .filter((order): order is Resolved => order !== null)
-      .map((order) => this.serialise(order, sensors.get(order.razorpayOrderId) ?? null));
+      .map((order) => this.serialise(order, sensors.get(order.razorpayOrderId) ?? null, source));
   }
 
-  private serialise(order: Resolved, sensor: SensorContext | null): ResolvedOrder {
+  private serialise(
+    order: Resolved,
+    sensor: SensorContext | null,
+    source: 'razorpay' | 'replay',
+  ): ResolvedOrder {
     return {
       razorpayOrderId: order.razorpayOrderId,
+      source,
       outcome: order.outcome,
       recovered: order.recovered,
       amountPaise: order.amountPaise,

@@ -36,8 +36,8 @@ Those structural breaks are now fixed:
 
 The flow is now structurally coherent for local demo traffic. It is not yet a production-grade
 Razorpay risk platform: live webhook delivery still requires public HTTPS and a correctly configured
-Razorpay webhook secret, policy changes are still repository-managed rather than merchant-managed,
-and hosted Razorpay checkout cannot be completely automated by the local test suite.
+Azure deployment, and hosted Razorpay checkout cannot be completely automated by the local test
+suite. Real merchant-labelled data also remains an external input.
 
 ## What is actually connected
 
@@ -266,8 +266,8 @@ performance claim.
    free local build.
 5. **Incident-to-attempt query:** implemented for incident detail and a direct filtered Attempts
    route; richer relationship visualization remains future work.
-6. **Policy authoring:** structured candidate simulation exists; controlled publish/versioning does
-   not.
+6. **Policy authoring:** durable draft → pending approval → approved → published workflow now exists;
+   publish is admin-only, self-approval is refused, and each transition is audit-linked.
 7. **Data labels:** analyst verdicts feed retraining, but there is not yet enough real merchant outcome
    data to validate production recall.
 8. **TLS local environment:** this Windows environment needs `NODE_USE_SYSTEM_CA=1` for Node to trust
@@ -287,7 +287,7 @@ performance claim.
 ## Recommended next implementation order
 
 1. Add richer session/device/network relationship visualization.
-2. Add policy draft/version/approval/publish with a dry-run diff and rollback.
+2. Add policy diff/rollback and connect the lifecycle to the merchant console.
 3. Make live webhook delivery observable with the Azure HTTPS deployment and a webhook delivery test.
 4. Add a merchant label workflow and export confirmed outcomes for retraining.
 5. Add a real-data or carefully justified benchmark, preserving the synthetic corpus as regression data.

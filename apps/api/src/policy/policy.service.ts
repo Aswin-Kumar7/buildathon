@@ -18,8 +18,8 @@ import { parsePolicy, policyHash, InvalidPolicy, type Policy } from '@sentinel/p
 @Injectable()
 export class PolicyService {
   private readonly logger = new Logger(PolicyService.name);
-  private readonly loaded: Policy;
-  private readonly hash: string;
+  private loaded: Policy;
+  private hash: string;
 
   constructor() {
     // Resolved from the working directory, which is the API package when running and `/repo`
@@ -67,5 +67,12 @@ export class PolicyService {
 
   get fingerprint(): string {
     return this.hash;
+  }
+
+  /** Activates an already validated, approved policy version. */
+  activate(policy: Policy): void {
+    this.loaded = policy;
+    this.hash = policyHash(policy);
+    this.logger.log(`policy v${policy.version} activated (${this.hash})`);
   }
 }

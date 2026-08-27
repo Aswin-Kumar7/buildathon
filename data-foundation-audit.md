@@ -48,6 +48,8 @@ precision claim is made.
 - Suspicious replay attempts use the real pipeline and can produce one correlated replay incident.
 - Replay does not contaminate live Overview, Attempts, risk trend or reasons.
 - Recommendations, actions, statuses and audit entries remain separate backend records.
+- Policy candidates have a durable draft → submit → admin approve → admin publish lifecycle;
+  publishing activates only a validated approved document and records an audit entry.
 
 ## External deployment inputs
 

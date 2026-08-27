@@ -53,6 +53,7 @@ export type SensorContext = z.infer<typeof sensorContextSchema>;
 
 export const resolvedOrderSchema = z.object({
   razorpayOrderId: z.string(),
+  source: z.enum(['razorpay', 'replay']),
   outcome: z.enum(['paid', 'failed', 'pending']),
   /**
    * A failure happened and the order was paid anyway.

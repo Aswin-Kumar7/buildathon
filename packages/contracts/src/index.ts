@@ -13,4 +13,5 @@ export * from './model.js';
 export * from './narration.js';
 export * from './system.js';
 export * from './overview.js';
+export * from './policy-workflow.js';
 export * from './risk.js';

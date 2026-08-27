@@ -76,6 +76,8 @@ over HTTPS. Verified: `public` holds zero tables.
   history, with the checkout context joined on. Session required.
 - `GET /api/replay`, `POST /api/replay`, `DELETE /api/replay` — the scenario catalogue and the
   local replay harness. Session required, and refused outright in production.
+- `GET /api/policy/versions`, `POST /api/policy/drafts`, and policy version submit/approve/reject/
+  publish endpoints — durable, admin-controlled policy lifecycle with audit entries.
 
 **UI** — landing page (evidence table read live from the API), login page, protected
 `/console` route, and the console shell: sidebar, user identity, permanent `TEST MODE`
@@ -113,8 +115,9 @@ to the payment history that produced it.
 
 The Policy page now has a guided candidate builder for thresholds, containment, approval and caps.
 It generates a complete validated candidate for dry-run impact simulation; the advanced YAML editor
-remains available for the full document. The current policy is still repository-backed and cannot be
-published from the console.
+remains available for the full document. Policy versions now have a durable draft → submit → admin
+approval → publish lifecycle; the API activates only validated approved documents and rehydrates the
+latest published version on restart.
 
 **Verified storefront-to-console flow** — the frontend is built through the real payment handoff:
 

@@ -29,7 +29,29 @@ export async function applySchema(handle: DbHandle): Promise<void> {
   await createIngestionTables(handle);
   await createIncidentTables(handle);
   await createContainmentTables(handle);
+  await createPolicyTables(handle);
   await createAuditTable(handle);
+}
+
+async function createPolicyTables(handle: DbHandle): Promise<void> {
+  await handle.db.execute(sql`
+    CREATE TABLE IF NOT EXISTS sentinel.policy_versions (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      version integer NOT NULL,
+      hash text NOT NULL,
+      source text NOT NULL,
+      status text NOT NULL CHECK (status IN ('draft', 'pending_approval', 'approved', 'published', 'rejected')),
+      created_by uuid NOT NULL REFERENCES sentinel.users(id) ON DELETE RESTRICT,
+      approved_by uuid REFERENCES sentinel.users(id) ON DELETE RESTRICT,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      approved_at timestamptz,
+      published_at timestamptz
+    );
+  `);
+  await handle.db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS policy_versions_version_idx
+      ON sentinel.policy_versions (version);
+  `);
 }
 
 /**

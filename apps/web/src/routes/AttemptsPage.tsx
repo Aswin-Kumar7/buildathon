@@ -127,6 +127,9 @@ function Order({ order }: { order: ResolvedOrder }): React.JSX.Element {
         </div>
 
         <div className="order__badges">
+          <Badge tone={order.source === 'replay' ? 'warn' : 'neutral'}>
+            {order.source === 'replay' ? 'replay' : 'live'}
+          </Badge>
           {order.recovered ? (
             <Badge tone="ok">recovered</Badge>
           ) : (
