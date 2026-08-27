@@ -37,9 +37,9 @@ export class AttemptsService {
   async listOrders(
     limit = 50,
     filter?: {
-      entityKind: 'session' | 'device' | 'network';
-      entityKey: string;
-      source?: 'razorpay' | 'replay';
+      entityKind?: 'session' | 'device' | 'network';
+      entityKey?: string;
+      source: 'razorpay' | 'replay';
     },
   ): Promise<OrdersResponse> {
     const entityColumn =
@@ -51,11 +51,16 @@ export class AttemptsService {
             ? checkoutSessions.ipPseudonym
             : null;
     const recent =
-      filter === undefined
+      filter === undefined || filter.entityKind === undefined || filter.entityKey === undefined
         ? await this.handle.db
             .selectDistinct({ orderId: canonicalEvents.razorpayOrderId })
             .from(canonicalEvents)
-            .where(sql`${canonicalEvents.razorpayOrderId} is not null`)
+            .where(
+              and(
+                sql`${canonicalEvents.razorpayOrderId} is not null`,
+                filter === undefined ? sql`true` : eq(canonicalEvents.source, filter.source),
+              ),
+            )
             .orderBy(desc(canonicalEvents.razorpayOrderId))
             .limit(limit)
         : await this.handle.db
@@ -69,9 +74,7 @@ export class AttemptsService {
               and(
                 sql`${canonicalEvents.razorpayOrderId} is not null`,
                 entityColumn === null ? sql`false` : eq(entityColumn, filter.entityKey),
-                filter.source === undefined
-                  ? sql`true`
-                  : eq(checkoutSessions.source, filter.source),
+                eq(checkoutSessions.source, filter.source),
               ),
             )
             .limit(limit);
@@ -84,7 +87,7 @@ export class AttemptsService {
 
     return {
       orders: orders.sort((a, b) => Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt)),
-      unresolved: await this.unresolved(),
+      unresolved: await this.unresolved(filter?.source ?? 'razorpay'),
       allowedLatenessMinutes: this.env.ALLOWED_LATENESS_MINUTES,
     };
   }
@@ -229,7 +232,7 @@ export class AttemptsService {
    * that never happened — and a detector keyed on failure counts is the worst possible place
    * to invent one. A shopper who closes the tab before paying leaves exactly this trace.
    */
-  private async unresolved(): Promise<UnresolvedAttempt[]> {
+  private async unresolved(source: 'razorpay' | 'replay'): Promise<UnresolvedAttempt[]> {
     const cutoff = new Date(Date.now() - this.env.ALLOWED_LATENESS_MINUTES * 60_000);
 
     const rows = await this.handle.db
@@ -248,7 +251,13 @@ export class AttemptsService {
         canonicalEvents,
         eq(canonicalEvents.razorpayOrderId, checkoutSessions.razorpayOrderId),
       )
-      .where(and(isNull(canonicalEvents.id), lt(checkoutSessions.createdAt, cutoff)))
+      .where(
+        and(
+          eq(checkoutSessions.source, source),
+          isNull(canonicalEvents.id),
+          lt(checkoutSessions.createdAt, cutoff),
+        ),
+      )
       .orderBy(desc(checkoutSessions.createdAt))
       .limit(50);
 

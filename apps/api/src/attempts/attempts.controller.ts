@@ -31,16 +31,15 @@ export class AttemptsController {
     ) {
       throw new BadRequestException('entityKind, entityKey and source are invalid or incomplete');
     }
-    return this.attempts.listOrders(
-      bounded,
-      entityKey !== undefined && entityKind !== undefined
+    return this.attempts.listOrders(bounded, {
+      source: (source ?? 'razorpay') as 'razorpay' | 'replay',
+      ...(entityKey !== undefined && entityKind !== undefined
         ? {
             entityKind: entityKind as 'session' | 'device' | 'network',
             entityKey,
-            ...(source !== undefined && { source: source as 'razorpay' | 'replay' }),
           }
-        : undefined,
-    );
+        : {}),
+    });
   }
 
   @Get(':orderId')

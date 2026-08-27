@@ -98,7 +98,7 @@ function RiskGauge({ risk }: { risk: number }): React.JSX.Element {
         <strong>{current.label}</strong>
         <span>{risk < 0.2 ? 'Normal traffic' : 'Needs attention'}</span>
       </div>
-      <p className="ov-muted">Payment-outcome signal from the last 24 hours.</p>
+      <p className="ov-muted">Highest detected incident risk in the last 24 hours.</p>
     </section>
   );
 }
@@ -118,7 +118,7 @@ function RiskTrend({ trend }: { trend: OverviewResponse['riskTrend'] }): React.J
       <div className="ov-panel__title">
         <div>
           <h2>Risk over time</h2>
-          <p>Failure signal from canonical Razorpay events</p>
+          <p>Risk activity from detected live incidents</p>
         </div>
         <select aria-label="Risk time range" defaultValue="24h">
           <option value="24h">Last 24 hours</option>

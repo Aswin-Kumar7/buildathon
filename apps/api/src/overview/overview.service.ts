@@ -3,6 +3,7 @@ import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { canonicalEvents, incidents, type DbHandle } from '@sentinel/db';
 import type { OverviewResponse } from '@sentinel/contracts';
 import { DB } from '../db/db.module.js';
+import { AttemptsService } from '../attempts/attempts.service.js';
 
 type Window = OverviewResponse['window'];
 
@@ -16,25 +17,31 @@ const n = (value: unknown): number => Number(value ?? 0);
 
 @Injectable()
 export class OverviewService {
-  constructor(@Inject(DB) private readonly handle: DbHandle) {}
+  constructor(
+    @Inject(DB) private readonly handle: DbHandle,
+    private readonly attempts: AttemptsService,
+  ) {}
 
   async get(window: Window): Promise<OverviewResponse> {
     const now = new Date();
     const start = new Date(now.getTime() - windowMs[window]!);
     const events = await this.events(start);
+    const orders = (await this.attempts.listOrders(10_000, { source: 'razorpay' })).orders;
+    const attempts = orders.flatMap((order) => order.attempts);
     const incidentCounts = await this.incidentCounts();
     const reasonRows = await this.reasonRows(start);
+    const riskRows = await this.riskRows(start);
 
-    const failures = events.filter((event) => event.status === 'failed').length;
-    const captured = events.filter((event) => event.status === 'captured').length;
-    const assessed = events.filter((event) => event.status !== null).length;
-    const risk = assessed === 0 ? 0 : failures / assessed;
+    const failures = attempts.filter((attempt) => attempt.status === 'failed').length;
+    const captured = attempts.filter((attempt) => attempt.status === 'captured').length;
+    const assessed = attempts.length;
+    const risk = riskRows.length === 0 ? 0 : Math.max(...riskRows.map((row) => row.score));
 
     return {
       window,
       generatedAt: now.toISOString(),
       source: 'razorpay',
-      eventsAnalyzed: events.length,
+      eventsAnalyzed: assessed,
       paymentsCaptured: captured,
       paymentsFailed: failures,
       activeIncidents: incidentCounts.open + incidentCounts.underReview,
@@ -44,7 +51,7 @@ export class OverviewService {
       // fraud-free. It is the number of canonical payment outcomes not marked failed.
       safe: Math.max(assessed - failures, 0),
       risk,
-      riskTrend: this.trend(events, start, window),
+      riskTrend: this.trend(riskRows, start, window),
       recentEvents: events.slice(0, 8).map((event) => ({
         ...event,
         risk: event.status === 'failed' ? 1 : event.status === 'captured' ? 0 : 0.5,
@@ -91,17 +98,17 @@ export class OverviewService {
 
   private async reasonRows(start: Date) {
     const rows = await this.handle.db
-      .select({ evidence: incidents.evidence })
+      .select({ arbitration: incidents.arbitration })
       .from(incidents)
       .where(and(eq(incidents.source, 'razorpay'), gte(incidents.detectedAt, start)));
     const counts = new Map<string, number>();
     for (const row of rows) {
-      if (!Array.isArray(row.evidence)) continue;
-      for (const evidence of row.evidence) {
-        if (typeof evidence !== 'object' || evidence === null || !('code' in evidence)) continue;
-        const code = (evidence as { code?: unknown }).code;
-        if (typeof code === 'string') counts.set(code, (counts.get(code) ?? 0) + 1);
-      }
+      const best =
+        typeof row.arbitration === 'object' && row.arbitration !== null && 'best' in row.arbitration
+          ? (row.arbitration as { best?: unknown }).best
+          : 'insufficient_evidence';
+      const code = typeof best === 'string' ? best : 'insufficient_evidence';
+      counts.set(code, (counts.get(code) ?? 0) + 1);
     }
     return [...counts.entries()]
       .map(([code, count]) => ({ code, count }))
@@ -109,30 +116,37 @@ export class OverviewService {
       .slice(0, 5);
   }
 
+  private async riskRows(start: Date) {
+    return this.handle.db
+      .select({ score: incidents.score, detectedAt: incidents.detectedAt })
+      .from(incidents)
+      .where(and(eq(incidents.source, 'razorpay'), gte(incidents.detectedAt, start)));
+  }
+
   private trend(
-    events: Awaited<ReturnType<OverviewService['events']>>,
+    rows: Awaited<ReturnType<OverviewService['riskRows']>>,
     start: Date,
     window: Window,
   ) {
     const bucketMs = window === '7d' ? 24 * 60 * 60_000 : 60 * 60_000;
-    const buckets = new Map<number, { events: number; failures: number }>();
-    for (const event of events) {
-      const at = Math.floor(Date.parse(event.eventAt) / bucketMs) * bucketMs;
-      const bucket = buckets.get(at) ?? { events: 0, failures: 0 };
+    const buckets = new Map<number, { events: number; failures: number; risk: number }>();
+    for (const row of rows) {
+      const at = Math.floor(row.detectedAt.getTime() / bucketMs) * bucketMs;
+      const bucket = buckets.get(at) ?? { events: 0, failures: 0, risk: 0 };
       bucket.events += 1;
-      if (event.status === 'failed') bucket.failures += 1;
+      bucket.risk = Math.max(bucket.risk, row.score);
       buckets.set(at, bucket);
     }
     const first = Math.floor(start.getTime() / bucketMs) * bucketMs;
     const last = Math.floor(Date.now() / bucketMs) * bucketMs;
     const result = [];
     for (let at = first; at <= last; at += bucketMs) {
-      const bucket = buckets.get(at) ?? { events: 0, failures: 0 };
+      const bucket = buckets.get(at) ?? { events: 0, failures: 0, risk: 0 };
       result.push({
         at: new Date(at).toISOString(),
         events: bucket.events,
         failures: bucket.failures,
-        risk: bucket.events === 0 ? 0 : bucket.failures / bucket.events,
+        risk: bucket.risk,
       });
     }
     return result.slice(-48);
