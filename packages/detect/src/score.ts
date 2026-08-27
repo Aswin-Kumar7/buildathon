@@ -26,6 +26,8 @@ import type { Evidence, RuleId, RuleOutcome } from './rules.js';
 export const RULE_WEIGHT: Record<RuleId, number> = {
   velocity: 0.2,
   card_spread: 0.5,
+  card_spread_slow: 0.3,
+  card_probing: 0.3,
   approval_collapse: 0.25,
   reason_mix: 0.2,
   small_amount_probing: 0.15,

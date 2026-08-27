@@ -23,6 +23,10 @@ export interface Thresholds {
   cardsPerAttempt: number;
   /** Attempts per card at which the traffic is retrying rather than enumerating. */
   attemptsPerCard: number;
+  /** Distinct orders one card must touch before it reads as probing items rather than shopping. */
+  ordersPerCardProbe: number;
+  /** Distinct cards from one entity over the long span before slow enumeration counts as spread. */
+  cardSpreadSlowMinimum: number;
   /** Below this share of captures, with enough attempts, approval has collapsed. */
   approvalFloor: number;
   /** Attempts needed before an approval rate means anything at all. */
@@ -81,6 +85,8 @@ export const THRESHOLDS: Thresholds = {
   cardSpreadMinimum: 8,
   cardsPerAttempt: 0.7,
   attemptsPerCard: 2,
+  ordersPerCardProbe: 4,
+  cardSpreadSlowMinimum: 12,
   approvalFloor: 0.2,
   approvalMinimumAttempts: 6,
   reasonConcentration: 0.45,

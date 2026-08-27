@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { computeFeatures, type FeatureVector, type Observation } from './features.js';
+import {
+  computeFeatures,
+  DEFAULT_WINDOW,
+  type FeatureVector,
+  type Observation,
+} from './features.js';
 import { evaluateRules, type RuleId } from './rules.js';
 import { RULE_WEIGHT, scoreOutcomes } from './score.js';
 import { THRESHOLDS, thresholdHash } from './thresholds.js';
@@ -67,6 +72,40 @@ function dunning(count = 24): Observation[] {
   );
 }
 
+/** One stolen card walked across many separate orders: the probing shape. */
+function oneCardManyItems(count = 6): Observation[] {
+  return Array.from({ length: count }, (_, i) =>
+    observation({
+      at: T0 + i * 20_000,
+      razorpayOrderId: `order_${i}`,
+      razorpayPaymentId: `pay_${i}`,
+      cardId: 'card_stolen',
+      amountPaise: 100,
+      errorReason: 'invalid_card',
+    }),
+  );
+}
+
+/** Enumeration paced one card every few minutes, under the live window but inside the long span. */
+function slowEnumeration(count = 14): Observation[] {
+  return Array.from({ length: count }, (_, i) =>
+    observation({
+      at: T0 + i * minutes(6),
+      razorpayOrderId: `order_${i}`,
+      razorpayPaymentId: `pay_${i}`,
+      cardId: `card_${i}`,
+      amountPaise: 100,
+      errorReason: 'invalid_card',
+    }),
+  );
+}
+
+/** Computed over the real live/long-span windows, which is what the slow-and-wide rule reasons about. */
+function liveVector(observations: readonly Observation[]): FeatureVector {
+  const asOf = Math.max(...observations.map((o) => o.at)) + 1000;
+  return computeFeatures('session', 'v1:session-a', observations, asOf, DEFAULT_WINDOW);
+}
+
 const outcomeFor = (vector: FeatureVector, rule: RuleId) =>
   evaluateRules(vector).find((outcome) => outcome.rule === rule)!;
 
@@ -98,6 +137,46 @@ describe('rules', () => {
     expect(outcomeFor(vectorFrom(enumeration()), 'card_spread').fired).toBe(true);
     expect(outcomeFor(vectorFrom(dunning()), 'card_spread').fired).toBe(false);
     expect(outcomeFor(vectorFrom(dunning()), 'card_reuse').fired).toBe(true);
+  });
+
+  it('catches one card walked across many items, but not a shopper buying several', () => {
+    // The other card-testing shape: a single card pushed at order after order. It means nothing
+    // when the payments clear — that is a cart — so the rule only fires where approval collapsed.
+    const probing = outcomeFor(vectorFrom(oneCardManyItems()), 'card_probing');
+    expect(probing.fired).toBe(true);
+    expect(probing.evidence[0]?.weight).toBeCloseTo(RULE_WEIGHT.card_probing, 10);
+
+    const cart = oneCardManyItems(5).map((o) => ({ ...o, outcome: 'captured' as const }));
+    expect(outcomeFor(vectorFrom(cart), 'card_probing').fired).toBe(false);
+  });
+
+  it('catches enumeration paced under the live window, and defers to the burst gate on the loud one', () => {
+    // The slow-and-wide counterpart to card_spread. One card every few minutes stays under the
+    // 30-minute window but adds up across the long span; the rule reads that and fires.
+    const slow = liveVector(slowEnumeration());
+    expect(outcomeFor(slow, 'card_spread').fired).toBe(false); // too few inside the live window
+    const outcome = outcomeFor(slow, 'card_spread_slow');
+    expect(outcome.fired).toBe(true);
+    expect(outcome.evidence[0]?.weight).toBeCloseTo(RULE_WEIGHT.card_spread_slow, 10);
+
+    // On a loud burst the short window already has it, so the slow rule stays quiet rather than
+    // scoring the same enumeration twice.
+    expect(outcomeFor(vectorFrom(enumeration()), 'card_spread').fired).toBe(true);
+    expect(outcomeFor(vectorFrom(enumeration()), 'card_spread_slow').fired).toBe(false);
+  });
+
+  it('will not judge slow spread on an unconfirmed estimate either', () => {
+    const observations = slowEnumeration();
+    const asOf = Math.max(...observations.map((o) => o.at)) + 1000;
+    const unconfirmed = computeFeatures(
+      'session',
+      'v1:session-a',
+      observations,
+      asOf,
+      DEFAULT_WINDOW,
+      false,
+    );
+    expect(outcomeFor(unconfirmed, 'card_spread_slow').abstained).toBe('unconfirmed-estimate');
   });
 
   it('refuses to judge card spread on an unconfirmed estimate', () => {

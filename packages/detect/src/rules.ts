@@ -25,6 +25,8 @@ import { THRESHOLDS, type Thresholds } from './thresholds.js';
 export type RuleId =
   | 'velocity'
   | 'card_spread'
+  | 'card_spread_slow'
+  | 'card_probing'
   | 'approval_collapse'
   | 'reason_mix'
   | 'small_amount_probing'
@@ -130,6 +132,59 @@ function cardSpread(v: FeatureVector, t: Thresholds): RuleOutcome {
       },
     ],
   };
+}
+
+/**
+ * Enumeration paced out under the live window — slow and wide instead of fast and loud.
+ *
+ * The burst gate ({@link cardSpread}) is deliberately short, so a campaign that drips one card at
+ * a time across an afternoon slips beneath it. This reads the long-span confirmed card count for
+ * the same signature. It speaks *only* where the burst gate stayed quiet — the short-window spread
+ * is still below its own floor — so it catches the evasive campaign rather than echoing the loud
+ * one. Exact-only, and gated on collapsed approvals, for the same reasons `card_spread` is.
+ */
+function cardSpreadSlow(v: FeatureVector, t: Thresholds): RuleOutcome {
+  const longSpan = v.distinctCardsLongSpan;
+  const short = v.distinctCards.exact;
+  if (longSpan === null || short === null)
+    return abstain('card_spread_slow', 'unconfirmed-estimate');
+  if (v.attempts === 0) return abstain('card_spread_slow', 'insufficient-data');
+  if (v.approvalRate >= 0.5) return quiet('card_spread_slow');
+  if (short >= t.cardSpreadMinimum) return quiet('card_spread_slow');
+
+  return longSpan >= t.cardSpreadSlowMinimum
+    ? fire(
+        'card_spread_slow',
+        'distinct_cards_long_span_above_threshold',
+        longSpan,
+        t.cardSpreadSlowMinimum,
+        0.3,
+      )
+    : quiet('card_spread_slow');
+}
+
+/**
+ * One card pushed at many separate orders — probing items rather than shopping them.
+ *
+ * The other card-testing shape from spread: not many cards through one entity, but a single card
+ * tried against product after product to find one a stolen number can carry. A shopper paying for
+ * several things at once is the same shape without the declines, so it means nothing unless the
+ * approvals have collapsed — which is what separates a cart from a card being walked down a
+ * catalogue.
+ */
+function cardProbing(v: FeatureVector, t: Thresholds): RuleOutcome {
+  if (v.attempts === 0) return abstain('card_probing', 'insufficient-data');
+  if (v.approvalRate >= 0.5) return quiet('card_probing');
+
+  return v.maxOrdersPerCard >= t.ordersPerCardProbe
+    ? fire(
+        'card_probing',
+        'orders_per_card_above_threshold',
+        v.maxOrdersPerCard,
+        t.ordersPerCardProbe,
+        0.3,
+      )
+    : quiet('card_probing');
 }
 
 /** Almost nothing is being approved. Meaningless on two attempts, which is why there is a floor. */
@@ -259,6 +314,8 @@ export function evaluateRules(
   return [
     velocity(vector, thresholds),
     cardSpread(vector, thresholds),
+    cardSpreadSlow(vector, thresholds),
+    cardProbing(vector, thresholds),
     approvalCollapse(vector, thresholds),
     reasonMix(vector, thresholds),
     smallAmountProbing(vector, thresholds),
