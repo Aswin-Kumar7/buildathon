@@ -13,17 +13,27 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--s-surface);
+  background: #061b49;
   border-right: 1px solid var(--s-line);
   z-index: 40;
 }
 
 .shell__brand {
+  padding: 1.1rem 1.1rem 1.25rem;
+  border-bottom: 1px solid rgb(255 255 255 / 12%);
+}
+.shell__razorpay {
+  color: #fff;
+  font-size: 1.25rem;
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+.shell__sentinel-brand {
   display: flex;
   align-items: center;
   gap: var(--s-3);
-  padding: var(--s-4) var(--s-4);
-  height: 3.75rem;
+  margin-top: 1.2rem;
 }
 .shell__mark {
   display: inline-flex;
@@ -48,6 +58,7 @@
   font-size: var(--s-text-md);
   letter-spacing: var(--s-tracking-tighter);
   line-height: 1.1;
+  color: #fff;
 }
 .shell__brandname em {
   font-style: normal;
@@ -55,13 +66,18 @@
   font-size: 0.6875rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--s-ink-3);
+  color: #b8c8e8;
 }
 
 .shell__navscroll {
   flex: 1;
   overflow-y: auto;
   padding: var(--s-2) var(--s-3) var(--s-4);
+}
+.shell__settings-link {
+  margin-top: var(--s-5);
+  padding-top: var(--s-5);
+  border-top: 1px solid rgb(255 255 255 / 12%);
 }
 
 .shell__group + .shell__group {
@@ -91,7 +107,7 @@
   padding: 0.5rem var(--s-2);
   border-radius: var(--s-radius-sm);
   text-decoration: none;
-  color: var(--s-ink-2);
+  color: #d6e1f8;
   font-weight: 500;
   font-size: var(--s-text-base);
   position: relative;
@@ -100,24 +116,24 @@
     color var(--s-transition);
 }
 .shell__navscroll a svg {
-  color: var(--s-ink-3);
+  color: #aac0e8;
   transition: color var(--s-transition);
   flex-shrink: 0;
 }
 .shell__navscroll a:hover {
-  background: var(--s-surface-3);
-  color: var(--s-ink);
+  background: rgb(38 111 255 / 22%);
+  color: #fff;
 }
 .shell__navscroll a:hover svg {
   color: var(--s-ink-2);
 }
 .shell__navscroll a.is-current {
-  background: var(--s-accent-soft);
-  color: var(--s-accent-ink);
+  background: #1769e8;
+  color: #fff;
   font-weight: 600;
 }
 .shell__navscroll a.is-current svg {
-  color: var(--s-accent);
+  color: #fff;
 }
 .shell__navscroll a.is-current::before {
   content: '';
@@ -128,7 +144,7 @@
   height: 1.125rem;
   width: 3px;
   border-radius: var(--s-radius-full);
-  background: var(--s-accent);
+  background: #65a1ff;
 }
 
 .shell__navfoot {

@@ -32,6 +32,27 @@
   flex-wrap: wrap;
   justify-content: flex-end;
 }
+.ov-notification,
+.ov-merchant {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.35rem;
+  border: 1px solid var(--s-line-2);
+  border-radius: var(--s-radius-full);
+  background: var(--s-surface);
+  color: var(--s-ink-2);
+}
+.ov-notification {
+  width: 2.35rem;
+  cursor: pointer;
+  font-size: 1.1rem;
+}
+.ov-merchant {
+  padding: 0 0.9rem;
+  font-size: var(--s-text-sm);
+  font-weight: 700;
+}
 .ov-health {
   display: inline-flex;
   align-items: center;
@@ -166,6 +187,11 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--s-4);
 }
+.ov-case-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-4);
+}
 .ov-chart {
   position: relative;
   height: 14rem;
@@ -208,6 +234,17 @@
   margin: var(--s-2) 0 0 2.6rem;
   color: var(--s-ink-3);
   font-size: var(--s-text-xs);
+}
+.ov-chart--empty {
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--s-line-2);
+  background: var(--s-surface-2);
+}
+.ov-chart--empty p {
+  margin: 0;
+  color: var(--s-ink-3);
+  font-size: var(--s-text-sm);
 }
 .ov-gauge-panel {
   padding: var(--s-4);
@@ -266,6 +303,11 @@
   right: 0;
   display: block;
 }
+.ov-gauge--empty strong {
+  bottom: 2.1rem;
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-2);
+}
 .ov-gauge strong {
   bottom: 2.3rem;
   font-size: 1.45rem;
@@ -307,6 +349,13 @@
 .ov-event__copy span {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.ov-incident {
+  color: inherit;
+  text-decoration: none;
+}
+.ov-incident:hover {
+  background: var(--s-surface-2);
 }
 .ov-flow__steps {
   display: grid;
@@ -462,6 +511,7 @@
     grid-column: span 1;
   }
   .ov-main-grid,
+  .ov-case-grid,
   .ov-lower-grid,
   .ov-insight-grid {
     grid-template-columns: 1fr;

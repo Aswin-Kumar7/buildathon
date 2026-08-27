@@ -14,42 +14,13 @@ interface NavItem {
   match?: (pathname: string) => boolean;
 }
 
-interface NavGroup {
-  label: string;
-  items: NavItem[];
-}
-
-const NAV: NavGroup[] = [
-  {
-    label: 'Monitor',
-    items: [
-      { to: '/console', label: 'Overview', icon: 'overview', match: (p) => p === '/console' },
-      {
-        to: '/console/incidents',
-        label: 'Incidents',
-        icon: 'incidents',
-        match: (p) => p.startsWith('/console/incidents'),
-      },
-    ],
-  },
-  {
-    label: 'Analyze',
-    items: [{ to: '/console/metrics', label: 'Risk & Model', icon: 'model' }],
-  },
-  {
-    label: 'Govern',
-    items: [
-      { to: '/console/policy', label: 'Policies', icon: 'policies' },
-      { to: '/console/audit', label: 'Audit trail', icon: 'audit' },
-    ],
-  },
-  {
-    label: 'System',
-    items: [
-      { to: '/console/scenarios', label: 'Simulation', icon: 'simulation' },
-      { to: '/console/settings', label: 'Settings', icon: 'settings' },
-    ],
-  },
+const NAV: NavItem[] = [
+  { to: '/console', label: 'Overview', icon: 'overview', match: (p) => p === '/console' },
+  { to: '/console/attempts', label: 'Attempts', icon: 'attempts' },
+  { to: '/console/incidents', label: 'Incidents', icon: 'incidents' },
+  { to: '/console/metrics', label: 'Risk & Model', icon: 'model' },
+  { to: '/console/policy', label: 'Policies', icon: 'policies' },
+  { to: '/console/audit', label: 'Audit', icon: 'audit' },
 ];
 
 const isActive = (item: NavItem, pathname: string): boolean =>
@@ -60,39 +31,52 @@ function Sidebar({ onNavigate }: { onNavigate: () => void }): React.JSX.Element 
   return (
     <aside className="shell__nav" aria-label="Console navigation">
       <div className="shell__brand">
-        <span className="shell__mark" aria-hidden="true">
-          <Icon name="shield" size={18} />
-        </span>
-        <span className="shell__brandname">
-          Sentinel
-          <em>Risk Console</em>
-        </span>
+        <div className="shell__razorpay" aria-label="Razorpay">
+          Razorpay
+        </div>
+        <div className="shell__sentinel-brand">
+          <span className="shell__mark" aria-hidden="true">
+            <Icon name="shield" size={18} />
+          </span>
+          <span className="shell__brandname">
+            Sentinel<em>Fraud &amp; Abuse Protection</em>
+          </span>
+        </div>
       </div>
 
       <nav className="shell__navscroll">
-        {NAV.map((group) => (
-          <div className="shell__group" key={group.label}>
-            <p className="shell__grouplabel">{group.label}</p>
-            <ul>
-              {group.items.map((item) => {
-                const current = isActive(item, pathname);
-                return (
-                  <li key={item.to}>
-                    <Link
-                      to={item.to}
-                      className={current ? 'is-current' : undefined}
-                      aria-current={current ? 'page' : undefined}
-                      onClick={onNavigate}
-                    >
-                      <Icon name={item.icon} size={17} />
-                      {item.label}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+        <ul>
+          {NAV.map((item) => {
+            const current = isActive(item, pathname);
+            return (
+              <li key={item.to}>
+                <Link
+                  to={item.to}
+                  className={current ? 'is-current' : undefined}
+                  aria-current={current ? 'page' : undefined}
+                  onClick={onNavigate}
+                >
+                  <Icon name={item.icon} size={17} />
+                  {item.label}
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="shell__settings-link">
+          <Link
+            to="/console/settings"
+            className={
+              isActive({ to: '/console/settings', label: 'Settings', icon: 'settings' }, pathname)
+                ? 'is-current'
+                : undefined
+            }
+            onClick={onNavigate}
+          >
+            <Icon name="settings" size={17} />
+            Settings
+          </Link>
+        </div>
       </nav>
 
       <div className="shell__navfoot">

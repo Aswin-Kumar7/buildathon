@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import { canonicalEvents, incidents, type DbHandle } from '@sentinel/db';
 import type { OverviewResponse } from '@sentinel/contracts';
 import { DB } from '../db/db.module.js';
 import { AttemptsService } from '../attempts/attempts.service.js';
+import { IncidentsService } from '../incidents/incidents.service.js';
 
 type Window = OverviewResponse['window'];
 
@@ -20,6 +21,7 @@ export class OverviewService {
   constructor(
     @Inject(DB) private readonly handle: DbHandle,
     private readonly attempts: AttemptsService,
+    private readonly incidents: IncidentsService,
   ) {}
 
   async get(window: Window): Promise<OverviewResponse> {
@@ -27,30 +29,48 @@ export class OverviewService {
     const start = new Date(now.getTime() - windowMs[window]!);
     const events = await this.events(start);
     const orders = (await this.attempts.listOrders(10_000, { source: 'razorpay' })).orders;
-    const attempts = orders.flatMap((order) => order.attempts);
-    const incidentCounts = await this.incidentCounts();
+    const attemptRows = orders.flatMap((order) => order.attempts);
+    const attempts = attemptRows.filter(
+      (attempt) => Date.parse(attempt.firstSeenAt) >= start.getTime(),
+    );
+    const incidentStats = await this.incidentStats(start);
+    const recentIncidents = (await this.incidents.list(undefined, 'razorpay')).incidents
+      .filter((incident) => incident.detectedAt >= start.getTime())
+      .sort((a, b) => b.detectedAt - a.detectedAt)
+      .slice(0, 5);
     const reasonRows = await this.reasonRows(start);
     const riskRows = await this.riskRows(start);
 
     const failures = attempts.filter((attempt) => attempt.status === 'failed').length;
     const captured = attempts.filter((attempt) => attempt.status === 'captured').length;
     const assessed = attempts.length;
-    const risk = riskRows.length === 0 ? 0 : Math.max(...riskRows.map((row) => row.score));
+    const risk = riskRows.length === 0 ? null : Math.max(...riskRows.map((row) => row.score));
+    const riskLevel =
+      riskRows.length === 0
+        ? null
+        : riskRows.some((row) => row.severity === 'high')
+          ? 'high'
+          : riskRows.some((row) => row.severity === 'medium')
+            ? 'medium'
+            : 'low';
 
     return {
       window,
       generatedAt: now.toISOString(),
       source: 'razorpay',
       eventsAnalyzed: assessed,
+      attemptsToday: attempts.length,
       paymentsCaptured: captured,
       paymentsFailed: failures,
-      activeIncidents: incidentCounts.open + incidentCounts.underReview,
-      underReview: incidentCounts.underReview,
-      contained: incidentCounts.contained,
+      activeIncidents: incidentStats.open + incidentStats.underReview,
+      underReview: incidentStats.underReview,
+      contained: incidentStats.contained,
+      totalIncidents: incidentStats.total,
       // This is deliberately an outcome count, not a claim that every successful payment is
       // fraud-free. It is the number of canonical payment outcomes not marked failed.
       safe: Math.max(assessed - failures, 0),
       risk,
+      riskLevel,
       riskTrend: this.trend(riskRows, start, window),
       recentEvents: events.slice(0, 8).map((event) => ({
         ...event,
@@ -58,6 +78,7 @@ export class OverviewService {
         riskBasis: event.status === null ? 'unassessed' : 'payment-outcome',
       })),
       topRiskReasons: reasonRows,
+      recentIncidents,
     };
   }
 
@@ -80,14 +101,18 @@ export class OverviewService {
     return rows.map((row) => ({ ...row, eventAt: row.eventAt.toISOString() }));
   }
 
-  private async incidentCounts() {
+  private async incidentStats(start: Date) {
     const rows = await this.handle.db
       .select({ status: incidents.status, count: sql<number>`count(*)::int` })
       .from(incidents)
-      .where(inArray(incidents.source, ['razorpay']))
+      .where(eq(incidents.source, 'razorpay'))
       .groupBy(incidents.status);
+    const [totalRow] = await this.handle.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(incidents)
+      .where(and(eq(incidents.source, 'razorpay'), gte(incidents.detectedAt, start)));
 
-    const counts = { open: 0, underReview: 0, contained: 0 };
+    const counts = { total: n(totalRow?.count), open: 0, underReview: 0, contained: 0 };
     for (const row of rows) {
       if (row.status === 'open') counts.open = n(row.count);
       if (row.status === 'under_review') counts.underReview = n(row.count);
@@ -118,7 +143,11 @@ export class OverviewService {
 
   private async riskRows(start: Date) {
     return this.handle.db
-      .select({ score: incidents.score, detectedAt: incidents.detectedAt })
+      .select({
+        score: incidents.score,
+        severity: incidents.severity,
+        detectedAt: incidents.detectedAt,
+      })
       .from(incidents)
       .where(and(eq(incidents.source, 'razorpay'), gte(incidents.detectedAt, start)));
   }

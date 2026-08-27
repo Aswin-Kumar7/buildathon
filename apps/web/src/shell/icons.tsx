@@ -6,6 +6,13 @@ import type { ReactNode } from 'react';
  * of paths keeps the bundle honest and the icons never fail to load.
  */
 const PATHS: Record<string, ReactNode> = {
+  attempts: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 9h18" />
+      <path d="M7 14h4" />
+    </>
+  ),
   overview: (
     <>
       <rect width="7" height="7" x="3" y="3" rx="1.5" />

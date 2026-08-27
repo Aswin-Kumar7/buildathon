@@ -3,9 +3,10 @@ import { AuthModule } from '../auth/auth.module.js';
 import { OverviewController } from './overview.controller.js';
 import { OverviewService } from './overview.service.js';
 import { AttemptsModule } from '../attempts/attempts.module.js';
+import { IncidentsModule } from '../incidents/incidents.module.js';
 
 @Module({
-  imports: [AuthModule, AttemptsModule],
+  imports: [AuthModule, AttemptsModule, IncidentsModule],
   controllers: [OverviewController],
   providers: [OverviewService],
 })

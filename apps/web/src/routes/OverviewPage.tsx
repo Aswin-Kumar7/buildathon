@@ -1,18 +1,16 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { Badge, Button, EmptyState, ErrorState, Loading } from '@sentinel/ui';
+import { Badge, EmptyState, ErrorState, Loading } from '@sentinel/ui';
 import {
-  incidentListResponseSchema,
   overviewResponseSchema,
   riskModelMetricsResponseSchema,
   systemHealthResponseSchema,
-  type IncidentListResponse,
   type OverviewResponse,
   type RiskModelMetrics,
   type RiskModelMetricsResponse,
   type SystemHealthResponse,
 } from '@sentinel/contracts';
-import { csrfHeaders } from '../auth/api.js';
+import { useSession } from '../auth/useSession.js';
 import './OverviewPage.css';
 
 async function getJson<T>(path: string, parse: (value: unknown) => T): Promise<T> {
@@ -23,8 +21,6 @@ async function getJson<T>(path: string, parse: (value: unknown) => T): Promise<T
 
 const fetchOverview = (): Promise<OverviewResponse> =>
   getJson('/api/overview?window=24h', (value) => overviewResponseSchema.parse(value));
-const fetchIncidents = (): Promise<IncidentListResponse> =>
-  getJson('/api/incidents', (value) => incidentListResponseSchema.parse(value));
 const fetchModel = (): Promise<RiskModelMetricsResponse> =>
   getJson('/api/model/metrics', (value) => riskModelMetricsResponseSchema.parse(value));
 const fetchSystem = (): Promise<SystemHealthResponse> =>
@@ -76,8 +72,40 @@ function Stat({
   );
 }
 
-function RiskGauge({ risk }: { risk: number }): React.JSX.Element {
-  const current = level(risk);
+function RiskGauge({
+  risk,
+  riskLevel,
+}: {
+  risk: number | null;
+  riskLevel: OverviewResponse['riskLevel'];
+}): React.JSX.Element {
+  if (risk === null) {
+    return (
+      <section className="ov-panel ov-gauge-panel">
+        <div className="ov-panel__title">
+          <h2>Risk level</h2>
+        </div>
+        <div className="ov-gauge ov-gauge--empty" aria-label="No recent risk activity">
+          <svg viewBox="0 0 220 125" role="img" aria-hidden="true">
+            <path className="ov-gauge__track" pathLength="100" d="M25 105 A85 85 0 0 1 195 105" />
+          </svg>
+          <strong>No recent risk activity</strong>
+        </div>
+        <p className="ov-muted">No live incidents in the selected window.</p>
+      </section>
+    );
+  }
+  const current = riskLevel
+    ? {
+        label: riskLevel,
+        tone:
+          riskLevel === 'high'
+            ? ('critical' as const)
+            : riskLevel === 'medium'
+              ? ('warn' as const)
+              : ('ok' as const),
+      }
+    : level(risk);
   const dash = Math.max(8, Math.round(Math.min(risk, 1) * 100));
   return (
     <section className="ov-panel ov-gauge-panel">
@@ -104,8 +132,8 @@ function RiskGauge({ risk }: { risk: number }): React.JSX.Element {
 }
 
 function RiskTrend({ trend }: { trend: OverviewResponse['riskTrend'] }): React.JSX.Element {
-  const points =
-    trend.length > 0 ? trend : [{ at: new Date().toISOString(), events: 0, failures: 0, risk: 0 }];
+  const hasActivity = trend.some((point) => point.events > 0);
+  const points = hasActivity ? trend : [];
   const max = Math.max(...points.map((point) => point.risk), 0.01);
   const coords = points
     .map(
@@ -125,21 +153,25 @@ function RiskTrend({ trend }: { trend: OverviewResponse['riskTrend'] }): React.J
           <option value="7d">Last 7 days</option>
         </select>
       </div>
-      <div className="ov-chart">
+      <div className={`ov-chart${hasActivity ? '' : ' ov-chart--empty'}`}>
         <div className="ov-chart__labels">
           <span>High</span>
           <span>Medium</span>
           <span>Low</span>
         </div>
-        <svg
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          role="img"
-          aria-label="Risk signal trend"
-        >
-          <path className="ov-chart__area" d={`M ${coords} L 100,100 L 0,100 Z`} />
-          <polyline className="ov-chart__line" points={coords} />
-        </svg>
+        {hasActivity ? (
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            role="img"
+            aria-label="Risk signal trend"
+          >
+            <path className="ov-chart__area" d={`M ${coords} L 100,100 L 0,100 Z`} />
+            <polyline className="ov-chart__line" points={coords} />
+          </svg>
+        ) : (
+          <p>No recent activity</p>
+        )}
       </div>
       <div className="ov-chart__axis">
         <span>24h ago</span>
@@ -210,6 +242,63 @@ function RecentEvents({ events }: { events: OverviewResponse['recentEvents'] }):
   );
 }
 
+const incidentTone = (severity: 'low' | 'medium' | 'high'): 'ok' | 'warn' | 'critical' =>
+  severity === 'high' ? 'critical' : severity === 'medium' ? 'warn' : 'ok';
+
+function RecentIncidents({
+  incidents,
+}: {
+  incidents: OverviewResponse['recentIncidents'];
+}): React.JSX.Element {
+  return (
+    <section className="ov-panel ov-recent">
+      <div className="ov-panel__title">
+        <div>
+          <h2>Recent incidents</h2>
+          <p>Correlated suspicious activity · live Razorpay only</p>
+        </div>
+        <Link to="/console/incidents">View all →</Link>
+      </div>
+      {incidents.length === 0 ? (
+        <EmptyState
+          icon="✓"
+          title="No live incidents"
+          description="Incidents will appear when the detector correlates suspicious activity."
+        />
+      ) : (
+        <div className="ov-event-list">
+          {incidents.slice(0, 5).map((incident) => (
+            <Link
+              className="ov-event ov-incident"
+              key={incident.id}
+              to="/console/incidents/$id"
+              params={{ id: incident.id }}
+            >
+              <IconCircle icon="!" tone={incidentTone(incident.severity)} />
+              <div className="ov-event__copy">
+                <strong>{incident.primaryHypothesis.replaceAll('_', ' ')}</strong>
+                <span>
+                  {incident.entityKind} · {incident.observations} observations · score{' '}
+                  {incident.score.toFixed(2)}
+                </span>
+              </div>
+              <Badge tone={incidentTone(incident.severity)} size="sm">
+                {incident.recommendedDecision}
+              </Badge>
+              <time>
+                {new Date(incident.detectedAt).toLocaleDateString([], {
+                  day: '2-digit',
+                  month: 'short',
+                })}
+              </time>
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ProtectionFlow(): React.JSX.Element {
   const steps = [
     ['◈', 'Detect', 'Observe each checkout and Razorpay event'],
@@ -257,7 +346,7 @@ function RiskReasons({
         <Link to="/console/incidents">View all →</Link>
       </div>
       {reasons.length === 0 ? (
-        <p className="ov-muted">No incident reasons recorded yet.</p>
+        <p className="ov-muted">No risk activity detected</p>
       ) : (
         reasons.map((reason) => (
           <div className="ov-reason" key={reason.code}>
@@ -294,7 +383,7 @@ function LiveFooter({
         </strong>
         <span>
           {overview
-            ? `Verified ${overview.eventsAnalyzed} Razorpay events in the last 24 hours.`
+            ? `Verified ${overview.attemptsToday} Razorpay payment attempts in the last 24 hours.`
             : 'Live event data will appear here after the first webhook is received.'}
         </span>
       </div>
@@ -303,41 +392,13 @@ function LiveFooter({
   );
 }
 
-function useAttackSimulation(client: ReturnType<typeof useQueryClient>) {
-  return useMutation({
-    mutationFn: async () => {
-      await fetch('/api/replay', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json', ...csrfHeaders() },
-        body: JSON.stringify({ family: 'attack_loud' }),
-      });
-      await fetch('/api/incidents/evaluate', {
-        method: 'POST',
-        credentials: 'include',
-        headers: csrfHeaders(),
-      });
-    },
-    onSuccess: () => {
-      void client.invalidateQueries({ queryKey: ['incidents'] });
-      void client.invalidateQueries({ queryKey: ['overview'] });
-    },
-  });
-}
-
 // The page is intentionally kept as one composition so the dashboard structure is easy to scan.
 // eslint-disable-next-line max-lines-per-function
 export function OverviewPage(): React.JSX.Element {
-  const client = useQueryClient();
   const overview = useQuery({
     queryKey: ['overview', '24h'],
     queryFn: fetchOverview,
     refetchInterval: 10_000,
-  });
-  const incidents = useQuery({
-    queryKey: ['incidents', 'all', 'all'],
-    queryFn: fetchIncidents,
-    refetchInterval: 15_000,
   });
   const model = useQuery({ queryKey: ['model-metrics'], queryFn: fetchModel });
   const system = useQuery({
@@ -345,9 +406,8 @@ export function OverviewPage(): React.JSX.Element {
     queryFn: fetchSystem,
     refetchInterval: 15_000,
   });
-  const simulate = useAttackSimulation(client);
   const metrics: Honest | null = model.data?.available === true ? model.data.model.honest : null;
-  const activeIncidents = incidents.data?.counts.open ?? 0;
+  const { user } = useSession();
 
   if (overview.isPending)
     return (
@@ -380,6 +440,10 @@ export function OverviewPage(): React.JSX.Element {
           <p>Real-time protection for your Razorpay payments</p>
         </div>
         <div className="ov-hero__right">
+          <button type="button" className="ov-notification" aria-label="Notifications">
+            ♧
+          </button>
+          <span className="ov-merchant">{user?.displayName ?? 'Merchant workspace'}</span>
           <span className="ov-health">
             <i /> {system.data ? 'System healthy' : 'Checking system'}
           </span>
@@ -390,39 +454,45 @@ export function OverviewPage(): React.JSX.Element {
               minute: '2-digit',
             })}
           </span>
-          <Button icon="⚡" onClick={() => simulate.mutate()} disabled={simulate.isPending}>
-            {simulate.isPending ? 'Running…' : 'Run simulation'}
-          </Button>
         </div>
       </header>
       <div className="ov-stats">
         <Stat
           icon="✦"
           tone="accent"
-          label="Protected today"
-          value={data.eventsAnalyzed}
-          hint="events analyzed"
+          label="Attempts today"
+          value={data.attemptsToday}
+          hint="payment attempts"
         />
         <Stat
           icon="−"
           tone="critical"
-          label="Blocked"
+          label="Active containments"
           value={data.contained}
           hint="active protections"
         />
         <Stat
           icon="◷"
           tone="warn"
-          label="Under review"
-          value={data.underReview}
+          label="Incidents needing review"
+          value={data.activeIncidents}
           hint="waiting for review"
         />
-        <Stat icon="✓" tone="ok" label="Safe" value={data.safe} hint="no failure signal" />
-        <RiskGauge risk={risk} />
+        <Stat
+          icon="✓"
+          tone="ok"
+          label="Total incidents"
+          value={data.totalIncidents}
+          hint="in selected window"
+        />
+        <RiskGauge risk={risk} riskLevel={data.riskLevel} />
       </div>
       <div className="ov-main-grid">
         <RiskTrend trend={data.riskTrend} />
         <RecentEvents events={data.recentEvents} />
+      </div>
+      <div className="ov-case-grid">
+        <RecentIncidents incidents={data.recentIncidents} />
       </div>
       <div className="ov-lower-grid">
         <ProtectionFlow />
@@ -439,7 +509,7 @@ export function OverviewPage(): React.JSX.Element {
           </div>
           <div className="ov-insight__stats">
             <span>
-              <b>{activeIncidents}</b> active incidents
+              <b>{data.activeIncidents}</b> active incidents
             </span>
             <span>
               <b>{metrics ? pct(metrics.recall.point) : '—'}</b> model recall
