@@ -14,15 +14,17 @@ const STOREFRONT = 'http://localhost:5174';
 test.describe('storefront', () => {
   test('renders the catalogue from the api', async ({ page }) => {
     await page.goto(STOREFRONT);
-    await expect(page.getByRole('heading', { level: 1, name: 'Brew & Co' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Brew & Co' })).toBeVisible();
     await expect(page.getByText('Electric kettle')).toBeVisible();
     await expect(page.getByText('₹1,499.00')).toBeVisible();
   });
 
-  test('says plainly that it is the sensor, not the product', async ({ page }) => {
+  test('says plainly that card details never reach it, and that Sentinel watches', async ({
+    page,
+  }) => {
     await page.goto(STOREFRONT);
-    await expect(page.getByText(/generate payment events/i)).toBeVisible();
-    await expect(page.getByText(/never reach this application/i)).toBeVisible();
+    await expect(page.getByText(/Protected by Sentinel/i)).toBeVisible();
+    await expect(page.getByText(/never here/i)).toBeVisible();
   });
 
   test('will not check out an empty cart', async ({ page }) => {
@@ -34,12 +36,13 @@ test.describe('storefront', () => {
     await page.goto(STOREFRONT);
     await expect(page.getByText('Electric kettle')).toBeVisible();
 
-    const add = page.getByRole('button', { name: 'Add one Electric kettle' });
-    await add.click();
-    await add.click();
+    // The first add turns the tile into a quantity stepper; subsequent adds use it.
+    await page.getByRole('button', { name: 'Add Electric kettle to cart' }).click();
+    await page.getByRole('button', { name: 'Add one Electric kettle' }).click();
 
-    await expect(page.getByText('₹2,998.00')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Pay with Razorpay' })).toBeEnabled();
+    const pay = page.getByRole('button', { name: 'Pay with Razorpay' });
+    await expect(pay).toContainText('₹2,998.00');
+    await expect(pay).toBeEnabled();
 
     const remove = page.getByRole('button', { name: 'Remove one Electric kettle' });
     await remove.click();

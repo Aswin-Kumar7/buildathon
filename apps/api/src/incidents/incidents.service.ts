@@ -45,6 +45,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { performance } from 'node:perf_hooks';
 import { ModelScoringService } from '../model-scoring/model-scoring.service.js';
 import { LoadService } from '../system/load.service.js';
+import { AttemptsService } from '../attempts/attempts.service.js';
 
 /** Entity kinds evaluated on every pass. An attacker rotating one is caught by another. */
 const KINDS: readonly EntityKind[] = ['session', 'device', 'network'];
@@ -74,6 +75,7 @@ export class IncidentsService {
     private readonly audit: AuditService,
     private readonly scoring: ModelScoringService,
     private readonly load: LoadService,
+    private readonly attempts: AttemptsService,
   ) {}
 
   /**
@@ -84,6 +86,8 @@ export class IncidentsService {
    * only because of the order events happened to be processed in is an incident nobody can
    * explain. Cheap enough at this scale to prefer the version that can be re-run.
    */
+  // The orchestration intentionally owns the full decision lifecycle in one pass.
+  // eslint-disable-next-line complexity
   async evaluate(source: Source = 'all'): Promise<EvaluateResponse> {
     const hash = thresholdHash();
     let evaluated = 0;
@@ -150,13 +154,20 @@ export class IncidentsService {
       // since explained itself says so rather than going stale.
       const decided = IncidentsService.decide(arbitration, opinion);
       const wanted = decided === null || ['contain', 'review'].includes(decided.decision);
-      if (!wanted && !(await this.exists(computed.key))) continue;
+      const exactExists = await this.exists(computed.key);
+      if (!wanted && !exactExists) continue;
+
+      const eventSource = provenance.get(computed.entityKey) ?? 'razorpay';
+      // Re-evaluations can see the same burst through a different correlation key. Preserve the
+      // first canonical incident instead of adding a second row merely because its entity view
+      // changed between passes.
+      if (!exactExists && (await this.hasSameActivity(computed, eventSource))) continue;
 
       const wrote = await this.upsert(
         computed,
         change,
         hash,
-        provenance.get(computed.entityKey) ?? 'razorpay',
+        eventSource,
         decided,
         opinion,
         vector === undefined ? null : IncidentsService.featuresObject(vector, traffic),
@@ -166,17 +177,25 @@ export class IncidentsService {
     }
 
     // The model on its own — the pass that lets it raise a case the rules never opened.
-    const flaggedResult = await this.raiseModelFlagged({
-      vectors,
-      traffic,
-      handled,
-      ruleIncidents,
-      scored,
-      change,
-      hash,
-      provenance,
-      asOf,
-    });
+    // Replay already has a deterministic attack fixture and the rule/arbitration path gives it
+    // an explainable case. Keep the model-only rescue pass for live traffic; otherwise a replay
+    // can create a second row for the same synthetic burst when its entity-level counts differ
+    // slightly across session/device/network views. The model still scores warranted replay
+    // incidents in the loop above.
+    const flaggedResult =
+      source === 'replay'
+        ? { opened: 0, updated: 0 }
+        : await this.raiseModelFlagged({
+            vectors,
+            traffic,
+            handled,
+            ruleIncidents,
+            scored,
+            change,
+            hash,
+            provenance,
+            asOf,
+          });
     opened += flaggedResult.opened;
     updated += flaggedResult.updated;
 
@@ -243,6 +262,11 @@ export class IncidentsService {
       const entry = flagged.get(entityId);
       const vector = vectors.get(entityId);
       if (entry === undefined || vector === undefined) continue;
+      const source = provenance.get(kept.entityKey) ?? 'razorpay';
+      // A replay or a live burst may be evaluated more than once. The rule tier deduplicates
+      // the current pass, but a previous pass may already have persisted the same activity under
+      // another correlation key. Do not let the model-only pass create a second queue row for it.
+      if (await this.hasSameActivity(kept, source)) continue;
       const base = arbitrate(vector, traffic);
       // The model may raise a case the rules missed — but not over a confident benign explanation.
       // A binary risk score cannot tell a busy-but-innocent entity from an attack; the arbitration
@@ -258,7 +282,7 @@ export class IncidentsService {
         kept,
         change,
         hash,
-        provenance.get(kept.entityKey) ?? 'razorpay',
+        source,
         decided,
         entry.opinion,
         IncidentsService.featuresObject(vector, traffic),
@@ -268,6 +292,24 @@ export class IncidentsService {
     }
 
     return { opened, updated };
+  }
+
+  private async hasSameActivity(incident: ComputedIncident, source: EventSource): Promise<boolean> {
+    const existing = await this.handle.db
+      .select({
+        firstAttemptAt: incidents.firstAttemptAt,
+        lastActivityAt: incidents.lastActivityAt,
+        observations: incidents.observations,
+      })
+      .from(incidents)
+      .where(eq(incidents.source, source));
+
+    return existing.some(
+      (row) =>
+        row.firstAttemptAt.getTime() === incident.firstAttemptAt &&
+        row.lastActivityAt.getTime() === incident.lastActivityAt &&
+        row.observations === incident.observations,
+    );
   }
 
   /**
@@ -582,6 +624,13 @@ export class IncidentsService {
       label: row.label ?? null,
       labelSource: row.labelSource ?? null,
       thresholdHash: row.thresholdHash,
+      relatedOrders: await this.attempts.listForEntity({
+        entityKind: row.entityKind as 'session' | 'device' | 'network',
+        entityKey: row.entityKey,
+        source: row.source as 'razorpay' | 'replay',
+        from: row.firstAttemptAt.getTime(),
+        to: row.lastActivityAt.getTime(),
+      }),
       history: history.map((entry) => ({
         from: entry.from,
         to: entry.to,
@@ -664,6 +713,11 @@ export class IncidentsService {
       firstAttemptAt: row.firstAttemptAt.getTime(),
       score: { evidence: row.evidence },
     } as unknown as ComputedIncident;
+    const arbitration = row.arbitration as {
+      best?: IncidentSummary['primaryHypothesis'];
+      decision?: IncidentSummary['recommendedDecision'];
+    } | null;
+    const features = row.features as { attempts?: number; failures?: number } | null;
 
     return {
       id: row.id,
@@ -684,6 +738,10 @@ export class IncidentsService {
       observations: row.observations,
       source: row.source,
       firedRules: firedRules(computed),
+      recommendedDecision: arbitration?.decision ?? 'none',
+      primaryHypothesis: arbitration?.best ?? 'insufficient_evidence',
+      attempts: features?.attempts ?? row.observations,
+      failures: features?.failures ?? 0,
     };
   }
 }

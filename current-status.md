@@ -2,8 +2,10 @@
 
 Single source of truth for where Sentinel actually stands. Updated with every change.
 
-**Last updated:** 2026-08-26
-**Current work:** ML redesign (one deployed card-testing risk model) is done — Gates 1–4 shipped in
+**Last updated:** 2026-08-27
+**Current work:** The live transaction-risk slice is now wired — real webhook processing triggers
+detection, the Overview reads Razorpay-only activity, and checkout creation returns an explainable
+pre-checkout risk signal. ML redesign (one deployed card-testing risk model) is done — Gates 1–4 shipped in
 `v0.16.0`/`v0.16.1` (hardened corpus; binary P(abuse) risk model measured on the *deployed* model;
 request-path rewire with a benign veto and /24 train/serve alignment; retraining seam per ADR-0004).
 **Now: a full UI redesign** — a Razorpay-inspired design system (elevated tokens + a real component
@@ -12,7 +14,7 @@ scattered dev pages folded into Settings → Diagnostics), a proper Overview das
 Incidents queue + case view (with the confirm-abuse / false-positive verdict feeding retraining), a
 tabbed Risk & Model page, a marketing Landing, and a real "Brew & Co" storefront — all on one visual
 system.
-**Latest tag:** `v0.16.1` → `v0.17.0` (UI redesign) pending
+**Latest tag:** `v0.16.1` → `v0.17.0` (UI redesign and connected simulation) pending
 
 ## Slice progress
 
@@ -83,6 +85,66 @@ number that makes them real.
 **Storefront** — "Brew & Co", a four-item shop on its own origin. Cart, optional email,
 and a Razorpay hosted-checkout button. It exists to be the **sensor**: card details are
 entered inside Razorpay's iframe and never touch our code, and the page says so.
+
+**Live transaction risk and Overview** — `GET /api/overview?window=24h` aggregates canonical
+Razorpay events, captured/failed outcomes, active incidents, recent event activity and top incident
+reason codes. The Overview refreshes this data every 10 seconds and keeps replay traffic out of the
+live view. The inbox drain schedules a debounced `evaluate('razorpay')` pass after real events are
+canonicalised, so real webhook activity now reaches features, rules, arbitration and the deployed
+model without clicking a simulation button.
+
+`POST /api/orders` also returns a `riskAssessment` generated before the Razorpay order is opened.
+It uses only information available at checkout time: session, device and `/24` network velocity,
+connected sessions sharing that network, and amount deviation from the recent baseline. The result
+is advisory (`allow` or `review`) and explainable; it does not pretend that post-webhook card data
+was available before payment and it does not autonomously refuse a shopper.
+
+This is a bounded relationship-graph first step without Neo4j: existing pseudonymised checkout
+records are treated as session/device/network edges and queried from Postgres. A persisted graph
+projection and transaction-risk history remain future work.
+
+Replay now drains every replay batch and runs replay-scoped detection before returning. Its response
+includes detection counts, and the Simulation page directs the merchant to Incidents with the result.
+Incident list rows also carry the primary hypothesis, recommended decision, and attempt/failure counts
+from the stored feature snapshot, so the queue separates risk type from lifecycle status and merchant
+action. Incident detail now resolves related canonical orders and payment attempts through the
+incident's session/device/network pseudonym and time range, so an analyst can move from an episode
+to the payment history that produced it.
+
+The Policy page now has a guided candidate builder for thresholds, containment, approval and caps.
+It generates a complete validated candidate for dry-run impact simulation; the advanced YAML editor
+remains available for the full document. The current policy is still repository-backed and cannot be
+published from the console.
+
+**Verified storefront-to-console flow** — the frontend is built through the real payment handoff:
+
+1. The anonymous storefront loads its server-priced catalog and keeps a stable pseudonymous
+   `clientSessionId` in session storage.
+2. Checkout sends only line items, email, and the session/device/network context to `POST /api/orders`;
+   the server calculates the amount, runs the advisory pre-check, records the context, and creates
+   the Razorpay test order.
+3. The storefront opens Razorpay Checkout in its hosted iframe. Card data stays inside Razorpay and
+   the app receives only the checkout result.
+4. Razorpay posts the signed raw webhook to `/api/webhooks/razorpay`. The API verifies HMAC, encrypts
+   and commits the inbox row, then acknowledges it.
+5. The in-process drain redacts the event into canonical state and schedules live detection. Features,
+   rules, arbitration, and the deployed binary model evaluate real Razorpay traffic.
+6. The protected console polls `/api/overview?window=24h`, showing live aggregates, trend, recent
+   events, reasons, and active incidents while keeping replay traffic separate.
+
+The storefront UI, order handoff, error states, and checkout-result states are covered by unit tests;
+the hosted Razorpay iframe and an externally delivered webhook still require Razorpay test credentials
+and a public HTTPS/tunnel endpoint for manual end-to-end verification.
+
+**Current architecture after the overview redesign** — three frontend surfaces share the contracts
+package but keep their security boundaries separate: the public storefront on port 5174, the
+authenticated analyst console on port 5173, and the NestJS API on port 3001. The API is layered as
+orders/context → webhook inbox/drain → canonical events → feature computation → rules/model/arbitration
+→ incidents/audit → read models for the console. PGlite is the free local fallback; Supabase/Postgres
+is the real-server driver. No AWS-managed service is required: Postgres is the source of truth, and
+the API supports an in-process timer for local demo or a separate `start:worker` process for Azure.
+The existing tile/sketch code is the seam for a future Redis or
+streaming implementation.
 
 **Ingestion** — the transactional inbox. A delivery is verified, encrypted, inserted and
 committed *before* it is acknowledged; a worker then derives the redacted canonical event,
@@ -991,9 +1053,13 @@ which has always counted them apart.
   against real Postgres, serving the console and answering the API — so what remains
   untested is the image build, not the thing it builds.
 - The Supabase password was pasted into a chat log and should be rotated.
-- `RAZORPAY_WEBHOOK_SECRET` is still empty, so the webhook endpoint refuses every delivery
-  and the health page says so. The machinery is proven with a locally generated secret;
-  what is missing is a delivery that originated from Razorpay.
+- `RAZORPAY_WEBHOOK_SECRET` is configured in the local `.env`, and the webhook machinery is
+  proven with a locally generated secret. What is missing is a delivery that originated from
+  Razorpay. A deployment must set the same secret in its platform configuration.
+- On this Windows development environment, Node needed `NODE_USE_SYSTEM_CA=1` to trust the
+  machine's corporate/proxy certificate when calling Razorpay. Without it, order creation
+  surfaced as `Could not reach Razorpay` even though the Razorpay test credentials were valid.
+  This is a local process setting, not an application-level TLS bypass.
 - No public HTTPS endpoint yet, so Razorpay has nowhere to deliver to. A tunnel covers
   local verification; Cloud Run is the real answer.
 - **Schema changes are applied as idempotent DDL, not migrations.** `CREATE TABLE IF NOT

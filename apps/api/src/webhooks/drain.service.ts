@@ -5,6 +5,7 @@ import { DB } from '../db/db.module.js';
 import { loadEnv } from '../config/env.js';
 import { open, toKey, type SealedPayload } from '../telemetry/envelope.js';
 import { toCanonical, webhookEnvelopeSchema } from './redact.js';
+import { IncidentsService } from '../incidents/incidents.service.js';
 
 export interface DrainReport {
   claimed: number;
@@ -31,9 +32,14 @@ export interface DrainReport {
 export class DrainService implements OnModuleDestroy {
   private readonly env = loadEnv();
   private timer: NodeJS.Timeout | undefined;
+  private evaluationTimer: NodeJS.Timeout | undefined;
+  private evaluating = false;
   private running = false;
 
-  constructor(@Inject(DB) private readonly handle: DbHandle) {}
+  constructor(
+    @Inject(DB) private readonly handle: DbHandle,
+    private readonly incidents: IncidentsService,
+  ) {}
 
   /**
    * Started explicitly rather than on module init. A timer that starts itself runs during
@@ -53,6 +59,8 @@ export class DrainService implements OnModuleDestroy {
   stop(): void {
     if (this.timer !== undefined) clearTimeout(this.timer);
     this.timer = undefined;
+    if (this.evaluationTimer !== undefined) clearTimeout(this.evaluationTimer);
+    this.evaluationTimer = undefined;
   }
 
   onModuleDestroy(): void {
@@ -64,7 +72,8 @@ export class DrainService implements OnModuleDestroy {
     if (this.running) return;
     this.running = true;
     try {
-      await this.drainOnce();
+      const report = await this.drainOnce();
+      if (report.processed > 0) this.scheduleEvaluation();
     } catch (error) {
       console.warn('drain: pass failed', error instanceof Error ? error.message : error);
     } finally {
@@ -72,11 +81,39 @@ export class DrainService implements OnModuleDestroy {
     }
   }
 
-  async drainOnce(): Promise<DrainReport> {
+  /** Coalesce a burst of webhooks into one pass so detection is live without evaluating once per event. */
+  private scheduleEvaluation(): void {
+    if (this.evaluationTimer !== undefined) return;
+    this.evaluationTimer = setTimeout(() => {
+      this.evaluationTimer = undefined;
+      void this.runEvaluation();
+    }, 1_000);
+    this.evaluationTimer.unref();
+  }
+
+  private async runEvaluation(): Promise<void> {
+    if (this.evaluating) return;
+    this.evaluating = true;
+    try {
+      await this.incidents.evaluate('razorpay');
+    } catch (error) {
+      // The inbox remains durable and will be evaluated again after the next event. A detector
+      // failure must not turn a successfully acknowledged webhook into a lost payment event.
+      console.warn('detection: pass failed', error instanceof Error ? error.message : error);
+    } finally {
+      this.evaluating = false;
+    }
+  }
+
+  async drainOnce(source?: 'razorpay' | 'replay'): Promise<DrainReport> {
     const pending = await this.handle.db
       .select()
       .from(inboxEvents)
-      .where(eq(inboxEvents.status, 'pending'))
+      .where(
+        source === undefined
+          ? eq(inboxEvents.status, 'pending')
+          : and(eq(inboxEvents.status, 'pending'), eq(inboxEvents.source, source)),
+      )
       .orderBy(asc(inboxEvents.receivedAt))
       .limit(this.env.INBOX_BATCH_SIZE);
 

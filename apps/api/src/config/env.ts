@@ -98,6 +98,9 @@ const envSchema = z.object({
   /** Drain tick. Zero disables the timer, which is what the tests want. */
   INBOX_DRAIN_INTERVAL_MS: z.coerce.number().int().nonnegative().default(1000),
 
+  /** Set false on the HTTP deployment when a separate `start:worker` process is used. */
+  INBOX_WORKER_ENABLED: envBoolean('true'),
+
   /** Rows per drain pass. Bounded so one pass cannot occupy the process indefinitely. */
   INBOX_BATCH_SIZE: z.coerce.number().int().positive().default(50),
 });
@@ -118,6 +121,23 @@ const envSchemaChecked = envSchema.superRefine((env, ctx) => {
       code: z.ZodIssueCode.custom,
       path: ['DATABASE_URL'],
       message: 'DATABASE_URL is required in production — embedded Postgres is not durable',
+    });
+  }
+
+  if (env.RAZORPAY_WEBHOOK_SECRET === undefined || env.RAZORPAY_WEBHOOK_SECRET === '') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['RAZORPAY_WEBHOOK_SECRET'],
+      message:
+        'RAZORPAY_WEBHOOK_SECRET is required in production — live webhooks must be authenticated',
+    });
+  }
+
+  if (env.PAYLOAD_KEY_V1 === undefined || env.PAYLOAD_KEY_V1 === '') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['PAYLOAD_KEY_V1'],
+      message: 'PAYLOAD_KEY_V1 is required in production — webhook payloads must be encrypted',
     });
   }
 });

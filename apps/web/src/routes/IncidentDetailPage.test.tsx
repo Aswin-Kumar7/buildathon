@@ -33,6 +33,10 @@ function detail(overrides: Partial<IncidentDetail> = {}): IncidentDetail {
     observations: 3,
     source: 'razorpay',
     firedRules: ['card_spread'],
+    recommendedDecision: 'review',
+    primaryHypothesis: 'attack',
+    attempts: 3,
+    failures: 3,
     evidence: [
       {
         rule: 'card_spread',
@@ -65,6 +69,7 @@ function detail(overrides: Partial<IncidentDetail> = {}): IncidentDetail {
     labelSource: null,
     thresholdHash: 'a1b2c3d4',
     history: [],
+    relatedOrders: [],
     ...overrides,
   };
 }

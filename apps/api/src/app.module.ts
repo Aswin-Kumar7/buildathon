@@ -18,6 +18,7 @@ import { AuditModule } from './audit/audit.module.js';
 import { ModelMetricsModule } from './model-metrics/model-metrics.module.js';
 import { ModelScoringModule } from './model-scoring/model-scoring.module.js';
 import { ZodExceptionFilter } from './common/zod-exception.filter.js';
+import { OverviewModule } from './overview/overview.module.js';
 
 // The filter is registered here rather than in main.ts so tests boot the same wiring the
 // server does. A guard or filter that exists only in the bootstrap path is one the suite
@@ -41,6 +42,7 @@ import { ZodExceptionFilter } from './common/zod-exception.filter.js';
     AuditModule,
     ModelMetricsModule,
     ModelScoringModule,
+    OverviewModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: ZodExceptionFilter }],
 })

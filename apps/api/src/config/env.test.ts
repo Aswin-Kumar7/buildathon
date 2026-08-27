@@ -58,7 +58,13 @@ describe('loadEnv', () => {
   });
 
   it('does not seed them in production unless asked', () => {
-    const production = { ...minimal, NODE_ENV: 'production', DATABASE_URL: 'postgres://x/y' };
+    const production = {
+      ...minimal,
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgres://x/y',
+      RAZORPAY_WEBHOOK_SECRET: 'whsec_test',
+      PAYLOAD_KEY_V1: 'y'.repeat(64),
+    };
     expect(loadEnv(production).SEED_DEMO_USERS).toBe(false);
     expect(loadEnv({ ...production, SEED_DEMO_USERS: 'true' }).SEED_DEMO_USERS).toBe(true);
   });

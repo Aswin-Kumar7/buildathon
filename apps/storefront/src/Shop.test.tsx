@@ -10,6 +10,21 @@ const catalog = {
   ],
 };
 
+const riskAssessment = {
+  score: 0,
+  band: 'low',
+  decision: 'allow',
+  basis: 'pre_checkout',
+  reasons: ['no_elevated_pre_checkout_signal'],
+  signals: {
+    sessionAttempts: 0,
+    deviceAttempts: 0,
+    networkAttempts: 0,
+    connectedSessions: 0,
+    recentFailures: 0,
+  },
+};
+
 const openCheckout = vi.hoisted(() => vi.fn());
 vi.mock('./checkout.js', () => ({ openCheckout }));
 
@@ -30,6 +45,7 @@ function stubFetch(orderHandler?: (body: unknown) => Response | Promise<Response
             amountPaise: 49_900,
             currency: 'INR',
             razorpayKeyId: 'rzp_test_key',
+            riskAssessment,
           }),
         } as unknown as Response;
       }
@@ -92,6 +108,7 @@ describe('Shop', () => {
           amountPaise: 49_900,
           currency: 'INR',
           razorpayKeyId: 'rzp_test_key',
+          riskAssessment,
         }),
       } as unknown as Response;
     });
@@ -121,6 +138,7 @@ describe('Shop', () => {
           amountPaise: 49_900,
           currency: 'INR',
           razorpayKeyId: 'rzp_test_key',
+          riskAssessment,
         }),
       } as unknown as Response;
     });

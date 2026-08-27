@@ -51,6 +51,7 @@ function stub(
           eventsWritten: 67,
           checkoutsWritten: 63,
           duplicatesSkipped: 0,
+          detection: { evaluated: 189, opened: 1, updated: 0, expired: 0 },
         }),
       } as unknown as Response;
     }

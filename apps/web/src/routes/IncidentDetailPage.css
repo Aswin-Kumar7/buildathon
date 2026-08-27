@@ -191,6 +191,43 @@
   color: var(--s-ink-3);
   text-align: center;
 }
+
+.detail-attempts {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.detail-attempts__link,
+.attempts-filter a {
+  color: var(--s-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.detail-attempts__link:hover,
+.attempts-filter a:hover {
+  text-decoration: underline;
+}
+
+.detail-attempt {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius-md);
+  background: var(--s-surface-subtle);
+}
+
+.detail-attempt > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.detail-attempt__meta {
+  color: var(--s-text-muted);
+  font-size: 0.82rem;
+}
 .detail-thresh code,
 .detail-label code {
   font-family: var(--s-mono);
@@ -224,5 +261,84 @@
   }
   .detail-side {
     position: static;
+  }
+}
+.decision-rail {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+}
+
+.decision-rail > div {
+  display: grid;
+  gap: var(--s-1);
+  padding: var(--s-3);
+  border-right: 1px solid var(--s-line);
+}
+
+.decision-rail > div:first-child {
+  padding-left: 0;
+}
+
+.decision-rail > div:last-child {
+  border-right: 0;
+  padding-right: 0;
+}
+
+.decision-rail span {
+  color: var(--s-ink-2);
+  font-size: var(--s-text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.decision-rail strong {
+  color: var(--s-ink);
+  font-size: var(--s-text-sm);
+}
+
+.decision-rail small {
+  color: var(--s-ink-2);
+  line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+  .decision-rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .decision-rail > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .decision-rail > div:nth-child(3),
+  .decision-rail > div:nth-child(4) {
+    border-top: 1px solid var(--s-line);
+  }
+
+  .decision-rail > div:nth-child(3) {
+    padding-left: 0;
+  }
+
+  .decision-rail > div:nth-child(4) {
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .decision-rail {
+    grid-template-columns: 1fr;
+  }
+
+  .decision-rail > div,
+  .decision-rail > div:nth-child(3) {
+    border-right: 0;
+    border-top: 1px solid var(--s-line);
+    padding: var(--s-3) 0;
+  }
+
+  .decision-rail > div:first-child {
+    border-top: 0;
+    padding-top: 0;
   }
 }

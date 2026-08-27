@@ -145,7 +145,9 @@ export function ScenariosPage(): React.JSX.Element {
             {run.data.eventsWritten} events and {run.data.checkoutsWritten} checkouts written
             {run.data.duplicatesSkipped > 0 &&
               `, ${run.data.duplicatesSkipped} already present and skipped`}
-            . Open <strong>Attempts</strong> to see them resolved.
+            . Detection evaluated {run.data.detection.evaluated} entities, opened{' '}
+            {run.data.detection.opened} incidents, and updated {run.data.detection.updated}. Open{' '}
+            <strong>Incidents</strong> to review the decision and take action.
           </p>
         </Callout>
       )}

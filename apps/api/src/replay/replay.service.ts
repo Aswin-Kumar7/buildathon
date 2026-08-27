@@ -3,13 +3,22 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { eq, sql } from 'drizzle-orm';
-import { canonicalEvents, checkoutSessions, inboxEvents, type DbHandle } from '@sentinel/db';
+import {
+  canonicalEvents,
+  checkoutSessions,
+  inboxEvents,
+  incidents,
+  type DbHandle,
+} from '@sentinel/db';
 import { SCENARIO_FAMILIES, type GeneratedScenario, type ScenarioFamily } from '@sentinel/corpus';
 import { DB } from '../db/db.module.js';
 import { loadEnv } from '../config/env.js';
 import { seal, toKey } from '../telemetry/envelope.js';
 import { pseudonymise, pseudonymiseIp } from '../telemetry/pseudonym.js';
 import { toEventTime, webhookEnvelopeSchema } from '../webhooks/redact.js';
+import { DrainService } from '../webhooks/drain.service.js';
+import { IncidentsService } from '../incidents/incidents.service.js';
+import type { EvaluateResponse } from '@sentinel/contracts';
 
 /**
  * Whether replay may run at all.
@@ -32,6 +41,7 @@ export interface ReplayResult {
   checkoutsWritten: number;
   eventsWritten: number;
   duplicatesSkipped: number;
+  detection: EvaluateResponse;
 }
 
 /**
@@ -50,7 +60,11 @@ export interface ReplayResult {
 export class ReplayService {
   private readonly env = loadEnv();
 
-  constructor(@Inject(DB) private readonly handle: DbHandle) {}
+  constructor(
+    @Inject(DB) private readonly handle: DbHandle,
+    private readonly drain: DrainService,
+    private readonly incidents: IncidentsService,
+  ) {}
 
   private get pseudonymConfig() {
     return { key: this.env.PSEUDONYM_KEY_V1, version: this.env.PSEUDONYM_KEY_VERSION };
@@ -143,7 +157,18 @@ export class ReplayService {
       else duplicatesSkipped += 1;
     }
 
-    return { family, checkoutsWritten, eventsWritten, duplicatesSkipped };
+    // A replay is not complete when rows merely exist in the inbox. Process only this
+    // synthetic source immediately, then evaluate it, so the button has a truthful
+    // end-to-end result and the Incidents page is populated before the response returns.
+    // Drain the complete replay, not just one worker batch. Evaluating a partial burst would
+    // create an incident for the prefix and a second incident when the remaining events arrive.
+    for (;;) {
+      const report = await this.drain.drainOnce('replay');
+      if (report.claimed === 0) break;
+    }
+    const detection = await this.incidents.evaluate('replay');
+
+    return { family, checkoutsWritten, eventsWritten, duplicatesSkipped, detection };
   }
 
   /**
@@ -155,6 +180,11 @@ export class ReplayService {
   async clear(): Promise<{ removed: number }> {
     assertReplayAllowed(this.env.NODE_ENV);
 
+    const removedIncidents = await this.handle.db
+      .delete(incidents)
+      .where(eq(incidents.source, 'replay'))
+      .returning();
+
     const events = await this.handle.db
       .delete(inboxEvents)
       .where(eq(inboxEvents.source, 'replay'))
@@ -162,7 +192,7 @@ export class ReplayService {
 
     await this.handle.db.delete(checkoutSessions).where(eq(checkoutSessions.source, 'replay'));
 
-    return { removed: events.length };
+    return { removed: events.length + removedIncidents.length };
   }
 
   /** Counts by source, so the console can say what is real and what is not. */

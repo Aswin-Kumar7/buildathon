@@ -51,7 +51,7 @@ async function bootstrap(): Promise<void> {
 
   // Started after the app is wired but before it listens, so no request can arrive while
   // the inbox is unattended.
-  app.get(DrainService).start();
+  if (env.INBOX_WORKER_ENABLED) app.get(DrainService).start();
 
   const servingConsole = serveConsole(app);
   const port = resolvePort(env);

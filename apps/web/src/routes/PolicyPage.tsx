@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Badge, Button, Callout, Card, PageHeader } from '@sentinel/ui';
 import {
@@ -18,6 +18,168 @@ async function fetchPolicy(): Promise<PolicyResponse> {
 }
 
 const pct = (value: number): string => `${Math.round(value * 100)}%`;
+
+type PolicyDraft = {
+  stepUp: number;
+  contain: number;
+  defaultMinutes: number;
+  maxMinutes: number;
+  dualApprovalAbovePaise: number;
+  maxActiveContainments: number;
+  killSwitch: boolean;
+};
+
+const yaml = (policy: PolicyResponse, draft: PolicyDraft): string => `version: ${policy.version + 1}
+killSwitch: ${draft.killSwitch}
+thresholds:
+  stepUp: ${draft.stepUp}
+  contain: ${draft.contain}
+containment:
+  defaultMinutes: ${draft.defaultMinutes}
+  maxMinutes: ${draft.maxMinutes}
+  maxExtensions: ${policy.containment.maxExtensions}
+approval:
+  dualApprovalAbovePaise: ${draft.dualApprovalAbovePaise}
+  containmentAlwaysNeedsApproval: ${policy.approval.containmentAlwaysNeedsApproval}
+impactCaps:
+  maxActiveContainments: ${draft.maxActiveContainments}
+  maxContainmentsPerHour: ${policy.impactCaps.maxContainmentsPerHour}
+  maxShareOfActiveSessions: ${policy.impactCaps.maxShareOfActiveSessions}
+  shareAppliesAboveSessions: ${policy.impactCaps.shareAppliesAboveSessions}
+allowlist:
+  sessions: []
+  devices: []
+  networks: []
+degradation:
+  maxFeatureAgeMinutes: ${policy.degradation.maxFeatureAgeMinutes}
+  requireConfirmedCounts: ${policy.degradation.requireConfirmedCounts}
+  refuseWhenArbitrationAbstained: ${policy.degradation.refuseWhenArbitrationAbstained}
+costs:
+  chargebackPaise: ${policy.costs.chargebackPaise}
+  blockedShopperPaise: ${policy.costs.blockedShopperPaise}
+  reviewPaise: ${policy.costs.reviewPaise}
+`;
+
+// The builder keeps the policy controls and their safety copy together for a merchant review.
+// eslint-disable-next-line max-lines-per-function
+function Builder({
+  policy,
+  draft,
+  onChange,
+  onSimulate,
+  pending,
+}: {
+  policy: PolicyResponse;
+  draft: PolicyDraft;
+  onChange: (next: PolicyDraft) => void;
+  onSimulate: (source: string) => void;
+  pending: boolean;
+}): React.JSX.Element {
+  const update = (key: keyof PolicyDraft, value: string | boolean): void => {
+    onChange({ ...draft, [key]: typeof value === 'boolean' ? value : Number(value) });
+  };
+
+  return (
+    <Card>
+      <header className="policy-builder__head">
+        <div>
+          <h2>Build a candidate policy</h2>
+          <p>
+            Adjust the controls merchants actually reason about, then preview the impact on recorded
+            incidents. This creates no live policy and takes no action.
+          </p>
+        </div>
+        <Badge tone="info">draft v{policy.version + 1}</Badge>
+      </header>
+      <div className="policy-builder">
+        <label>
+          <span>Step-up score</span>
+          <input
+            type="number"
+            min="0"
+            max="1"
+            step="0.01"
+            value={draft.stepUp}
+            onChange={(e) => update('stepUp', e.target.value)}
+          />
+          <small>Ask for another factor above this attack-support score.</small>
+        </label>
+        <label>
+          <span>Contain score</span>
+          <input
+            type="number"
+            min="0"
+            max="1"
+            step="0.01"
+            value={draft.contain}
+            onChange={(e) => update('contain', e.target.value)}
+          />
+          <small>Propose containment above this score; approval is still required.</small>
+        </label>
+        <label>
+          <span>Default containment (minutes)</span>
+          <input
+            type="number"
+            min="1"
+            value={draft.defaultMinutes}
+            onChange={(e) => update('defaultMinutes', e.target.value)}
+          />
+        </label>
+        <label>
+          <span>Maximum containment (minutes)</span>
+          <input
+            type="number"
+            min="1"
+            value={draft.maxMinutes}
+            onChange={(e) => update('maxMinutes', e.target.value)}
+          />
+        </label>
+        <label>
+          <span>Dual approval above (₹)</span>
+          <input
+            type="number"
+            min="0"
+            value={draft.dualApprovalAbovePaise / 100}
+            onChange={(e) => update('dualApprovalAbovePaise', String(Number(e.target.value) * 100))}
+          />
+          <small>High-impact containment needs two distinct reviewers.</small>
+        </label>
+        <label>
+          <span>Active containment cap</span>
+          <input
+            type="number"
+            min="0"
+            value={draft.maxActiveContainments}
+            onChange={(e) => update('maxActiveContainments', e.target.value)}
+          />
+        </label>
+      </div>
+      <label className="policy-toggle">
+        <input
+          type="checkbox"
+          checked={draft.killSwitch}
+          onChange={(e) => update('killSwitch', e.target.checked)}
+        />
+        <span>
+          <strong>Kill switch</strong>
+          <small>Refuse all customer-impacting actions while testing this candidate.</small>
+        </span>
+      </label>
+      <div className="policy-builder__actions">
+        <Button
+          variant="secondary"
+          onClick={() => onSimulate(yaml(policy, draft))}
+          disabled={pending}
+        >
+          {pending ? 'Simulating…' : 'Preview impact'}
+        </Button>
+        <span className="detail-note">
+          The candidate is validated by the same policy engine used for decisions.
+        </span>
+      </div>
+    </Card>
+  );
+}
 
 function Current({ policy }: { policy: PolicyResponse }): React.JSX.Element {
   return (
@@ -148,9 +310,24 @@ function Results({ result }: { result: SimulationResponse }): React.JSX.Element 
   );
 }
 
+// eslint-disable-next-line max-lines-per-function
 export function PolicyPage(): React.JSX.Element {
   const [draft, setDraft] = useState('');
+  const [structuredDraft, setStructuredDraft] = useState<PolicyDraft | null>(null);
   const policy = useQuery({ queryKey: ['policy'], queryFn: fetchPolicy });
+
+  useEffect(() => {
+    if (policy.data === undefined || structuredDraft !== null) return;
+    setStructuredDraft({
+      stepUp: policy.data.thresholds.stepUp,
+      contain: policy.data.thresholds.contain,
+      defaultMinutes: policy.data.containment.defaultMinutes,
+      maxMinutes: policy.data.containment.maxMinutes,
+      dualApprovalAbovePaise: policy.data.approval.dualApprovalAbovePaise,
+      maxActiveContainments: policy.data.impactCaps.maxActiveContainments,
+      killSwitch: policy.data.killSwitch,
+    });
+  }, [policy.data, structuredDraft]);
 
   const simulate = useMutation({
     mutationFn: async (source: string) => {
@@ -181,12 +358,25 @@ export function PolicyPage(): React.JSX.Element {
       {policy.isPending && <p role="status">Loading policy…</p>}
       {policy.data !== undefined && <Current policy={policy.data} />}
 
+      {policy.data !== undefined && structuredDraft !== null && (
+        <Builder
+          policy={policy.data}
+          draft={structuredDraft}
+          onChange={setStructuredDraft}
+          onSimulate={(source) => {
+            setDraft(source);
+            simulate.mutate(source);
+          }}
+          pending={simulate.isPending}
+        />
+      )}
+
       <Card>
-        <h2>What would this policy have done?</h2>
+        <h2>Advanced candidate editor</h2>
         <p>
-          Paste a policy to run it against incidents that already happened. Nothing is saved and
-          nothing is acted on — the question is what it <em>would</em> have decided, which is the
-          one worth answering before shipping an edit rather than after.
+          Review or edit the full validated document when you need to change settings beyond the
+          guided controls. Nothing is saved and nothing is acted on — this only answers what it{' '}
+          <em>would</em> have decided against incidents that already happened.
         </p>
 
         <label className="policy-editor">

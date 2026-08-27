@@ -1,4 +1,5 @@
 import { modelOpinionSchema } from './model.js';
+import { resolvedOrderSchema } from './attempt.js';
 import { z } from 'zod';
 
 export const incidentStatusSchema = z.enum([
@@ -52,6 +53,18 @@ export const changeResultSchema = z.object({
   cusum: changeAlarmSchema,
 });
 
+export const hypothesisSchema = z.enum([
+  'attack',
+  'outage',
+  'retry_storm',
+  'healthy_traffic',
+  'insufficient_evidence',
+]);
+export type HypothesisDto = z.infer<typeof hypothesisSchema>;
+
+export const decisionSchema = z.enum(['contain', 'review', 'monitor', 'none']);
+export type DecisionDto = z.infer<typeof decisionSchema>;
+
 export const incidentSummarySchema = z.object({
   id: z.string(),
   key: z.string(),
@@ -77,6 +90,13 @@ export const incidentSummarySchema = z.object({
   source: z.enum(['razorpay', 'replay']),
   /** The rules that fired against this entity, mitigating ones excluded. */
   firedRules: z.array(z.string()),
+  /** The decision currently recommended by arbitration, before a merchant action is taken. */
+  recommendedDecision: decisionSchema,
+  /** The primary explanation a merchant should use to triage the row. */
+  primaryHypothesis: hypothesisSchema,
+  /** Counts from the feature snapshot used for this incident. */
+  attempts: z.number().int().nonnegative(),
+  failures: z.number().int().nonnegative(),
 });
 export type IncidentSummary = z.infer<typeof incidentSummarySchema>;
 
@@ -109,6 +129,8 @@ export const incidentDetailSchema = incidentSummarySchema.extend({
       at: z.number().int(),
     }),
   ),
+  /** Payment orders connected through the incident's correlated entity. */
+  relatedOrders: z.array(resolvedOrderSchema),
 });
 export type IncidentDetail = z.infer<typeof incidentDetailSchema>;
 
@@ -148,18 +170,6 @@ export const evaluateResponseSchema = z.object({
   expired: z.number().int().nonnegative(),
 });
 export type EvaluateResponse = z.infer<typeof evaluateResponseSchema>;
-
-export const hypothesisSchema = z.enum([
-  'attack',
-  'outage',
-  'retry_storm',
-  'healthy_traffic',
-  'insufficient_evidence',
-]);
-export type HypothesisDto = z.infer<typeof hypothesisSchema>;
-
-export const decisionSchema = z.enum(['contain', 'review', 'monitor', 'none']);
-export type DecisionDto = z.infer<typeof decisionSchema>;
 
 export const expectationSchema = z.object({
   code: z.string(),

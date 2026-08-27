@@ -33,6 +33,10 @@ function incident(overrides: Partial<IncidentSummary> = {}): IncidentSummary {
     observations: 3,
     source: 'replay',
     firedRules: ['card_spread', 'approval_collapse'],
+    recommendedDecision: 'review',
+    primaryHypothesis: 'attack',
+    attempts: 3,
+    failures: 3,
     ...overrides,
   };
 }
@@ -63,7 +67,7 @@ describe('IncidentsPage', () => {
     render(wrap(<IncidentsPage />));
 
     expect(await screen.findByText(/Card spread/)).toBeInTheDocument();
-    expect(screen.getByText('0.90')).toBeInTheDocument();
+    expect(screen.getByText(/score 0\.90/)).toBeInTheDocument();
     expect(screen.getByText('high')).toBeInTheDocument();
   });
 
@@ -80,7 +84,7 @@ describe('IncidentsPage', () => {
     stub(response({ incidents: [incident({ band: 'medium', scoreLower: 0.5, scoreUpper: 0.9 })] }));
     render(wrap(<IncidentsPage />));
 
-    expect(await screen.findByText(/wide band/i)).toBeInTheDocument();
+    expect(await screen.findByText(/wide range/i)).toBeInTheDocument();
   });
 
   it('names the threshold set that judged them', async () => {

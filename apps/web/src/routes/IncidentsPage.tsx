@@ -52,6 +52,28 @@ const STATUS_LABEL: Record<IncidentSummary['status'], string> = {
   resolved: 'Resolved',
   expired: 'Expired',
 };
+const HYPOTHESIS_LABEL: Record<IncidentSummary['primaryHypothesis'], string> = {
+  attack: 'Likely abuse',
+  outage: 'Gateway / outage',
+  retry_storm: 'Retry storm',
+  healthy_traffic: 'Healthy traffic',
+  insufficient_evidence: 'Insufficient evidence',
+};
+const DECISION_LABEL: Record<IncidentSummary['recommendedDecision'], string> = {
+  contain: 'Contain eligible',
+  review: 'Review required',
+  monitor: 'Monitor',
+  none: 'No action',
+};
+const DECISION_TONE: Record<
+  IncidentSummary['recommendedDecision'],
+  'critical' | 'warn' | 'ok' | 'neutral'
+> = {
+  contain: 'critical',
+  review: 'warn',
+  monitor: 'ok',
+  none: 'neutral',
+};
 
 async function fetchIncidents(status: StatusFilter, source: Source): Promise<IncidentListResponse> {
   const params = new URLSearchParams();
@@ -79,9 +101,10 @@ function Table({ incidents }: { incidents: IncidentSummary[] }): React.JSX.Eleme
           <tr>
             <th>Severity</th>
             <th>Entity</th>
+            <th>Risk type</th>
+            <th>Activity</th>
+            <th>Decision</th>
             <th>Status</th>
-            <th>Risk</th>
-            <th>Signals</th>
             <th>Detected in</th>
             <th aria-label="Open" />
           </tr>
@@ -109,18 +132,25 @@ function Table({ incidents }: { incidents: IncidentSummary[] }): React.JSX.Eleme
                 </StatusDot>
               </td>
               <td>
-                <span className="inc-risk">{incident.score.toFixed(2)}</span>
-                {incident.band !== 'high' && <span className="inc-band">wide band</span>}
+                <strong>{HYPOTHESIS_LABEL[incident.primaryHypothesis]}</strong>
+                <span className="inc-band">
+                  score {incident.score.toFixed(2)}
+                  {incident.band !== 'high' ? ' · wide range' : ''}
+                </span>
               </td>
-              <td className="inc-signals">
-                {incident.firedRules.slice(0, 3).map((rule) => (
-                  <span key={rule} className="inc-chip">
-                    {ruleName(rule)}
-                  </span>
-                ))}
-                {incident.firedRules.length === 0 && (
-                  <span className="inc-muted">model-flagged</span>
-                )}
+              <td>
+                <strong>{incident.failures} failed</strong>
+                <span className="inc-band">of {incident.attempts} attempts</span>
+              </td>
+              <td>
+                <Badge tone={DECISION_TONE[incident.recommendedDecision] ?? 'neutral'} size="sm">
+                  {DECISION_LABEL[incident.recommendedDecision]}
+                </Badge>
+                <span className="inc-band">
+                  {incident.firedRules.length > 0
+                    ? `${ruleName(incident.firedRules[0]!)} signal`
+                    : 'model signal'}
+                </span>
               </td>
               <td className="inc-ttd">{duration(incident.timeToDetectMs)}</td>
               <td className="inc-openc">

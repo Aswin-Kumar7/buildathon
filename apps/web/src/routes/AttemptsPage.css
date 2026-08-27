@@ -182,3 +182,7 @@
 .muted {
   color: var(--s-ink-2);
 }
+.attempts-filter {
+  margin-top: var(--s-2);
+  color: var(--s-ink-2);
+}

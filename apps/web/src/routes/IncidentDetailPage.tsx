@@ -6,6 +6,7 @@ import {
   type EvidenceDto,
   type IncidentDetail,
   type IncidentStatusDto,
+  type ResolvedOrder,
 } from '@sentinel/contracts';
 import { csrfHeaders } from '../auth/api.js';
 import { ABSTENTION_REASON, phraseFor, ruleName } from '../incidents/evidence.js';
@@ -47,6 +48,19 @@ const STATUS_TONE: Record<IncidentStatusDto, 'critical' | 'warn' | 'ok' | 'neutr
   expired: 'neutral',
 };
 const SEVERITY_TONE = { high: 'critical', medium: 'warn', low: 'neutral' } as const;
+const HYPOTHESIS_LABEL: Record<IncidentDetail['primaryHypothesis'], string> = {
+  attack: 'Coordinated abuse pattern',
+  outage: 'Gateway or service outage',
+  retry_storm: 'Aggressive retry pattern',
+  healthy_traffic: 'Healthy traffic pattern',
+  insufficient_evidence: 'Insufficient evidence',
+};
+const DECISION_LABEL: Record<IncidentDetail['recommendedDecision'], string> = {
+  none: 'No intervention',
+  contain: 'Contain eligible activity',
+  review: 'Send for analyst review',
+  monitor: 'Monitor activity',
+};
 
 type Move = { to: IncidentStatusDto; verdict?: Verdict };
 
@@ -148,6 +162,90 @@ function Summary({ incident }: { incident: IncidentDetail }): React.JSX.Element 
           </div>
         ))}
       </dl>
+    </Card>
+  );
+}
+
+function DecisionRail({ incident }: { incident: IncidentDetail }): React.JSX.Element {
+  const needsApproval = incident.recommendedDecision === 'contain';
+  return (
+    <Card
+      title="Decision summary"
+      subtitle="Detection, recommendation, action and status are separate records."
+    >
+      <div className="decision-rail">
+        <div>
+          <span>Detection</span>
+          <strong>{HYPOTHESIS_LABEL[incident.primaryHypothesis]}</strong>
+          <small>Evidence-backed risk type · {incident.score.toFixed(2)} score</small>
+        </div>
+        <div>
+          <span>Recommendation</span>
+          <strong>{DECISION_LABEL[incident.recommendedDecision]}</strong>
+          <small>Produced under threshold set {incident.thresholdHash.slice(0, 8)}</small>
+        </div>
+        <div>
+          <span>Action</span>
+          <strong>{needsApproval ? 'Approval required' : 'No customer-impacting action'}</strong>
+          <small>
+            {needsApproval
+              ? 'Use the Action panel to propose and approve containment.'
+              : 'The engine is observing or escalating only.'}
+          </small>
+        </div>
+        <div>
+          <span>Status</span>
+          <strong>{STATUS_LABEL[incident.status]}</strong>
+          <small>Every transition is recorded in the audit trail.</small>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+const rupees = (paise: number | null): string =>
+  paise === null
+    ? '—'
+    : new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(paise / 100);
+
+function RelatedAttempts({ incident }: { incident: IncidentDetail }): React.JSX.Element {
+  const attempts = incident.relatedOrders.flatMap((order) =>
+    order.attempts.map((attempt) => ({ order, attempt })),
+  );
+
+  return (
+    <Card
+      title="Related payment attempts"
+      subtitle="Orders linked through this incident's session, device or network fingerprint."
+    >
+      {attempts.length === 0 ? (
+        <p className="detail-note">
+          No canonical payment attempts are linked yet. The checkout context may have arrived before
+          its Razorpay webhook, or this incident may be based on pre-payment activity.
+        </p>
+      ) : (
+        <div className="detail-attempts">
+          <a
+            className="detail-attempts__link"
+            href={`/console/attempts?entityKind=${incident.entityKind}&entityKey=${encodeURIComponent(incident.entityKey)}&source=${incident.source}`}
+          >
+            Open all related attempts →
+          </a>
+          {incident.relatedOrders.map((order: ResolvedOrder) => (
+            <div className="detail-attempt" key={order.razorpayOrderId}>
+              <div>
+                <strong>{order.razorpayOrderId}</strong>
+                <span>{rupees(order.amountPaise)}</span>
+              </div>
+              <div className="detail-attempt__meta">
+                {order.attempts.length} attempt{order.attempts.length === 1 ? '' : 's'} ·{' '}
+                {order.failureCount} failed · {order.outcome}
+                {order.recovered ? ' · recovered' : ''}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
@@ -323,12 +421,15 @@ export function IncidentDetailPage(): React.JSX.Element {
         </div>
       </header>
 
+      <DecisionRail incident={it} />
+
       <div className="detail-grid">
         <div className="detail-main">
           <NarrativePanel incidentId={it.id} />
           <Breakdown incident={it} />
           <Change incident={it} />
           <ModelOpinion incident={it} />
+          <RelatedAttempts incident={it} />
           <ContainmentPanel incidentId={it.id} />
           <AuditTrail incidentId={it.id} />
         </div>

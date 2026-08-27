@@ -1,5 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { and, desc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, lt, lte, sql } from 'drizzle-orm';
 import { canonicalEvents, checkoutSessions, type DbHandle } from '@sentinel/db';
 import type {
   OrdersResponse,
@@ -34,13 +34,47 @@ export class AttemptsService {
    * a second one, and the two drift the first time an event arrives that the writer handled
    * and the reader did not.
    */
-  async listOrders(limit = 50): Promise<OrdersResponse> {
-    const recent = await this.handle.db
-      .selectDistinct({ orderId: canonicalEvents.razorpayOrderId })
-      .from(canonicalEvents)
-      .where(sql`${canonicalEvents.razorpayOrderId} is not null`)
-      .orderBy(desc(canonicalEvents.razorpayOrderId))
-      .limit(limit);
+  async listOrders(
+    limit = 50,
+    filter?: {
+      entityKind: 'session' | 'device' | 'network';
+      entityKey: string;
+      source?: 'razorpay' | 'replay';
+    },
+  ): Promise<OrdersResponse> {
+    const entityColumn =
+      filter?.entityKind === 'session'
+        ? checkoutSessions.sessionPseudonym
+        : filter?.entityKind === 'device'
+          ? checkoutSessions.devicePseudonym
+          : filter?.entityKind === 'network'
+            ? checkoutSessions.ipPseudonym
+            : null;
+    const recent =
+      filter === undefined
+        ? await this.handle.db
+            .selectDistinct({ orderId: canonicalEvents.razorpayOrderId })
+            .from(canonicalEvents)
+            .where(sql`${canonicalEvents.razorpayOrderId} is not null`)
+            .orderBy(desc(canonicalEvents.razorpayOrderId))
+            .limit(limit)
+        : await this.handle.db
+            .selectDistinct({ orderId: canonicalEvents.razorpayOrderId })
+            .from(canonicalEvents)
+            .innerJoin(
+              checkoutSessions,
+              eq(checkoutSessions.razorpayOrderId, canonicalEvents.razorpayOrderId),
+            )
+            .where(
+              and(
+                sql`${canonicalEvents.razorpayOrderId} is not null`,
+                entityColumn === null ? sql`false` : eq(entityColumn, filter.entityKey),
+                filter.source === undefined
+                  ? sql`true`
+                  : eq(checkoutSessions.source, filter.source),
+              ),
+            )
+            .limit(limit);
 
     const orderIds = recent
       .map((row) => row.orderId)
@@ -59,6 +93,42 @@ export class AttemptsService {
     const [order] = await this.resolveMany([razorpayOrderId]);
     if (order === undefined) throw new NotFoundException(`No events for ${razorpayOrderId}`);
     return order;
+  }
+
+  /** Resolves payment orders connected to one incident entity and activity window. */
+  async listForEntity(input: {
+    entityKind: 'session' | 'device' | 'network';
+    entityKey: string;
+    source: 'razorpay' | 'replay';
+    from: number;
+    to: number;
+  }): Promise<ResolvedOrder[]> {
+    const entityColumn =
+      input.entityKind === 'session'
+        ? checkoutSessions.sessionPseudonym
+        : input.entityKind === 'device'
+          ? checkoutSessions.devicePseudonym
+          : checkoutSessions.ipPseudonym;
+    const rows = await this.handle.db
+      .selectDistinct({ orderId: canonicalEvents.razorpayOrderId })
+      .from(canonicalEvents)
+      .innerJoin(
+        checkoutSessions,
+        eq(checkoutSessions.razorpayOrderId, canonicalEvents.razorpayOrderId),
+      )
+      .where(
+        and(
+          eq(checkoutSessions.source, input.source),
+          eq(entityColumn, input.entityKey),
+          gte(canonicalEvents.eventAt, new Date(input.from)),
+          lte(canonicalEvents.eventAt, new Date(input.to)),
+        ),
+      )
+      .limit(100);
+    const orderIds = rows
+      .map((row) => row.orderId)
+      .filter((id): id is string => id !== null && id !== '');
+    return this.resolveMany(orderIds);
   }
 
   private async resolveMany(orderIds: readonly string[]): Promise<ResolvedOrder[]> {

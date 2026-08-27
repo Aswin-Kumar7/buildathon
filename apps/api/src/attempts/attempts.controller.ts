@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import type { OrderDetailResponse, OrdersResponse } from '@sentinel/contracts';
 import { AttemptsService } from './attempts.service.js';
 import { SessionGuard } from '../auth/session.guard.js';
@@ -13,10 +13,34 @@ export class AttemptsController {
   constructor(private readonly attempts: AttemptsService) {}
 
   @Get()
-  async list(@Query('limit') limit?: string): Promise<OrdersResponse> {
+  async list(
+    @Query('limit') limit?: string,
+    @Query('entityKind') entityKind?: string,
+    @Query('entityKey') entityKey?: string,
+    @Query('source') source?: string,
+  ): Promise<OrdersResponse> {
     const parsed = Number(limit);
     const bounded = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 200) : 50;
-    return this.attempts.listOrders(bounded);
+    const validKind =
+      entityKind === 'session' || entityKind === 'device' || entityKind === 'network';
+    const validSource = source === undefined || source === 'razorpay' || source === 'replay';
+    if (
+      (entityKind !== undefined && !validKind) ||
+      (entityKey !== undefined && entityKind === undefined) ||
+      !validSource
+    ) {
+      throw new BadRequestException('entityKind, entityKey and source are invalid or incomplete');
+    }
+    return this.attempts.listOrders(
+      bounded,
+      entityKey !== undefined && entityKind !== undefined
+        ? {
+            entityKind: entityKind as 'session' | 'device' | 'network',
+            entityKey,
+            ...(source !== undefined && { source: source as 'razorpay' | 'replay' }),
+          }
+        : undefined,
+    );
   }
 
   @Get(':orderId')

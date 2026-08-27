@@ -8,6 +8,7 @@ import { pseudonymise, pseudonymiseIp } from '../telemetry/pseudonym.js';
 import { ContainmentService } from '../containment/containment.service.js';
 import { priceCart, UnknownSkuError } from './catalog.js';
 import { RazorpayClient } from './razorpay.client.js';
+import { TransactionRiskService } from './risk.service.js';
 
 /**
  * Ordered most-specific-first, and the order is load-bearing: Edge's user-agent contains
@@ -50,6 +51,7 @@ export class OrdersService {
     @Inject(DB) private readonly handle: DbHandle,
     private readonly razorpay: RazorpayClient,
     private readonly containment: ContainmentService,
+    private readonly risk: TransactionRiskService,
   ) {}
 
   private get pseudonymConfig() {
@@ -76,6 +78,12 @@ export class OrdersService {
       this.pseudonymConfig,
     );
     const ipPseudonym = pseudonymiseIp(context.ip, this.pseudonymConfig);
+    const riskAssessment = await this.risk.assess({
+      session: sessionPseudonym,
+      device: devicePseudonym,
+      network: ipPseudonym,
+      amountPaise: priced.amountPaise,
+    });
 
     // Where `contain` becomes a refusal rather than a label. An entity is contained by a block
     // on any of its keys, so all three are checked. The shopper is told nothing about why — the
@@ -121,6 +129,7 @@ export class OrdersService {
       amountPaise: priced.amountPaise,
       currency: 'INR',
       razorpayKeyId: this.razorpay.keyId,
+      riskAssessment,
     };
   }
 }

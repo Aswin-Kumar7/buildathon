@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { evaluateResponseSchema } from './incident.js';
 
 export const scenarioSummarySchema = z.object({
   family: z.string(),
@@ -31,5 +32,7 @@ export const replayResultSchema = z.object({
   checkoutsWritten: z.number().int().nonnegative(),
   eventsWritten: z.number().int().nonnegative(),
   duplicatesSkipped: z.number().int().nonnegative(),
+  /** Detection is part of replay completion, not a separate manual step. */
+  detection: evaluateResponseSchema,
 });
 export type ReplayResult = z.infer<typeof replayResultSchema>;

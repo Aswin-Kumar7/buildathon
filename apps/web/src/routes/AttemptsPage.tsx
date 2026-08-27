@@ -11,7 +11,11 @@ import {
 import './AttemptsPage.css';
 
 async function fetchAttempts(): Promise<OrdersResponse> {
-  const response = await fetch('/api/attempts', { credentials: 'include' });
+  const params = new URLSearchParams(window.location.search);
+  const query = params.toString();
+  const response = await fetch(`/api/attempts${query === '' ? '' : `?${query}`}`, {
+    credentials: 'include',
+  });
   if (!response.ok) throw new Error(`api returned ${response.status}`);
   return ordersResponseSchema.parse(await response.json());
 }
@@ -202,8 +206,10 @@ function Unresolved({
 }
 
 export function AttemptsPage(): React.JSX.Element {
+  const filter = new URLSearchParams(window.location.search);
+  const hasFilter = filter.has('entityKind') && filter.has('entityKey');
   const attempts = useQuery({
-    queryKey: ['attempts'],
+    queryKey: ['attempts', filter.toString()],
     queryFn: fetchAttempts,
     refetchInterval: 10_000,
   });
@@ -217,6 +223,12 @@ export function AttemptsPage(): React.JSX.Element {
           events in any sequence, with any duplicates, across a restart, resolve to what you see
           here.
         </p>
+        {hasFilter && (
+          <p className="attempts-filter">
+            Showing attempts related to this {filter.get('entityKind')} incident activity.{' '}
+            <a href="/console/attempts">Clear filter</a>
+          </p>
+        )}
       </header>
 
       {attempts.isError && (
