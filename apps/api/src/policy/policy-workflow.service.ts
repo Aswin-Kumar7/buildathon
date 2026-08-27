@@ -26,6 +26,16 @@ type WorkflowRow = {
   source: string;
 };
 
+// Drizzle's postgres-js adapter returns rows as an array, while PGlite exposes a QueryResult.
+// Keep workflow startup and policy actions portable across both supported local drivers.
+function rowsOf<T>(result: unknown): T[] {
+  if (Array.isArray(result)) return result as T[];
+  if (typeof result === 'object' && result !== null && 'rows' in result) {
+    return ((result as { rows?: unknown }).rows ?? []) as T[];
+  }
+  return [];
+}
+
 @Injectable()
 export class PolicyWorkflowService implements OnModuleInit {
   constructor(
@@ -39,7 +49,7 @@ export class PolicyWorkflowService implements OnModuleInit {
       SELECT source FROM sentinel.policy_versions
       WHERE status = 'published' ORDER BY version DESC LIMIT 1
     `);
-    const source = (result as unknown as { rows: [{ source: string }] }).rows[0]?.source;
+    const source = rowsOf<{ source: string }>(result)[0]?.source;
     if (source !== undefined) this.policy.activate(this.validate(source));
   }
 
@@ -49,7 +59,7 @@ export class PolicyWorkflowService implements OnModuleInit {
       FROM sentinel.policy_versions ORDER BY version DESC LIMIT 50
     `);
     return {
-      versions: (result as unknown as { rows: WorkflowRow[] }).rows.map((row) => this.view(row)),
+      versions: rowsOf<WorkflowRow>(result).map((row) => this.view(row)),
     };
   }
 
@@ -59,13 +69,13 @@ export class PolicyWorkflowService implements OnModuleInit {
       SELECT COALESCE(MAX(version), ${this.policy.version}) + 1 AS next_version
       FROM sentinel.policy_versions
     `);
-    const latest = (latestResult as unknown as { rows: [{ next_version: number }] }).rows[0];
+    const latest = rowsOf<{ next_version: number }>(latestResult)[0];
     const result = await this.handle.db.execute(sql`
       INSERT INTO sentinel.policy_versions (version, hash, source, status, created_by)
       VALUES (${parsed.version}, ${policyHash(parsed)}, ${source}, 'draft', ${actorId})
       RETURNING id, version, hash, status, created_by, approved_by, created_at, approved_at, published_at, source
     `);
-    const row = (result as unknown as { rows: WorkflowRow[] }).rows[0];
+    const row = rowsOf<WorkflowRow>(result)[0];
     if (row === undefined) throw new ConflictException('policy draft could not be created');
     // The document version is required to be the next repository version, not a stale copied value.
     if (parsed.version !== Number(latest?.next_version)) {
@@ -180,7 +190,7 @@ export class PolicyWorkflowService implements OnModuleInit {
       SELECT id, version, hash, status, created_by, approved_by, created_at, approved_at, published_at, source
       FROM sentinel.policy_versions WHERE id = ${id} LIMIT 1
     `);
-    const row = (result as unknown as { rows: WorkflowRow[] }).rows[0];
+    const row = rowsOf<WorkflowRow>(result)[0];
     if (row === undefined) throw new NotFoundException('no such policy version');
     return row;
   }
