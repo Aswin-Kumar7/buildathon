@@ -15,7 +15,11 @@ export const policyVersionSchema = z.object({
   hash: z.string(),
   status: policyWorkflowStatusSchema,
   createdBy: z.string(),
+  /** Display name for `createdBy`, resolved from the users table. Null if the user is unknown. */
+  createdByName: z.string().nullable().default(null),
   approvedBy: z.string().nullable(),
+  /** Display name for `approvedBy`, resolved from the users table. Null when unapproved/unknown. */
+  approvedByName: z.string().nullable().default(null),
   createdAt: z.number().int(),
   approvedAt: z.number().int().nullable(),
   publishedAt: z.number().int().nullable(),

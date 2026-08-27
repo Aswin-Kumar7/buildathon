@@ -18,6 +18,18 @@ export const evidenceLayerSchema = z.object({
 });
 export type EvidenceLayer = z.infer<typeof evidenceLayerSchema>;
 
+/**
+ * The deployed model's headline held-out numbers, exposed on the public endpoint so the landing
+ * page reads real metrics rather than hardcoding them. Null when the model artefact is absent (a
+ * clone where nobody ran the pipeline), so the page can say so rather than render zeros.
+ */
+export const metaModelSchema = z.object({
+  prAuc: z.number(),
+  recall: z.number(),
+  falseDeclineRate: z.number(),
+});
+export type MetaModel = z.infer<typeof metaModelSchema>;
+
 export const metaSchema = z.object({
   name: z.literal('Sentinel'),
   claim: z.string().min(1),
@@ -25,5 +37,6 @@ export const metaSchema = z.object({
   commit: z.string().min(1),
   slice: z.object({ number: z.number().int().min(0), name: z.string().min(1) }),
   evidenceLayers: z.array(evidenceLayerSchema).length(3),
+  model: metaModelSchema.nullable(),
 });
 export type Meta = z.infer<typeof metaSchema>;

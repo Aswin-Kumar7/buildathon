@@ -94,11 +94,43 @@ export const incidentSummarySchema = z.object({
   recommendedDecision: decisionSchema,
   /** The primary explanation a merchant should use to triage the row. */
   primaryHypothesis: hypothesisSchema,
-  /** Counts from the feature snapshot used for this incident. */
+  /** Exact counts captured from the feature vector this incident was decided on. */
   attempts: z.number().int().nonnegative(),
   failures: z.number().int().nonnegative(),
+  /** Distinct cards seen across this incident's activity. Null when the sketch was unconfirmed. */
+  distinctCards: z.number().int().nonnegative().nullable(),
+  /** A short human title derived from the fired rules and winning hypothesis — a view, not a source. */
+  title: z.string(),
 });
 export type IncidentSummary = z.infer<typeof incidentSummarySchema>;
+
+/**
+ * The correlation an incident rests on, as a small graph for the console to draw: the entity at the
+ * centre, the cards it touched, and — for a network-level case — the sessions those cards came
+ * through. Every identifier is an eight-character fingerprint of a pseudonym, never a real card or id.
+ */
+export const incidentGraphSchema = z.object({
+  entity: z.object({
+    kind: z.enum(['session', 'device', 'network']),
+    fingerprint: z.string(),
+  }),
+  cards: z.array(
+    z.object({
+      fingerprint: z.string(),
+      network: z.string().nullable(),
+      attempts: z.number().int().nonnegative(),
+      /** True if any payment on this card was captured — the "one that got through". */
+      captured: z.boolean(),
+    }),
+  ),
+  sessions: z.array(
+    z.object({
+      fingerprint: z.string(),
+      cards: z.number().int().nonnegative(),
+    }),
+  ),
+});
+export type IncidentGraph = z.infer<typeof incidentGraphSchema>;
 
 export const incidentDetailSchema = incidentSummarySchema.extend({
   evidence: z.array(evidenceSchema),
@@ -131,6 +163,8 @@ export const incidentDetailSchema = incidentSummarySchema.extend({
   ),
   /** Payment orders connected through the incident's correlated entity. */
   relatedOrders: z.array(resolvedOrderSchema),
+  /** The entity → cards (→ sessions) correlation, for the console to draw as a graph. */
+  graph: incidentGraphSchema,
 });
 export type IncidentDetail = z.infer<typeof incidentDetailSchema>;
 
@@ -167,6 +201,8 @@ export const evaluateResponseSchema = z.object({
   evaluated: z.number().int().nonnegative(),
   opened: z.number().int().nonnegative(),
   updated: z.number().int().nonnegative(),
+  /** Incidents auto-resolved this pass because re-evaluation positively explained them as benign. */
+  deescalated: z.number().int().nonnegative().default(0),
   expired: z.number().int().nonnegative(),
 });
 export type EvaluateResponse = z.infer<typeof evaluateResponseSchema>;

@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { riskAssessmentSchema } from './risk.js';
 
 export const catalogItemSchema = z.object({
   sku: z.string().min(1),
@@ -36,7 +35,6 @@ export const createOrderResponseSchema = z.object({
   currency: z.literal('INR'),
   /** Publishable key. The secret never leaves the server. */
   razorpayKeyId: z.string().min(1),
-  riskAssessment: riskAssessmentSchema,
 });
 export type CreateOrderResponse = z.infer<typeof createOrderResponseSchema>;
 

@@ -17,6 +17,7 @@ const valid = {
   commit: 'abc1234',
   slice: { number: 1, name: 'Landing page' },
   evidenceLayers: [layer, { ...layer, id: 'L2' as const }, { ...layer, id: 'L3' as const }],
+  model: { prAuc: 0.94, recall: 0.97, falseDeclineRate: 0.1 },
 };
 
 describe('metaSchema', () => {
