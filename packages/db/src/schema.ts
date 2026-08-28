@@ -48,6 +48,24 @@ export const users = sentinel.table('users', {
   role: roleEnum('role').notNull().default('analyst'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   disabledAt: timestamp('disabled_at', { withTimezone: true }),
+  // Notification-bell preferences. The bell turns real incidents into notifications; these say which
+  // ones reach this user and up to when they have marked them read.
+  notificationsSeenAt: timestamp('notifications_seen_at', { withTimezone: true }),
+  notifyMinSeverity: text('notify_min_severity').notNull().default('low'),
+  notifySimulated: boolean('notify_simulated').notNull().default(true),
+});
+
+/**
+ * The operator's emergency-stop log. Append-only: the current enforcement state is the latest row,
+ * and the history of who paused and resumed is itself the record. Kept apart from the policy tables
+ * because pausing enforcement is an operational action, not a reviewed change to the policy.
+ */
+export const enforcementEvents = sentinel.table('enforcement_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  kind: text('kind').notNull(),
+  actorId: uuid('actor_id').references(() => users.id, { onDelete: 'set null' }),
+  reason: text('reason'),
+  at: timestamp('at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 /**
@@ -112,6 +130,7 @@ export const checkoutSessions = sentinel.table(
     itemCount: integer('item_count').notNull(),
 
     source: eventSourceEnum('source').notNull().default('razorpay'),
+    family: text('family'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -152,6 +171,7 @@ export const inboxEvents = sentinel.table(
     razorpayEventId: text('razorpay_event_id').notNull().unique(),
     eventType: text('event_type').notNull(),
     source: eventSourceEnum('source').notNull().default('razorpay'),
+    family: text('family'),
 
     // Envelope-encrypted raw body. A database dump on its own decrypts to nothing: the
     // key that unwraps these rows lives in the environment, not in the database.
@@ -327,6 +347,16 @@ export const incidents = sentinel.table(
     modelRisk: doublePrecision('model_risk'),
 
     /**
+     * The exact counts the decision rested on, captured from the feature vector at each evaluation.
+     * Stored rather than re-derived on read so the queue can show "N attempts, M failures, K cards"
+     * without re-resolving every related order per row. Null only on incidents recorded before
+     * these columns existed; the summary falls back to `observations` for those.
+     */
+    attempts: integer('attempts'),
+    failures: integer('failures'),
+    distinctCards: integer('distinct_cards'),
+
+    /**
      * The label, once a human (or a chargeback) has confirmed it: 1 = real abuse, 0 = false alarm.
      * Null while the incident is unresolved. This is the seed of the retraining set — the merchant's
      * own confirmed outcomes, which is the only source of *real* card-testing labels there is.
@@ -339,6 +369,8 @@ export const incidents = sentinel.table(
 
     /** Kept apart for the same reason every other count is: replayed traffic is not evidence. */
     source: eventSourceEnum('source').notNull().default('razorpay'),
+    /** The replay scenario this row belongs to (null for live), so one scenario can reset alone. */
+    family: text('family'),
 
     firstAttemptAt: timestamp('first_attempt_at', { withTimezone: true }).notNull(),
     detectedAt: timestamp('detected_at', { withTimezone: true }).notNull(),
@@ -514,3 +546,29 @@ export const auditLog = sentinel.table(
   ],
 );
 export type AuditLogRow = typeof auditLog.$inferSelect;
+
+/**
+ * A durable record of each simulation run, and what the detector made of it.
+ *
+ * Deliberately has no foreign key to incidents: a run's `detected` is a *snapshot* (title, severity,
+ * score), so the history survives when a later run resets the transient incident data. This is the
+ * experiment log, kept apart from the operational incident queue.
+ */
+export const simulationRuns = sentinel.table(
+  'simulation_runs',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    family: text('family').notNull(),
+    scenarioTitle: text('scenario_title').notNull(),
+    classification: text('classification').notNull(),
+    status: text('status').notNull().default('running'),
+    paymentsGenerated: integer('payments_generated').notNull().default(0),
+    attemptsCorrelated: integer('attempts_correlated').notNull().default(0),
+    incidentsDetected: integer('incidents_detected').notNull().default(0),
+    detected: jsonb('detected').notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+    endedAt: timestamp('ended_at', { withTimezone: true }),
+  },
+  (table) => [index('simulation_runs_started_idx').on(table.startedAt)],
+);
+export type SimulationRunRow = typeof simulationRuns.$inferSelect;
