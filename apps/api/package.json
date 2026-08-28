@@ -34,6 +34,7 @@
     "@sentinel/policy": "workspace:*",
     "@sentinel/audit": "workspace:*",
     "@sentinel/narrate": "workspace:*",
+    "@sentinel/risk-manager": "workspace:*",
     "@sentinel/load": "workspace:*"
   },
   "devDependencies": {

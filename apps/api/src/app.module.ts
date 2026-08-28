@@ -17,8 +17,12 @@ import { ContainmentModule } from './containment/containment.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { ModelMetricsModule } from './model-metrics/model-metrics.module.js';
 import { ModelScoringModule } from './model-scoring/model-scoring.module.js';
+import { RiskManagerModule } from './risk-manager/risk-manager.module.js';
+import { CopilotModule } from './copilot/copilot.module.js';
 import { ZodExceptionFilter } from './common/zod-exception.filter.js';
 import { OverviewModule } from './overview/overview.module.js';
+import { SettingsModule } from './settings/settings.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 
 // The filter is registered here rather than in main.ts so tests boot the same wiring the
 // server does. A guard or filter that exists only in the bootstrap path is one the suite
@@ -42,7 +46,11 @@ import { OverviewModule } from './overview/overview.module.js';
     AuditModule,
     ModelMetricsModule,
     ModelScoringModule,
+    RiskManagerModule,
+    CopilotModule,
     OverviewModule,
+    SettingsModule,
+    NotificationsModule,
   ],
   providers: [{ provide: APP_FILTER, useClass: ZodExceptionFilter }],
 })

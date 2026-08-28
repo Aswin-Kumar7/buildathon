@@ -28,9 +28,58 @@ export async function applySchema(handle: DbHandle): Promise<void> {
   await createTelemetryTables(handle);
   await createIngestionTables(handle);
   await createIncidentTables(handle);
+  // After both ingestion (inbox/checkout) and incident tables exist: tag rows by replay scenario.
+  await addFamilyColumns(handle);
   await createContainmentTables(handle);
   await createPolicyTables(handle);
   await createAuditTable(handle);
+  await createSimulationRunsTable(handle);
+  await createEnforcementTable(handle);
+}
+
+/**
+ * The operator emergency-stop log. Append-only; the current enforcement state is the latest row.
+ * Created after the users table so the actor foreign key resolves.
+ */
+async function createEnforcementTable(handle: DbHandle): Promise<void> {
+  await handle.db.execute(sql`
+    CREATE TABLE IF NOT EXISTS sentinel.enforcement_events (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      kind text NOT NULL CHECK (kind IN ('paused', 'resumed')),
+      actor_id uuid REFERENCES sentinel.users(id) ON DELETE SET NULL,
+      reason text,
+      at timestamptz NOT NULL DEFAULT now()
+    );
+  `);
+  await handle.db.execute(sql`
+    CREATE INDEX IF NOT EXISTS enforcement_events_at_idx ON sentinel.enforcement_events (at);
+  `);
+}
+
+/**
+ * The durable simulation-run log. No foreign key to incidents on purpose: the `detected` snapshot is
+ * a copy, so a run's history survives when a later run resets the transient incident data.
+ */
+async function createSimulationRunsTable(handle: DbHandle): Promise<void> {
+  await handle.db.execute(sql`
+    CREATE TABLE IF NOT EXISTS sentinel.simulation_runs (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      family text NOT NULL,
+      scenario_title text NOT NULL,
+      classification text NOT NULL,
+      status text NOT NULL DEFAULT 'running',
+      payments_generated integer NOT NULL DEFAULT 0,
+      attempts_correlated integer NOT NULL DEFAULT 0,
+      incidents_detected integer NOT NULL DEFAULT 0,
+      detected jsonb NOT NULL DEFAULT '[]'::jsonb,
+      started_at timestamptz NOT NULL DEFAULT now(),
+      ended_at timestamptz
+    );
+  `);
+  await handle.db.execute(sql`
+    CREATE INDEX IF NOT EXISTS simulation_runs_started_idx
+      ON sentinel.simulation_runs (started_at);
+  `);
 }
 
 async function createPolicyTables(handle: DbHandle): Promise<void> {
@@ -295,6 +344,15 @@ async function addIncidentLabelColumns(handle: DbHandle): Promise<void> {
     ALTER TABLE sentinel.incidents ADD COLUMN IF NOT EXISTS model_risk double precision;
   `);
   await handle.db.execute(sql`
+    ALTER TABLE sentinel.incidents ADD COLUMN IF NOT EXISTS attempts integer;
+  `);
+  await handle.db.execute(sql`
+    ALTER TABLE sentinel.incidents ADD COLUMN IF NOT EXISTS failures integer;
+  `);
+  await handle.db.execute(sql`
+    ALTER TABLE sentinel.incidents ADD COLUMN IF NOT EXISTS distinct_cards integer;
+  `);
+  await handle.db.execute(sql`
     ALTER TABLE sentinel.incidents ADD COLUMN IF NOT EXISTS label integer;
   `);
   await handle.db.execute(sql`
@@ -319,6 +377,18 @@ async function createAuthTables(handle: DbHandle): Promise<void> {
       created_at timestamptz NOT NULL DEFAULT now(),
       disabled_at timestamptz
     );
+  `);
+
+  // Notification-bell preferences, added after the users table existed so an older database
+  // gains them rather than needing a drop.
+  await handle.db.execute(sql`
+    ALTER TABLE sentinel.users ADD COLUMN IF NOT EXISTS notifications_seen_at timestamptz;
+  `);
+  await handle.db.execute(sql`
+    ALTER TABLE sentinel.users ADD COLUMN IF NOT EXISTS notify_min_severity text NOT NULL DEFAULT 'low';
+  `);
+  await handle.db.execute(sql`
+    ALTER TABLE sentinel.users ADD COLUMN IF NOT EXISTS notify_simulated boolean NOT NULL DEFAULT true;
   `);
 
   await handle.db.execute(sql`
@@ -444,6 +514,18 @@ async function addSourceColumns(handle: DbHandle): Promise<void> {
       sql.raw(
         `ALTER TABLE sentinel.${table} ADD COLUMN IF NOT EXISTS source sentinel.event_source NOT NULL DEFAULT 'razorpay';`,
       ),
+    );
+  }
+}
+
+/**
+ * The scenario a replayed row belongs to, so re-running one scenario can reset only its own rows
+ * while other scenarios accumulate. Null for live traffic. Idempotent, like the source column.
+ */
+async function addFamilyColumns(handle: DbHandle): Promise<void> {
+  for (const table of ['incidents', 'inbox_events', 'checkout_sessions']) {
+    await handle.db.execute(
+      sql.raw(`ALTER TABLE sentinel.${table} ADD COLUMN IF NOT EXISTS family text;`),
     );
   }
 }

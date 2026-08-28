@@ -11,6 +11,16 @@ import { AuthService } from './auth/auth.service.js';
 import { DrainService } from './webhooks/drain.service.js';
 
 /**
+ * Local-dev escape hatch for HTTPS interception. Some antivirus (e.g. Avast) MITMs outbound TLS with
+ * a certificate Node does not trust, which breaks the live AI provider's fetch with
+ * UNABLE_TO_VERIFY_LEAF_SIGNATURE. Opt in with ALLOW_INSECURE_TLS=1 in .env.local to accept it — this
+ * is refused in production, where TLS verification must stay on.
+ */
+if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_INSECURE_TLS === '1') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
+/**
  * Serves the console's built assets when they are in the image, and falls back to
  * index.html for any path the API did not claim — a client-routed application answers
  * `/console/health` from index.html, not from a file of that name.
