@@ -33,6 +33,9 @@ function vector(overrides: Partial<FeatureVector> = {}): FeatureVector {
     recoveryRate: 0,
     recoveredOrders: 0,
     lastSeenAt: T0,
+    firstSeenAt: T0,
+    maxOrdersPerCard: 0,
+    distinctCardsLongSpan: null,
     ...overrides,
   };
 }

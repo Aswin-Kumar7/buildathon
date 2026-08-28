@@ -81,6 +81,9 @@ const EVIDENCE_PHRASE: Record<string, (observed: number, threshold: number) => s
   velocity: (o, t) =>
     `${integer(o)} attempts came through where ${integer(t)} would already be high`,
   card_spread: (o) => `${integer(o)} different cards were tried against the one target`,
+  card_spread_slow: (o) =>
+    `${integer(o)} different cards were tried, paced out to slip under the live window`,
+  card_probing: (o) => `one card was pushed at ${integer(o)} separate orders`,
   approval_collapse: (o) => `only ${percent(o)} of attempts were approved`,
   small_amount_probing: (o) => `${percent(o)} of the attempts were tiny, probing amounts`,
   machine_cadence: (o) => `the attempts arrived on a machine-like cadence (${round2(o)})`,

@@ -13,7 +13,7 @@
  * webfont (Inter) is an optional enhancement layered on top, never required for the layout to hold.
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap');
 
 :root {
   color-scheme: light;
@@ -30,48 +30,49 @@
   --s-ink-2: #4a5670; /* secondary text */
   --s-ink-3: #8a94ab; /* muted text, captions */
 
-  /* ── brand accent: a confident indigo-blue ─────────────────────────────── */
-  --s-accent: #4f46e5;
-  --s-accent-hover: #4338ca;
-  --s-accent-ink: #3730a3; /* accent text on light */
-  --s-accent-soft: #eef2ff; /* accent tint background */
-  --s-accent-border: #c7d2fe;
-  --s-accent-grad: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  /* ── brand accent: Razorpay Royal & Navy Blue ────────────────────── */
+  --s-navy: #0a142f;
+  --s-accent: #0b72e7;
+  --s-accent-hover: #0052cc;
+  --s-accent-ink: #0b72e7;
+  --s-accent-soft: #eff6ff;
+  --s-accent-border: #bfdbfe;
+  --s-accent-grad: linear-gradient(135deg, #0a142f 0%, #0b72e7 100%);
 
   /* ── semantic ──────────────────────────────────────────────────────────── */
-  --s-critical: #d92d20;
-  --s-critical-ink: #b42318;
-  --s-critical-soft: #fef3f2;
+  --s-critical: #d72424;
+  --s-critical-ink: #d72424;
+  --s-critical-soft: #ffe3e0;
   --s-critical-border: #fbd5d0;
 
-  --s-warn: #dc6803;
-  --s-warn-ink: #b54708;
-  --s-warn-soft: #fffaeb;
+  --s-warn: #f38516;
+  --s-warn-ink: #f38516;
+  --s-warn-soft: #fffec0;
   --s-warn-border: #fce4b6;
 
-  --s-ok: #12854a;
-  --s-ok-ink: #027a48;
-  --s-ok-soft: #ecfdf3;
+  --s-ok: #0e5700;
+  --s-ok-ink: #0e5700;
+  --s-ok-soft: #c3f0cd;
   --s-ok-border: #bbecd0;
 
-  --s-info: #2563eb;
-  --s-info-ink: #1d4ed8;
-  --s-info-soft: #eff5ff;
-  --s-info-border: #c9daf9;
+  --s-info: #0b72e7;
+  --s-info-ink: #0256d0;
+  --s-info-soft: #eff6ff;
+  --s-info-border: #bfdbfe;
 
-  --s-focus: #4f46e5;
+  --s-focus: #0b72e7;
 
-  /* ── type ──────────────────────────────────────────────────────────────── */
-  --s-font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  /* ── type: comfortable, highly legible scale ────────────────────────────── */
+  --s-font: 'Outfit', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --s-mono: ui-monospace, 'Cascadia Code', 'SF Mono', 'JetBrains Mono', Consolas, monospace;
-  --s-text-xs: 0.75rem; /* 12 */
-  --s-text-sm: 0.8125rem; /* 13 */
-  --s-text-base: 0.875rem; /* 14 */
-  --s-text-md: 1rem; /* 16 */
-  --s-text-lg: 1.1875rem; /* 19 */
-  --s-text-xl: 1.5rem; /* 24 */
-  --s-text-2xl: 2rem; /* 32 */
-  --s-text-3xl: 2.75rem; /* 44 — hero */
+  --s-text-xs: 0.875rem; /* 14px */
+  --s-text-sm: 0.9375rem; /* 15px */
+  --s-text-base: 1rem; /* 16px */
+  --s-text-md: 1.125rem; /* 18px */
+  --s-text-lg: 1.35rem; /* 21.6px */
+  --s-text-xl: 1.75rem; /* 28px */
+  --s-text-2xl: 2.25rem; /* 36px */
+  --s-text-3xl: 3rem; /* 48px — hero */
   --s-tracking-tight: -0.011em;
   --s-tracking-tighter: -0.02em;
 
@@ -126,6 +127,7 @@ body {
   background: var(--s-bg);
   color: var(--s-ink);
   font-family: var(--s-font);
+  font-weight: 400;
   font-size: var(--s-text-base);
   line-height: 1.5;
   letter-spacing: var(--s-tracking-tight);

@@ -3,8 +3,8 @@
   align-items: center;
   gap: var(--s-1);
   padding: var(--s-1);
-  background: var(--s-bg-2);
-  border: 1px solid var(--s-line);
+  background: transparent;
+  border: none;
   border-radius: var(--s-radius);
 }
 
