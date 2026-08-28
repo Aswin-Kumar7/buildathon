@@ -110,6 +110,14 @@ export const DEFAULT_WINDOW: FeatureWindow = {
   halfLifeMs: minutes(5),
 };
 
+/**
+ * The wide horizon for the slow-and-wide card count.
+ *
+ * Six hours: long enough to catch a campaign deliberately paced under the live window, short
+ * enough that a busy legitimate device's ordinary card variety over a day does not read as one.
+ */
+export const LONG_SPAN_MS = minutes(360);
+
 export interface FeatureVector {
   entityKind: EntityKind;
   entityKey: string;
@@ -186,6 +194,37 @@ export interface FeatureVector {
    * attempt rate deserves to know whether it is happening now or finished an hour ago.
    */
   lastSeenAt: number | null;
+
+  /**
+   * The oldest observation this entity contributed, or null if it contributed none.
+   *
+   * Where {@link lastSeenAt} is freshness, this is the anchor: the moment the entity's activity
+   * began. An incident keys on it so the same episode keeps one identity as it grows, rather than
+   * splintering into a new incident every time a later attempt arrives.
+   */
+  firstSeenAt: number | null;
+
+  /**
+   * The most orders a single card touched, within the window.
+   *
+   * One card walked across many separate checkouts is the *other* card-testing shape from card
+   * spread: not many cards through one entity, but one card pushed at many items to find one that
+   * clears. Legitimate too — a shopper buying several things pays for them together — so it only
+   * means anything where the approvals also collapsed, which is why the rule that reads it gates
+   * on that. Zero when no card is attributed.
+   */
+  maxOrdersPerCard: number;
+
+  /**
+   * Distinct confirmed cards from this entity over a long span, far wider than the live window.
+   *
+   * The live window is a burst gate: it sees enumeration that arrives fast and misses the same
+   * campaign paced out over hours to slip under it. This is the slow-and-wide counterpart — the
+   * exact card count across the long span — so a device drip-feeding cards all afternoon is still
+   * counted as one story. Null when the confirming pass has not run, exactly like the windowed
+   * count, so nothing is ever accused on an estimate.
+   */
+  distinctCardsLongSpan: number | null;
 }
 
 function keyOf(observation: Observation, kind: EntityKind): string | null {
@@ -277,6 +316,15 @@ function sketchOf(values: readonly (string | null)[]): { sketch: HyperLogLog; ex
  * real count. Turning it off is the candidate-discovery path — cheap, approximate, and never
  * the basis of a decision.
  */
+/** Distinct confirmed cards in a set of attempts — the exact count, for the long-span signal. */
+function distinctExactCards(observations: readonly Observation[]): number {
+  const seen = new Set<string>();
+  for (const observation of observations) {
+    if (observation.cardId !== null && observation.cardId !== '') seen.add(observation.cardId);
+  }
+  return seen.size;
+}
+
 export function computeFeatures(
   entityKind: EntityKind,
   entityKey: string,
@@ -286,11 +334,19 @@ export function computeFeatures(
   confirmExact = true,
 ): FeatureVector {
   const from = asOf - window.windowMs;
-  const observations = perPayment(all).filter(
+  const payments = perPayment(all);
+  const observations = payments.filter(
     (o) => keyOf(o, entityKind) === entityKey && o.at <= asOf && o.at >= from,
   );
+  const longSpan = confirmExact
+    ? distinctExactCards(
+        payments.filter(
+          (o) => keyOf(o, entityKind) === entityKey && o.at <= asOf && o.at >= asOf - LONG_SPAN_MS,
+        ),
+      )
+    : null;
 
-  return featuresFrom(entityKind, entityKey, observations, asOf, window, confirmExact);
+  return featuresFrom(entityKind, entityKey, observations, asOf, window, confirmExact, longSpan);
 }
 
 /**
@@ -310,21 +366,60 @@ export function computeAllFeatures(
   confirmExact = true,
 ): FeatureVector[] {
   const from = asOf - window.windowMs;
+  const longFrom = asOf - LONG_SPAN_MS;
   const grouped = new Map<string, Observation[]>();
+  // The slow-and-wide card count needs a horizon wider than the live window, so it is accumulated
+  // in the same single pass rather than rescanning the array per entity.
+  const longSpanCards = new Map<string, Set<string>>();
 
   for (const observation of perPayment(all)) {
-    if (observation.at > asOf || observation.at < from) continue;
+    if (observation.at > asOf || observation.at < longFrom) continue;
     const key = keyOf(observation, entityKind);
     if (key === null || key === '') continue;
 
+    if (confirmExact && observation.cardId !== null && observation.cardId !== '') {
+      let cards = longSpanCards.get(key);
+      if (cards === undefined) {
+        cards = new Set<string>();
+        longSpanCards.set(key, cards);
+      }
+      cards.add(observation.cardId);
+    }
+
+    if (observation.at < from) continue;
     const bucket = grouped.get(key);
     if (bucket === undefined) grouped.set(key, [observation]);
     else bucket.push(observation);
   }
 
   return [...grouped].map(([key, observations]) =>
-    featuresFrom(entityKind, key, observations, asOf, window, confirmExact),
+    featuresFrom(
+      entityKind,
+      key,
+      observations,
+      asOf,
+      window,
+      confirmExact,
+      confirmExact ? (longSpanCards.get(key)?.size ?? 0) : null,
+    ),
   );
+}
+
+/** Distinct orders touched by the busiest single card in a set of attempts. Zero if no card is seen. */
+function maxOrdersPerCardOf(observations: readonly Observation[]): number {
+  const ordersByCard = new Map<string, Set<string>>();
+  for (const observation of observations) {
+    if (observation.cardId === null || observation.cardId === '') continue;
+    let orders = ordersByCard.get(observation.cardId);
+    if (orders === undefined) {
+      orders = new Set<string>();
+      ordersByCard.set(observation.cardId, orders);
+    }
+    if (observation.razorpayOrderId !== '') orders.add(observation.razorpayOrderId);
+  }
+  let max = 0;
+  for (const orders of ordersByCard.values()) max = Math.max(max, orders.size);
+  return max;
 }
 
 /** The computation itself, over observations already narrowed to one entity and one window. */
@@ -335,6 +430,7 @@ function featuresFrom(
   asOf: number,
   window: FeatureWindow,
   confirmExact: boolean,
+  longSpanDistinctCards: number | null,
 ): FeatureVector {
   const times = observations.map((o) => o.at);
   const failures = observations.filter((o) => o.outcome === 'failed');
@@ -392,5 +488,9 @@ function featuresFrom(
     recoveredOrders: recovered,
 
     lastSeenAt: times.length === 0 ? null : Math.max(...times),
+    firstSeenAt: times.length === 0 ? null : Math.min(...times),
+
+    maxOrdersPerCard: maxOrdersPerCardOf(observations),
+    distinctCardsLongSpan: confirmExact ? longSpanDistinctCards : null,
   };
 }

@@ -27,3 +27,4 @@ export * from './traffic.js';
 export * from './hypothesis.js';
 export * from './incident-features.js';
 export * from './decision.js';
+export * from './title.js';
