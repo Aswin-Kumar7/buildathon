@@ -104,16 +104,24 @@ export function severityOf(score: Score, thresholds: Thresholds = THRESHOLDS): S
  * `approval_collapse` and `reason_mix` say a lot of attempts failed and failed the same way.
  * That is true of enumeration and equally true of a subscription biller working through cards
  * that are out of money — so on their own they describe a bad afternoon, not an adversary. The
- * rules here describe *how the traffic behaves*: a list of cards being walked, a rate no person
- * produces, amounts chosen to be cheap, arrivals on a timer.
+ * rules here describe *how the traffic behaves*: a list of cards being walked — over a burst
+ * window (`card_spread`) or paced under it across six hours (`card_spread_slow`) — a rate no
+ * person produces, amounts chosen to be cheap, arrivals on a timer.
  *
  * A dunning storm seen through a thirty-minute window is what forced the distinction. Eight
  * cards over fourteen attempts is not enough reuse to trigger the mitigation and not enough
  * spread to trigger the accusation, and the two failure rules alone carried it over the floor.
  * The system would have told a merchant that collecting its own money was an incident.
+ *
+ * `card_spread_slow` belongs here for the same reason `card_spread` does: both establish that a
+ * list of cards is being walked, and they are mutually exclusive by construction — the slow rule
+ * goes quiet once the burst window already holds enough cards to fire the loud one. Without it an
+ * enumerator paced deliberately under the thirty-minute window could clear the floor on the slow
+ * spread alone and still open no incident, which is the one shape that rule exists to catch.
  */
 const DISCRIMINATING: readonly RuleId[] = [
   'card_spread',
+  'card_spread_slow',
   'velocity',
   'small_amount_probing',
   'machine_cadence',
@@ -163,7 +171,9 @@ export function openIncident({
   thresholds = THRESHOLDS,
 }: OpenOptions): Incident {
   const score = scoreOutcomes(outcomes);
-  const firstAttemptAt = vector.lastSeenAt ?? at;
+  // The anchor is the entity's earliest activity, so a growing episode keeps one identity. It
+  // falls back to the newest observation, then the decision moment, when no start time is known.
+  const firstAttemptAt = vector.firstSeenAt ?? vector.lastSeenAt ?? at;
 
   return {
     key: incidentKey(vector.entityKind, vector.entityKey, firstAttemptAt),

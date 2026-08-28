@@ -319,6 +319,12 @@ describe('against the corpus', () => {
       attack_loud: { kind: 'session', atLeast: 1, atMost: 1 },
       attack_low_amplitude: { kind: 'session', atLeast: 1, atMost: 3 },
       attack_distributed: { kind: 'session', atLeast: 0, atMost: 99 },
+      // A carding run at real amounts is the enumeration shape without the small-amount tell.
+      attack_carding: { kind: 'session', atLeast: 1, atMost: 1 },
+      // Enumeration behind one proxy concentrates on the network, not any single session.
+      attack_proxy: { kind: 'network', atLeast: 1, atMost: 3 },
+      // A part-valid list still spreads cards; it opens, at medium confidence.
+      attack_partial: { kind: 'session', atLeast: 1, atMost: 1 },
       // Operational and benign families must produce nothing. These are the expensive mistakes:
       // one is a merchant being stopped from collecting, the other is customers punished for an
       // outage.
