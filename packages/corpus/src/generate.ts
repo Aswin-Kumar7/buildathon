@@ -74,7 +74,14 @@ export function specHash(spec: ScenarioSpec): string {
  * 198.51.100.0/24 is reserved by RFC 5737 for exactly this and is not routable, so a fixture
  * that escapes into something that tries to contact it reaches nothing.
  */
-function syntheticIp(draw: Draw, index: number): string {
+function syntheticIp(draw: Draw, index: number, realistic: boolean): string {
+  // Realistic runs spread networks across many /24 subnets, the way unrelated shoppers on different
+  // ISPs actually are — otherwise every synthetic IP truncates to one subnet and all traffic reads
+  // as a single network. The committed default keeps its fixed documentation range and draws
+  // nothing, so its bytes are unchanged.
+  if (realistic) {
+    return `${draw.int(1, 223)}.${draw.int(0, 255)}.${draw.int(0, 255)}.${(index % 254) + 1}`;
+  }
   return `198.51.100.${(index % 254) + 1}`;
 }
 
@@ -108,14 +115,129 @@ const DECLINE_KIND: Record<ScenarioFamily, DeclineKind> = {
   attack_loud: 'enumeration',
   attack_low_amplitude: 'enumeration',
   attack_distributed: 'enumeration',
+  attack_carding: 'enumeration',
+  attack_proxy: 'enumeration',
+  attack_partial: 'enumeration',
 };
+
+/** The payment rails a real Indian merchant actually sees. */
+export type PaymentRail = 'upi' | 'card' | 'netbanking' | 'wallet';
+
+/** The instrument chosen for one order: its rail and, for a card, the network/type/issuer. */
+interface ChosenMethod {
+  rail: PaymentRail;
+  network: string | null;
+  cardType: string | null;
+  /** Issuing bank for a card; the app/bank/wallet name for the other rails. */
+  issuer: string | null;
+}
+
+/**
+ * Rail mix per family, as shares of traffic — not detector thresholds.
+ *
+ * UPI is the majority rail in ordinary Indian retail; enumeration is a card-rail attack by nature
+ * and subscription dunning runs on saved cards, so both skew hard to card. That skew is also what
+ * makes an all-card burst legible against a UPI-dominant baseline — the realism and the signal are
+ * the same fact. Only drawn when a caller asks for realistic methods; the committed families never
+ * do, so their bytes are unchanged.
+ */
+const RAIL_MIX: Record<ScenarioFamily, readonly (readonly [PaymentRail, number])[]> = {
+  normal_traffic: [
+    ['upi', 62],
+    ['card', 20],
+    ['netbanking', 11],
+    ['wallet', 7],
+  ],
+  customer_error: [
+    ['upi', 50],
+    ['card', 34],
+    ['netbanking', 9],
+    ['wallet', 7],
+  ],
+  gateway_outage: [
+    ['upi', 60],
+    ['card', 22],
+    ['netbanking', 12],
+    ['wallet', 6],
+  ],
+  flash_sale: [
+    ['upi', 66],
+    ['card', 18],
+    ['netbanking', 10],
+    ['wallet', 6],
+  ],
+  retry_storm: [
+    ['card', 90],
+    ['upi', 7],
+    ['netbanking', 3],
+  ],
+  attack_loud: [['card', 100]],
+  attack_low_amplitude: [['card', 100]],
+  attack_distributed: [['card', 100]],
+  attack_carding: [['card', 100]],
+  attack_proxy: [['card', 100]],
+  attack_partial: [['card', 100]],
+};
+
+const CARD_NETWORKS: readonly (readonly [string, number])[] = [
+  ['Visa', 42],
+  ['Mastercard', 28],
+  ['RuPay', 25],
+  ['Amex', 5],
+];
+const CARD_TYPES: readonly (readonly [string, number])[] = [
+  ['debit', 62],
+  ['credit', 38],
+];
+const ISSUERS = ['HDFC', 'ICICI', 'SBI', 'Axis', 'Kotak', 'IndusInd'] as const;
+const UPI_APPS = ['GPay', 'PhonePe', 'Paytm', 'BHIM', 'CRED'] as const;
+const BANKS = ['HDFC', 'ICICI', 'SBI', 'Axis', 'Kotak'] as const;
+const WALLETS = ['PhonePe', 'Paytm', 'Mobikwik', 'Amazon Pay'] as const;
+
+/** The committed families' fixed card, so a run with no realistic-method request is unchanged. */
+const DEFAULT_CARD_METHOD: ChosenMethod = {
+  rail: 'card',
+  network: 'Visa',
+  cardType: 'credit',
+  issuer: 'SIMB',
+};
+
+function weightedPick<T extends string>(draw: Draw, options: readonly (readonly [T, number])[]): T {
+  const total = options.reduce((sum, [, weight]) => sum + weight, 0);
+  let point = draw.float(0, total);
+  for (const [value, weight] of options) {
+    if (point < weight) return value;
+    point -= weight;
+  }
+  return options[options.length - 1]![0];
+}
+
+/** A realistic instrument for one order. Drawn only when realistic methods are requested. */
+function chooseMethod(draw: Draw, family: ScenarioFamily): ChosenMethod {
+  const rail = weightedPick(draw, RAIL_MIX[family]);
+  if (rail === 'card') {
+    return {
+      rail,
+      network: weightedPick(draw, CARD_NETWORKS),
+      cardType: weightedPick(draw, CARD_TYPES),
+      issuer: draw.pick(ISSUERS),
+    };
+  }
+  const label =
+    rail === 'upi'
+      ? draw.pick(UPI_APPS)
+      : rail === 'netbanking'
+        ? draw.pick(BANKS)
+        : draw.pick(WALLETS);
+  return { rail, network: null, cardType: null, issuer: label };
+}
 
 function paymentEntity(input: {
   paymentId: string;
   orderId: string;
   amountPaise: number;
   status: 'authorized' | 'captured' | 'failed';
-  method: string;
+  method: ChosenMethod;
   cardId: string | null;
   at: number;
   decline: Decline | null;
@@ -127,23 +249,32 @@ function paymentEntity(input: {
     currency: 'INR',
     status: input.status,
     order_id: input.orderId,
-    method: input.method,
+    method: input.method.rail,
     captured: input.status === 'captured',
     created_at: Math.floor(input.at / 1000),
   };
 
-  // Coarse card cohort only, and no last four — for a tokenised card that is the token's, not
-  // the card's, so it identifies a person while not even being the signal it looks like.
-  if (input.cardId !== null) {
+  // The instrument block, shaped like the rail Razorpay actually reports. A card carries a coarse
+  // cohort only — no last four, which for a tokenised card is the token's and not the card's — and
+  // the other rails carry the app or bank name a merchant sees, never anything that identifies a
+  // person. `card_id` exists solely as the correlation key card enumeration is caught on; the other
+  // rails deliberately have none, so UPI-heavy ordinary traffic never reads as card spread.
+  if (input.method.rail === 'card' && input.cardId !== null) {
     entity['card_id'] = input.cardId;
     entity['card'] = {
       id: input.cardId,
       entity: 'card',
-      network: 'Visa',
-      type: 'credit',
-      issuer: 'SIMB',
+      network: input.method.network,
+      type: input.method.cardType,
+      issuer: input.method.issuer,
       international: false,
     };
+  } else if (input.method.rail === 'upi') {
+    entity['upi'] = { payer_account_type: 'bank_account', app: input.method.issuer };
+  } else if (input.method.rail === 'netbanking') {
+    entity['bank'] = input.method.issuer;
+  } else if (input.method.rail === 'wallet') {
+    entity['wallet'] = input.method.issuer;
   }
 
   if (input.decline !== null) {
@@ -171,7 +302,8 @@ function webhookBody(event: string, at: number, payload: Record<string, unknown>
 interface OrderContext {
   orderId: string;
   amountPaise: number;
-  cardId: string;
+  cardId: string | null;
+  method: ChosenMethod;
   at: number;
 }
 
@@ -188,7 +320,7 @@ function capturedEvents(draw: Draw, order: OrderContext, captureOnly = false): G
     paymentId: draw.id('pay'),
     orderId: order.orderId,
     amountPaise: order.amountPaise,
-    method: 'card',
+    method: order.method,
     cardId: order.cardId,
     decline: null,
   };
@@ -256,7 +388,7 @@ function declinedEvents(
             orderId: order.orderId,
             amountPaise: order.amountPaise,
             status: 'failed',
-            method: 'card',
+            method: order.method,
             cardId: order.cardId,
             at,
             decline: declineFor(draw, kind),
@@ -282,7 +414,7 @@ function declinedEvents(
  * seeded generator is a sequence: moving a draw changes every number after it. Keeping them
  * together makes that ordering visible rather than scattered through the loop below.
  */
-function plan(spec: ScenarioSpec, draw: Draw) {
+function plan(spec: ScenarioSpec, draw: Draw, realistic: boolean) {
   const windowMinutes = draw.int(spec.windowMinutes[0], spec.windowMinutes[1]);
   const orderCount = draw.int(spec.orders[0], spec.orders[1]);
   const approval = draw.float(spec.approvalRate[0], spec.approvalRate[1]);
@@ -307,7 +439,9 @@ function plan(spec: ScenarioSpec, draw: Draw) {
       deviceId: draw.id('dev', 20),
       userAgentFamily: draw.pick(UA_FAMILIES),
     })),
-    networks: Array.from({ length: networkCount }, (_, index) => syntheticIp(draw, index)),
+    networks: Array.from({ length: networkCount }, (_, index) =>
+      syntheticIp(draw, index, realistic),
+    ),
   };
 }
 
@@ -336,6 +470,12 @@ export interface ScenarioOverrides {
    * — the single axis that most cleanly separates the two, made ambiguous on purpose.
    */
   cardPoolSize?: number;
+  /**
+   * Spread payments across realistic rails (UPI/card/netbanking/wallet) instead of the committed
+   * card-only default. Adds draws, so it deliberately changes the byte-for-byte output — used by the
+   * live simulation, never by the committed families (which pass no overrides and are unchanged).
+   */
+  realisticMethods?: boolean;
 }
 
 /**
@@ -387,8 +527,9 @@ export function generate(
   const spec = effectiveSpec(family, overrides);
   const seed = seedOverride ?? spec.seed;
   const draw = new Draw(seed);
+  const realistic = overrides?.realisticMethods === true;
 
-  const { orderCount, approval, meanGap, sessions, networks } = plan(spec, draw);
+  const { orderCount, approval, meanGap, sessions, networks } = plan(spec, draw, realistic);
 
   // Resolved here, at the same point the pool was previously drawn, so the committed families' draw
   // sequences are unchanged.
@@ -420,10 +561,14 @@ export function generate(
       createdAt: new Date(cursor).toISOString(),
     });
 
-    const cardId = nextCard(index);
+    // Realistic runs draw a rail per order (attacks and dunning stay card-heavy); the committed
+    // default is the fixed card, and only a card order consumes a card id, so the OFF path is the
+    // exact draw sequence it always was.
+    const method = realistic ? chooseMethod(draw, family) : DEFAULT_CARD_METHOD;
+    const cardId = method.rail === 'card' ? nextCard(index) : null;
 
     const at = cursor + draw.int(2_000, 25_000);
-    const order: OrderContext = { orderId, amountPaise, cardId, at };
+    const order: OrderContext = { orderId, amountPaise, cardId, method, at };
 
     if (draw.bool(approval)) {
       captured += 1;

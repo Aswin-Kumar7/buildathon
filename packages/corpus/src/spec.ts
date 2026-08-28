@@ -23,6 +23,9 @@ export const SCENARIO_FAMILIES = [
   'attack_loud',
   'attack_low_amplitude',
   'attack_distributed',
+  'attack_carding',
+  'attack_proxy',
+  'attack_partial',
 ] as const;
 
 export type ScenarioFamily = (typeof SCENARIO_FAMILIES)[number];
@@ -217,6 +220,69 @@ export const SCENARIOS: Record<ScenarioFamily, ScenarioSpec> = {
     distinctSessions: [20, 40],
     distinctNetworks: [20, 40],
     amountPaise: [100, 3_000],
+  },
+
+  attack_carding: {
+    family: 'attack_carding',
+    title: 'Carding — buying with stolen cards',
+    narrative:
+      'An attacker putting a list of stolen cards through checkout at real prices, to buy goods rather than just prove the cards are live.',
+    classification: 'attack',
+    correlation:
+      'One session, one device, one network; many distinct cards, almost none approved — the same enumeration shape at ordinary amounts.',
+    recommendedAction:
+      'Contain it. The loss here is real goods shipped against a stolen card, not one inconvenienced shopper.',
+    difficulty:
+      'Looks like ordinary purchasing on transaction size alone — the tell is the card-to-attempt spread and the near-zero approval, not the amount. A detector keyed on small-amount probing misses it.',
+    seed: 1009,
+    windowMinutes: [8, 18],
+    orders: [50, 90],
+    approvalRate: [0.02, 0.06],
+    distinctSessions: [1, 1],
+    distinctNetworks: [1, 1],
+    amountPaise: [29_900, 179_900],
+  },
+
+  attack_proxy: {
+    family: 'attack_proxy',
+    title: 'Enumeration behind one proxy',
+    narrative:
+      'The same card-testing run spread across many short browser sessions that all exit through a single proxy or NAT, so no one session looks busy but the network does.',
+    classification: 'attack',
+    correlation:
+      'Not the session — the network. Many small sessions, one shared address, many distinct cards across it.',
+    recommendedAction:
+      'Contain by network: the correlation that holds here is the shared address, not any one session.',
+    difficulty:
+      'Defeats a per-session threshold by construction — every session is too small on its own. Only a network-level view sees the spread, which is what separates it from a burst on one machine.',
+    seed: 1010,
+    windowMinutes: [10, 22],
+    orders: [55, 95],
+    approvalRate: [0.02, 0.06],
+    distinctSessions: [18, 26],
+    distinctNetworks: [1, 1],
+    amountPaise: [100, 2_500],
+  },
+
+  attack_partial: {
+    family: 'attack_partial',
+    title: 'Testing a part-valid card list',
+    narrative:
+      'A card-testing run where a meaningful share of the cards still work — a fresher or partly-valid list — so approval is low but not on the floor.',
+    classification: 'attack',
+    correlation:
+      'One session, many distinct cards, an approval rate below anything honest traffic reaches but above a dead list.',
+    recommendedAction:
+      'Review, then contain — the working cards make it live, but the higher approval leaves a shorter window of certainty.',
+    difficulty:
+      'Sits between enumeration and ordinary traffic on approval rate; the card spread is what still separates it, and it scores medium rather than high because fewer corroborating signals fire.',
+    seed: 1011,
+    windowMinutes: [10, 20],
+    orders: [45, 80],
+    approvalRate: [0.25, 0.4],
+    distinctSessions: [1, 1],
+    distinctNetworks: [1, 1],
+    amountPaise: [19_900, 119_900],
   },
 };
 
