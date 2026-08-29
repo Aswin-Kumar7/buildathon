@@ -1,17 +1,19 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, gte, sql } from 'drizzle-orm';
-import { canonicalEvents, incidents, type DbHandle } from '@sentinel/db';
-import type { OverviewResponse } from '@sentinel/contracts';
+import { and, eq, gte, sql } from 'drizzle-orm';
+import { incidents, type DbHandle } from '@sentinel/db';
+import type { IncidentSummary, OverviewResponse } from '@sentinel/contracts';
 import { DB } from '../db/db.module.js';
 import { AttemptsService } from '../attempts/attempts.service.js';
 import { IncidentsService } from '../incidents/incidents.service.js';
 
 type Window = OverviewResponse['window'];
+type Source = 'razorpay' | 'replay' | 'all';
 
 const windowMs: Record<Window, number> = {
   today: 24 * 60 * 60_000,
   '24h': 24 * 60 * 60_000,
   '7d': 7 * 24 * 60 * 60_000,
+  '30d': 30 * 24 * 60 * 60_000,
 };
 
 const n = (value: unknown): number => Number(value ?? 0);
@@ -24,116 +26,114 @@ export class OverviewService {
     private readonly incidents: IncidentsService,
   ) {}
 
-  async get(window: Window): Promise<OverviewResponse> {
+  async get(window: Window, source: Source = 'razorpay'): Promise<OverviewResponse> {
     const now = new Date();
     const start = new Date(now.getTime() - windowMs[window]!);
-    const events = await this.events(start);
-    const orders = (await this.attempts.listOrders(10_000, { source: 'razorpay' })).orders;
+    const priorStart = new Date(start.getTime() - windowMs[window]!);
+
+    const orders = (await this.attempts.listOrders(10_000, { source })).orders;
     const attemptRows = orders.flatMap((order) => order.attempts);
-    const attempts = attemptRows.filter(
+    const current = attemptRows.filter(
       (attempt) => Date.parse(attempt.firstSeenAt) >= start.getTime(),
     );
-    const incidentStats = await this.incidentStats(start);
-    const recentIncidents = (await this.incidents.list(undefined, 'razorpay')).incidents
-      .filter((incident) => incident.detectedAt >= start.getTime())
+    const prior = attemptRows.filter((attempt) => {
+      const at = Date.parse(attempt.firstSeenAt);
+      return at >= priorStart.getTime() && at < start.getTime();
+    });
+    // The one delta that is honestly computable from timestamps we hold. Null when there is no
+    // prior window to compare against — never a fabricated percentage.
+    const attemptsDeltaPct =
+      prior.length === 0 ? null : (current.length - prior.length) / prior.length;
+
+    const incidentStats = await this.incidentStats(source);
+    // Incidents are shown as current state, not windowed: an open case from yesterday still needs
+    // review today. Only the attempt counts and the time series below are windowed.
+    const allIncidents = (
+      await this.incidents.list(undefined, source === 'all' ? undefined : source)
+    ).incidents;
+    const recentIncidents = [...allIncidents]
       .sort((a, b) => b.detectedAt - a.detectedAt)
       .slice(0, 5);
-    const reasonRows = await this.reasonRows(start);
-    const riskRows = await this.riskRows(start);
+    const reasonRows = OverviewService.reasonsByTitle(allIncidents);
+    const trendRows = await this.riskRows(start, source);
 
-    const failures = attempts.filter((attempt) => attempt.status === 'failed').length;
-    const captured = attempts.filter((attempt) => attempt.status === 'captured').length;
-    const assessed = attempts.length;
-    const risk = riskRows.length === 0 ? null : Math.max(...riskRows.map((row) => row.score));
+    const failures = current.filter((attempt) => attempt.status === 'failed').length;
+    const captured = current.filter((attempt) => attempt.status === 'captured').length;
+    const assessed = current.length;
+    // The risk meter reflects the worst still-open incident, not a windowed snapshot.
+    const openRisk = allIncidents.filter(
+      (incident) => incident.status === 'open' || incident.status === 'under_review',
+    );
+    const risk = openRisk.length === 0 ? null : Math.max(...openRisk.map((i) => i.score));
     const riskLevel =
-      riskRows.length === 0
+      openRisk.length === 0
         ? null
-        : riskRows.some((row) => row.severity === 'high')
+        : openRisk.some((i) => i.severity === 'high')
           ? 'high'
-          : riskRows.some((row) => row.severity === 'medium')
+          : openRisk.some((i) => i.severity === 'medium')
             ? 'medium'
             : 'low';
 
     return {
       window,
       generatedAt: now.toISOString(),
-      source: 'razorpay',
+      source,
       eventsAnalyzed: assessed,
-      attemptsToday: attempts.length,
+      attemptsToday: current.length,
+      attemptsDeltaPct,
       paymentsCaptured: captured,
       paymentsFailed: failures,
       activeIncidents: incidentStats.open + incidentStats.underReview,
       underReview: incidentStats.underReview,
       contained: incidentStats.contained,
       totalIncidents: incidentStats.total,
+      resolvedToday: incidentStats.resolved,
       // This is deliberately an outcome count, not a claim that every successful payment is
       // fraud-free. It is the number of canonical payment outcomes not marked failed.
       safe: Math.max(assessed - failures, 0),
       risk,
       riskLevel,
-      riskTrend: this.trend(riskRows, start, window),
-      recentEvents: events.slice(0, 8).map((event) => ({
-        ...event,
-        risk: event.status === 'failed' ? 1 : event.status === 'captured' ? 0 : 0.5,
-        riskBasis: event.status === null ? 'unassessed' : 'payment-outcome',
-      })),
+      riskTrend: this.trend(trendRows, start, window),
       topRiskReasons: reasonRows,
       recentIncidents,
     };
   }
 
-  private async events(start: Date) {
-    const rows = await this.handle.db
-      .select({
-        id: canonicalEvents.id,
-        eventType: canonicalEvents.eventType,
-        orderId: canonicalEvents.razorpayOrderId,
-        paymentId: canonicalEvents.razorpayPaymentId,
-        status: canonicalEvents.status,
-        amountPaise: canonicalEvents.amountPaise,
-        eventAt: canonicalEvents.eventAt,
-      })
-      .from(canonicalEvents)
-      .where(and(eq(canonicalEvents.source, 'razorpay'), gte(canonicalEvents.eventAt, start)))
-      .orderBy(desc(canonicalEvents.eventAt))
-      .limit(10_000);
-
-    return rows.map((row) => ({ ...row, eventAt: row.eventAt.toISOString() }));
-  }
-
-  private async incidentStats(start: Date) {
+  private async incidentStats(source: Source) {
+    const scope = source === 'all' ? sql`true` : eq(incidents.source, source);
     const rows = await this.handle.db
       .select({ status: incidents.status, count: sql<number>`count(*)::int` })
       .from(incidents)
-      .where(eq(incidents.source, 'razorpay'))
+      .where(scope)
       .groupBy(incidents.status);
     const [totalRow] = await this.handle.db
       .select({ count: sql<number>`count(*)::int` })
       .from(incidents)
-      .where(and(eq(incidents.source, 'razorpay'), gte(incidents.detectedAt, start)));
+      .where(scope);
 
-    const counts = { total: n(totalRow?.count), open: 0, underReview: 0, contained: 0 };
+    const counts = {
+      total: n(totalRow?.count),
+      open: 0,
+      underReview: 0,
+      contained: 0,
+      resolved: 0,
+    };
     for (const row of rows) {
       if (row.status === 'open') counts.open = n(row.count);
       if (row.status === 'under_review') counts.underReview = n(row.count);
       if (row.status === 'contained') counts.contained = n(row.count);
+      if (row.status === 'resolved') counts.resolved = n(row.count);
     }
     return counts;
   }
 
-  private async reasonRows(start: Date) {
-    const rows = await this.handle.db
-      .select({ arbitration: incidents.arbitration })
-      .from(incidents)
-      .where(and(eq(incidents.source, 'razorpay'), gte(incidents.detectedAt, start)));
+  /** Groups live incidents by their derived title, the merchant-facing "why". */
+  private static reasonsByTitle(
+    incidentList: readonly IncidentSummary[],
+  ): { code: string; count: number }[] {
     const counts = new Map<string, number>();
-    for (const row of rows) {
-      const best =
-        typeof row.arbitration === 'object' && row.arbitration !== null && 'best' in row.arbitration
-          ? (row.arbitration as { best?: unknown }).best
-          : 'insufficient_evidence';
-      const code = typeof best === 'string' ? best : 'insufficient_evidence';
-      counts.set(code, (counts.get(code) ?? 0) + 1);
+    for (const incident of incidentList) {
+      counts.set(incident.title, (counts.get(incident.title) ?? 0) + 1);
     }
     return [...counts.entries()]
       .map(([code, count]) => ({ code, count }))
@@ -141,7 +141,7 @@ export class OverviewService {
       .slice(0, 5);
   }
 
-  private async riskRows(start: Date) {
+  private async riskRows(start: Date, source: Source) {
     return this.handle.db
       .select({
         score: incidents.score,
@@ -149,7 +149,12 @@ export class OverviewService {
         detectedAt: incidents.detectedAt,
       })
       .from(incidents)
-      .where(and(eq(incidents.source, 'razorpay'), gte(incidents.detectedAt, start)));
+      .where(
+        and(
+          source === 'all' ? undefined : eq(incidents.source, source),
+          gte(incidents.detectedAt, start),
+        ),
+      );
   }
 
   private trend(
@@ -157,7 +162,7 @@ export class OverviewService {
     start: Date,
     window: Window,
   ) {
-    const bucketMs = window === '7d' ? 24 * 60 * 60_000 : 60 * 60_000;
+    const bucketMs = window === '7d' || window === '30d' ? 24 * 60 * 60_000 : 60 * 60_000;
     const buckets = new Map<number, { events: number; failures: number; risk: number }>();
     for (const row of rows) {
       const at = Math.floor(row.detectedAt.getTime() / bucketMs) * bucketMs;

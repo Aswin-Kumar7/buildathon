@@ -3,7 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { hash, verify } from '@node-rs/argon2';
 import { and, desc, eq, gt, isNull } from 'drizzle-orm';
 import { loginAttempts, sessions, users, type DbHandle } from '@sentinel/db';
-import type { SessionUser } from '@sentinel/contracts';
+import type { SessionUser, UpdateProfileRequest } from '@sentinel/contracts';
 import { DB } from '../db/db.module.js';
 import { loadEnv } from '../config/env.js';
 
@@ -129,6 +129,62 @@ export class AuthService {
       csrfToken: row.csrfToken,
       user: { id: row.id, email: row.email, displayName: row.displayName, role: row.role },
     };
+  }
+
+  /**
+   * Changes a user's own password, after re-verifying the current one.
+   *
+   * Returns a discriminated result rather than throwing on a wrong password: a bad current password
+   * is an ordinary outcome the caller shows the person, not an exception. The new hash replaces the
+   * old in place; existing sessions are left alone, so the person is not signed out of other devices
+   * by changing their password here — that is a separate control.
+   */
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<'ok' | 'wrong-password'> {
+    const [user] = await this.handle.db
+      .select({ passwordHash: users.passwordHash })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (!user) return 'wrong-password';
+
+    let valid = false;
+    try {
+      valid = await verify(user.passwordHash, currentPassword);
+    } catch {
+      valid = false;
+    }
+    if (!valid) return 'wrong-password';
+
+    await this.handle.db
+      .update(users)
+      .set({ passwordHash: await this.hashPassword(newPassword) })
+      .where(eq(users.id, userId));
+    return 'ok';
+  }
+
+  /**
+   * Updates the caller's own name and/or access level, and returns the fresh profile.
+   *
+   * Self-service by design: this is the single-operator settings page, not team administration,
+   * so a person edits their own record here. Role is a real permission, so the console makes the
+   * consequence plain rather than hiding it — dropping to analyst gives up approval and publish.
+   */
+  async updateProfile(userId: string, patch: UpdateProfileRequest): Promise<SessionUser> {
+    const set: { displayName?: string; role?: 'analyst' | 'admin' } = {};
+    if (patch.displayName !== undefined) set.displayName = patch.displayName.trim();
+    if (patch.role !== undefined) set.role = patch.role;
+
+    const [row] = await this.handle.db
+      .update(users)
+      .set(set)
+      .where(eq(users.id, userId))
+      .returning();
+    if (row === undefined) throw new Error('profile update affected no user');
+    return { id: row.id, email: row.email, displayName: row.displayName, role: row.role };
   }
 
   async revoke(token: string | undefined): Promise<void> {

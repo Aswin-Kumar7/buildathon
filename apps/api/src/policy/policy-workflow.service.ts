@@ -6,7 +6,8 @@ import {
   NotFoundException,
   type OnModuleInit,
 } from '@nestjs/common';
-import { sql } from 'drizzle-orm';
+import { inArray, sql } from 'drizzle-orm';
+import { users } from '@sentinel/db';
 import { InvalidPolicy, parsePolicy, policyHash, type Policy } from '@sentinel/policy';
 import type { PolicyVersion, PolicyVersionListResponse } from '@sentinel/contracts';
 import { DB } from '../db/db.module.js';
@@ -58,9 +59,20 @@ export class PolicyWorkflowService implements OnModuleInit {
       SELECT id, version, hash, status, created_by, approved_by, created_at, approved_at, published_at, source
       FROM sentinel.policy_versions ORDER BY version DESC LIMIT 50
     `);
-    return {
-      versions: rowsOf<WorkflowRow>(result).map((row) => this.view(row)),
-    };
+    const rows = rowsOf<WorkflowRow>(result);
+    const names = await this.namesFor(rows.flatMap((row) => [row.created_by, row.approved_by]));
+    return { versions: rows.map((row) => this.view(row, names)) };
+  }
+
+  /** Resolves actor ids to display names, so history reads as people rather than uuids. */
+  private async namesFor(ids: (string | null)[]): Promise<Map<string, string>> {
+    const unique = [...new Set(ids.filter((id): id is string => id !== null && id !== ''))];
+    if (unique.length === 0) return new Map();
+    const rows = await this.handle.db
+      .select({ id: users.id, name: users.displayName })
+      .from(users)
+      .where(inArray(users.id, unique));
+    return new Map(rows.map((row) => [row.id, row.name]));
   }
 
   async create(source: string, actorId: string): Promise<PolicyVersion> {
@@ -195,7 +207,7 @@ export class PolicyWorkflowService implements OnModuleInit {
     return row;
   }
 
-  private view(row: WorkflowRow): PolicyVersion {
+  private view(row: WorkflowRow, names: Map<string, string> = new Map()): PolicyVersion {
     const millis = (value: Date | string | null): number | null =>
       value === null ? null : new Date(value).getTime();
     return {
@@ -204,7 +216,9 @@ export class PolicyWorkflowService implements OnModuleInit {
       hash: row.hash,
       status: row.status,
       createdBy: row.created_by,
+      createdByName: names.get(row.created_by) ?? null,
       approvedBy: row.approved_by,
+      approvedByName: row.approved_by === null ? null : (names.get(row.approved_by) ?? null),
       createdAt: millis(row.created_at)!,
       approvedAt: millis(row.approved_at),
       publishedAt: millis(row.published_at),

@@ -9,8 +9,13 @@ export class OverviewController {
   constructor(private readonly overview: OverviewService) {}
 
   @Get()
-  async get(@Query('window') window?: string): Promise<OverviewResponse> {
-    const selected = window === '7d' ? '7d' : window === '24h' ? '24h' : 'today';
-    return overviewResponseSchema.parse(await this.overview.get(selected));
+  async get(
+    @Query('window') window?: string,
+    @Query('source') source?: string,
+  ): Promise<OverviewResponse> {
+    const selected =
+      window === '30d' ? '30d' : window === '7d' ? '7d' : window === '24h' ? '24h' : 'today';
+    const scope = source === 'replay' || source === 'all' ? source : 'razorpay';
+    return overviewResponseSchema.parse(await this.overview.get(selected, scope));
   }
 }

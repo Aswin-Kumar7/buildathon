@@ -24,11 +24,27 @@ import { DB } from '../db/db.module.js';
 import { FeaturesService } from '../features/features.service.js';
 import { PolicyService } from '../policy/policy.service.js';
 import { AuditService } from '../audit/audit.service.js';
+import { EnforcementService } from '../enforcement/enforcement.service.js';
 
 type Row = typeof containments.$inferSelect;
 
 /** Statuses that still count against the impact caps. */
 const LIVE = ['proposed', 'active'] as const;
+
+/**
+ * Neutralises a decision while enforcement is paused: nothing customer-impacting, recorded as a
+ * refusal so the reason is on the record rather than silently dropped. The same shape the kill
+ * switch produces, under a distinct code so an analyst can tell an emergency stop from a policy one.
+ */
+function pauseNeutralised(decision: PolicyDecision): PolicyDecision {
+  return {
+    ...decision,
+    action: 'observe',
+    approvalsRequired: 0,
+    expiresAfterMinutes: null,
+    refusals: [...decision.refusals, 'enforcement_paused'],
+  };
+}
 
 @Injectable()
 export class ContainmentService {
@@ -37,6 +53,7 @@ export class ContainmentService {
     private readonly features: FeaturesService,
     private readonly policy: PolicyService,
     private readonly audit: AuditService,
+    private readonly enforcement: EnforcementService,
   ) {}
 
   /**
@@ -106,6 +123,34 @@ export class ContainmentService {
   }
 
   /**
+   * The policy's decision for an incident, computed but NOT persisted.
+   *
+   * The read-only counterpart to {@link propose}: it answers "what would policy do about this
+   * incident right now, and which rules would hold a stronger action back" without inserting a
+   * containment row or touching the audit chain. The AI Risk Manager grounds its recommendation on
+   * this, and the accept path re-checks it before anything is proposed. Null when the incident has
+   * no arbitration to decide on — the same case propose() refuses.
+   */
+  async preview(incidentId: string): Promise<PolicyDecision | null> {
+    const [incident] = await this.handle.db
+      .select()
+      .from(incidents)
+      .where(eq(incidents.id, incidentId))
+      .limit(1);
+    if (incident === undefined) throw new NotFoundException('no such incident');
+
+    const arbitration = incident.arbitration as Arbitration | null;
+    if (arbitration === null) return null;
+
+    return this.decideFor(
+      incident.entityKind as EntityKind,
+      incident.entityKey,
+      arbitration,
+      incident.source,
+    );
+  }
+
+  /**
    * Runs the policy against current features for one entity.
    *
    * The clock it stands at depends on where the traffic came from, and the distinction matters.
@@ -144,7 +189,10 @@ export class ContainmentService {
       containmentsInLastHour: await this.countRecent(),
     };
 
-    const decision = decide({ arbitration, vector, traffic, state, policy: this.policy.policy });
+    const raw = decide({ arbitration, vector, traffic, state, policy: this.policy.policy });
+    // A paused system proposes nothing customer-impacting, and says so. Applied here so the preview
+    // the AI grounds on and the accept path both see the same neutralised decision.
+    const decision = this.enforcement.isPaused() ? pauseNeutralised(raw) : raw;
     return rehearsal
       ? { ...decision, reasons: [...decision.reasons, 'evaluated_in_replay_time'] }
       : decision;
@@ -190,6 +238,11 @@ export class ContainmentService {
     // was engaged must not be a way of acting after.
     if (this.policy.policy.killSwitch) {
       throw new BadRequestException('the kill switch is engaged: nothing may take effect');
+    }
+    // Same for the emergency pause: an approval must not be a way to place a block while enforcement
+    // is stopped.
+    if (this.enforcement.isPaused()) {
+      throw new BadRequestException('enforcement is paused: nothing may take effect');
     }
 
     const approvers = await this.approvers(id);
@@ -289,6 +342,36 @@ export class ContainmentService {
   }
 
   /**
+   * Releases every live customer-impacting block at once.
+   *
+   * This is what makes the emergency pause actually stop the harm rather than merely stop new harm:
+   * without it, engaging a stop would leave everyone already blocked blocked until their timer ran
+   * out. Each release is recorded and audited exactly like a hand-driven one, with the operator who
+   * triggered the pause as the actor — the record must say who freed whom.
+   */
+  async releaseAllActive(actorId: string, reason: string): Promise<number> {
+    const active = await this.handle.db
+      .select({ id: containments.id })
+      .from(containments)
+      .where(
+        and(
+          eq(containments.status, 'active'),
+          inArray(containments.action, ['contain', 'step_up']),
+        ),
+      );
+
+    for (const row of active) {
+      await this.handle.db
+        .update(containments)
+        .set({ status: 'released', endedAt: sql`now()` })
+        .where(eq(containments.id, row.id));
+      await this.record(row.id, 'released', actorId, reason);
+    }
+
+    return active.length;
+  }
+
+  /**
    * Expires everything past its time.
    *
    * Runs on a timer and needs nobody. The exit condition for this slice is that a containment
@@ -314,6 +397,9 @@ export class ContainmentService {
 
   /** Whether this entity is currently contained — what the storefront would ask. */
   async isContained(entityKind: string, entityKey: string): Promise<boolean> {
+    // A paused system blocks nobody, even before the release sweep has finished running.
+    if (this.enforcement.isPaused()) return false;
+
     const [row] = await this.handle.db
       .select({ id: containments.id })
       .from(containments)
@@ -347,6 +433,9 @@ export class ContainmentService {
     candidates: readonly { kind: string; key: string }[],
   ): Promise<{ id: string; action: string; entityKind: string } | null> {
     if (candidates.length === 0) return null;
+    // The emergency stop takes effect here immediately, without waiting on the release sweep: while
+    // enforcement is paused, no entity is blocking, whatever the containment rows still say.
+    if (this.enforcement.isPaused()) return null;
 
     const [row] = await this.handle.db
       .select({ id: containments.id, action: containments.action, kind: containments.entityKind })

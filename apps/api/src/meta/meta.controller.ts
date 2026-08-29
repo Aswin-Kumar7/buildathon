@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { metaSchema, type Meta } from '@sentinel/contracts';
+import { ModelMetricsService } from '../model-metrics/model-metrics.service.js';
 
 const CLAIM =
   'Sentinel detects and safely responds to merchant-side suspicious failed-payment clusters, ' +
@@ -39,8 +40,21 @@ const EVIDENCE: Meta['evidenceLayers'] = [
 
 @Controller('meta')
 export class MetaController {
+  constructor(private readonly metrics: ModelMetricsService) {}
+
   @Get()
   get(): Meta {
+    // The deployed model's own held-out numbers, so the public page reads real metrics rather than
+    // hardcoding them. Null when the artefact is absent, which the page reports plainly.
+    const loaded = this.metrics.load();
+    const model = loaded.available
+      ? {
+          prAuc: loaded.model.honest.prAuc.point,
+          recall: loaded.model.honest.recall.point,
+          falseDeclineRate: loaded.model.honest.falseDeclineRate,
+        }
+      : null;
+
     return metaSchema.parse({
       name: 'Sentinel',
       claim: CLAIM,
@@ -48,6 +62,7 @@ export class MetaController {
       commit: process.env.GIT_COMMIT ?? 'dev',
       slice: { number: 1, name: 'Landing page' },
       evidenceLayers: EVIDENCE,
+      model,
     });
   }
 }

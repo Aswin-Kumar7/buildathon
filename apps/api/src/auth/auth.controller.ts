@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -10,7 +11,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { loginRequestSchema, type LoginResponse, type MeResponse } from '@sentinel/contracts';
+import {
+  changePasswordRequestSchema,
+  loginRequestSchema,
+  updateProfileRequestSchema,
+  type LoginResponse,
+  type MeResponse,
+  type SessionUser,
+} from '@sentinel/contracts';
 // Value import, not `import type`: Nest reads this class from runtime metadata to inject it.
 import { AuthService } from './auth.service.js';
 import { Roles, SESSION_COOKIE, SessionGuard, type AuthedRequest } from './session.guard.js';
@@ -70,6 +78,31 @@ export class AuthController {
   @UseGuards(SessionGuard)
   check(@Req() req: AuthedRequest): { user: MeResponse['user'] } {
     return { user: req.user ?? null };
+  }
+
+  /** Change your own password. Re-verifies the current one; a wrong one is a 400, not a 500. */
+  @Post('password')
+  @HttpCode(200)
+  @UseGuards(SessionGuard)
+  async changePassword(@Body() body: unknown, @Req() req: AuthedRequest): Promise<{ ok: true }> {
+    const { currentPassword, newPassword } = changePasswordRequestSchema.parse(body);
+    const outcome = await this.auth.changePassword(req.user!.id, currentPassword, newPassword);
+    if (outcome === 'wrong-password') {
+      throw new BadRequestException('Your current password is incorrect.');
+    }
+    return { ok: true };
+  }
+
+  /** Update your own name and/or access level; returns the fresh profile the console re-reads. */
+  @Post('profile')
+  @HttpCode(200)
+  @UseGuards(SessionGuard)
+  async updateProfile(
+    @Body() body: unknown,
+    @Req() req: AuthedRequest,
+  ): Promise<{ user: SessionUser }> {
+    const patch = updateProfileRequestSchema.parse(body);
+    return { user: await this.auth.updateProfile(req.user!.id, patch) };
   }
 
   /** Mutating and admin-only, so CSRF and role enforcement are both covered by tests. */
