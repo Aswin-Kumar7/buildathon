@@ -1,6 +1,13 @@
 import { Inject, Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
-import { incidents, incidentTransitions, users, type DbHandle } from '@sentinel/db';
+import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import {
+  canonicalEvents,
+  checkoutSessions,
+  incidents,
+  incidentTransitions,
+  users,
+  type DbHandle,
+} from '@sentinel/db';
 import {
   arbitrate,
   arbitrationExplainsBenign,
@@ -16,11 +23,14 @@ import {
   evaluateRules,
   firedRules,
   incidentFeatures,
+  incidentTitle,
   INCIDENT_FEATURE_NAMES,
   modelFlagsMissedEntity,
   openIncident,
+  severityOf,
   timeToDetect,
   thresholdHash,
+  type Score,
   type ChangeResult,
   type EntityKind,
   type Evaluation,
@@ -36,6 +46,7 @@ import {
 import type {
   EvaluateResponse,
   IncidentDetail,
+  IncidentGraph,
   IncidentSummary,
   ModelOpinion,
 } from '@sentinel/contracts';
@@ -46,6 +57,11 @@ import { performance } from 'node:perf_hooks';
 import { ModelScoringService } from '../model-scoring/model-scoring.service.js';
 import { LoadService } from '../system/load.service.js';
 import { AttemptsService } from '../attempts/attempts.service.js';
+
+/** A short, distinctive label for a pseudonym or token id in the incident graph — never the value. */
+function graphFingerprint(value: string): string {
+  return value.replace(/^v\d+:/, '').slice(-8);
+}
 
 /** Entity kinds evaluated on every pass. An attacker rotating one is caught by another. */
 const KINDS: readonly EntityKind[] = ['session', 'device', 'network'];
@@ -61,11 +77,45 @@ const CANDIDATES = 40;
  */
 const MAX_SCORED_PER_PASS = 100;
 
+/**
+ * How many model-only cases one pass may raise. A distributed attack is many thin entities the rules
+ * missed; without a bound the model would open a row per session and drown the queue it is trying to
+ * surface. Capped to the highest-risk few — enough to make the coordinated pattern unmistakable, not
+ * one alert per address — and the same top entities re-selected each pass (risk, then key) update in
+ * place rather than accumulating.
+ */
+const MODEL_FLAG_MAX_PER_PASS = 6;
+
+/**
+ * The model may only raise a case the rules missed when the shop itself is attack-shaped — captures
+ * far below what any honest hour reaches. Approval is the one signal that separates a distributed
+ * attack (near-zero) from the things that also spread failures across everyone: a flash sale and a
+ * gateway wobble both look "everywhere at once", and both keep approving real shoppers. Without this
+ * gate the model's small-sample false positives on a legitimate sale surface as review noise; with it,
+ * a healthy or busy shop is never second-guessed, and the per-entity benign veto still handles the
+ * low-approval-but-innocent cases (a biller's dunning, an outage) that clear it.
+ */
+const MODEL_FLAG_APPROVAL_CEILING = 0.4;
+
 type Row = typeof incidents.$inferSelect;
 type Source = 'razorpay' | 'replay' | 'all';
 
 /** Arbitration as it is stored, carrying how the model moved the decision. */
 type StoredArbitration = Arbitration & { modelInfluence?: ModelInfluence };
+
+/** The exact counts the queue and overview display, taken straight from the feature vector. */
+type IncidentCounts = { attempts: number; failures: number; distinctCards: number | null };
+
+/** Reads the display counts off a feature vector, the one place they are already exact. */
+function countsOf(vector: FeatureVector | undefined): IncidentCounts | null {
+  return vector === undefined
+    ? null
+    : {
+        attempts: vector.attempts,
+        failures: vector.failures,
+        distinctCards: vector.distinctCards.exact,
+      };
+}
 
 @Injectable()
 export class IncidentsService {
@@ -171,31 +221,31 @@ export class IncidentsService {
         decided,
         opinion,
         vector === undefined ? null : IncidentsService.featuresObject(vector, traffic),
+        countsOf(vector),
       );
       if (wrote === 'opened') opened += 1;
       else updated += 1;
     }
 
-    // The model on its own — the pass that lets it raise a case the rules never opened.
-    // Replay already has a deterministic attack fixture and the rule/arbitration path gives it
-    // an explainable case. Keep the model-only rescue pass for live traffic; otherwise a replay
-    // can create a second row for the same synthetic burst when its entity-level counts differ
-    // slightly across session/device/network views. The model still scores warranted replay
-    // incidents in the loop above.
-    const flaggedResult =
-      source === 'replay'
-        ? { opened: 0, updated: 0 }
-        : await this.raiseModelFlagged({
-            vectors,
-            traffic,
-            handled,
-            ruleIncidents,
-            scored,
-            change,
-            hash,
-            provenance,
-            asOf,
-          });
+    // The model on its own — the pass that lets it raise a case the rules never opened. This is the
+    // one place the learned model catches what a single-entity burst rule structurally cannot: a
+    // distributed attack spread so thin across sessions and addresses that no key trips a threshold.
+    // It runs for replay as well as live, so a simulated distributed attack is caught in the demo the
+    // same way it would be in production — the whole point of having the model. Duplicate views of one
+    // burst are still collapsed below (dropDuplicateViews / describesSameActivity / hasSameActivity),
+    // and a confident benign explanation still vetoes it, so enabling replay adds cases the model
+    // genuinely found, never a second row for activity a rule already opened.
+    const flaggedResult = await this.raiseModelFlagged({
+      vectors,
+      traffic,
+      handled,
+      ruleIncidents,
+      scored,
+      change,
+      hash,
+      provenance,
+      asOf,
+    });
     opened += flaggedResult.opened;
     updated += flaggedResult.updated;
 
@@ -203,12 +253,12 @@ export class IncidentsService {
       evaluated,
       opened,
       updated,
-      // A pass that saw nothing expires nothing. Falling back to the clock here meant that
-      // evaluating a source with no events — a scope just cleared, a shop that has not opened
-      // yet — closed every incident in the queue, because an incident recorded against
-      // historical timestamps is always "idle" by wall-clock reckoning. No data is not
-      // evidence that time has passed for the incidents that do exist.
-      expired: asOf === 0 ? 0 : await this.expireIdle(asOf, source),
+      // Close what has explained itself benign; a positive re-explanation, never mere silence.
+      deescalated: await this.deescalateExplained(vectors, traffic, handled, source, asOf),
+      // Incidents no longer expire on idle. An incident stays open until a person acts on it, so
+      // nothing a merchant hasn't seen is closed out from under them. Benign cases are still stood
+      // down above (a positive re-explanation) — but silence alone never closes an incident.
+      expired: 0,
     };
   }
 
@@ -240,6 +290,11 @@ export class IncidentsService {
     let opened = 0;
     let updated = 0;
 
+    // Only where the shop as a whole is failing far more than any honest hour does. A healthy or
+    // merely busy shop keeps approving shoppers, and there the model does not get to raise a case on
+    // its own — the restraint that keeps a legitimate sale from ever being second-guessed.
+    if (traffic.approvalRate > MODEL_FLAG_APPROVAL_CEILING) return { opened, updated };
+
     const flagged = new Map<string, { incident: ComputedIncident; opinion: ModelOpinion }>();
     for (const [entityId, vector] of vectors) {
       if (handled.has(entityId) || scored >= MAX_SCORED_PER_PASS) continue;
@@ -247,13 +302,30 @@ export class IncidentsService {
       if (opinion !== null) scored += 1;
       if (opinion === null || !modelFlagsMissedEntity(IncidentsService.verdictOf(opinion)))
         continue;
+      // No rule fired, so the rule score is an honest zero — but the incident the model raised is not
+      // a zero-risk one. Its risk *is* the model's P(abuse), carried as the score so severity, band
+      // and the queue read the model's confidence instead of an empty rule sum. The evidence stays
+      // empty on purpose: the "why" here is the model, shown as such, not a rule that did not fire.
+      const score = IncidentsService.modelRiskScore(opinion.risk);
       flagged.set(entityId, {
-        incident: openIncident({ outcomes: [], vector, at: asOf }),
+        incident: {
+          ...openIncident({ outcomes: [], vector, at: asOf }),
+          score,
+          severity: severityOf(score),
+        },
         opinion,
       });
     }
 
-    for (const kept of dropDuplicateViews([...flagged.values()].map((entry) => entry.incident))) {
+    // The first wave only, so a distributed attack surfaces as an unmistakable cluster rather than one
+    // row per address. Ordered by when the entity first appeared, not by risk (which is uniformly high
+    // across a card-testing run): the earliest few are a stable set as the run grows, so each pass
+    // re-selects and updates them in place instead of accreting a new row every tick.
+    const deduped = dropDuplicateViews([...flagged.values()].map((entry) => entry.incident));
+    const capped = [...deduped]
+      .sort((a, b) => a.firstAttemptAt - b.firstAttemptAt || a.entityKey.localeCompare(b.entityKey))
+      .slice(0, MODEL_FLAG_MAX_PER_PASS);
+    for (const kept of capped) {
       // One machine is one session, one device and one network. If the rule tier already opened a
       // case on any view of this activity, the model flagging another view of the *same* machine is
       // the same incident seen through a coarser key, not a new one.
@@ -286,6 +358,7 @@ export class IncidentsService {
         decided,
         entry.opinion,
         IncidentsService.featuresObject(vector, traffic),
+        countsOf(vector),
       );
       if (wrote === 'opened') opened += 1;
       else updated += 1;
@@ -334,6 +407,26 @@ export class IncidentsService {
   /** The model opinion reduced to the verdict a decision needs: its risk score, P(abuse). */
   private static verdictOf(opinion: ModelOpinion | null): ModelVerdict | null {
     return opinion === null ? null : { risk: opinion.risk };
+  }
+
+  /**
+   * A score for a case the model raised where no rule fired: its value is the model's P(abuse), band
+   * `high` because the model gave a point estimate (nothing abstained), and evidence empty because no
+   * rule contributed. This keeps a model-flagged incident's severity and displayed risk honest to what
+   * actually raised it, instead of the zero an empty rule sum would produce.
+   */
+  private static modelRiskScore(risk: number): Score {
+    const value = Math.round(Math.min(Math.max(risk, 0), 1) * 1000) / 1000;
+    return {
+      value,
+      lower: value,
+      upper: value,
+      band: 'high',
+      incriminating: value,
+      mitigating: 0,
+      evidence: [],
+      abstentions: [],
+    };
   }
 
   private scoreWhenWarranted(
@@ -411,6 +504,7 @@ export class IncidentsService {
     arbitration: StoredArbitration | null,
     modelOpinion: ModelOpinion | null,
     features: Record<string, number> | null,
+    counts: IncidentCounts | null,
   ): Promise<'opened' | 'updated'> {
     const values = {
       key: computed.key,
@@ -429,6 +523,10 @@ export class IncidentsService {
       // The retraining seam: the exact numbers the decision rested on, and the model's risk on them.
       features,
       modelRisk: modelOpinion?.risk ?? null,
+      // The display counts, exact from the vector — what the queue and overview show per incident.
+      attempts: counts?.attempts ?? null,
+      failures: counts?.failures ?? null,
+      distinctCards: counts?.distinctCards ?? null,
       // Taken from the events behind this entity, never from the scope that was asked for.
       // Evaluating "both" and labelling the result `razorpay` would present replayed traffic
       // as a real detection — the one thing this system claims it never does.
@@ -472,6 +570,9 @@ export class IncidentsService {
         modelOpinion: values.modelOpinion,
         features: values.features,
         modelRisk: values.modelRisk,
+        attempts: values.attempts,
+        failures: values.failures,
+        distinctCards: values.distinctCards,
         source: values.source,
         lastActivityAt: values.lastActivityAt,
         expiresAt: values.expiresAt,
@@ -510,51 +611,94 @@ export class IncidentsService {
     return row !== undefined;
   }
 
-  private async expireIdle(asOf: number, source: Source): Promise<number> {
+  /**
+   * Closes open incidents whose entity has, on this pass, positively re-explained itself as benign.
+   *
+   * The trigger is a *positive* benign explanation — a biller's dunning, an acquirer outage, an
+   * ordinary busy hour — never the mere absence of an attack, so a real attack that briefly went
+   * quiet is left to expire as itself rather than mislabelled as legitimate. Scoped to entities this
+   * pass actually re-evaluated and did not re-open (`handled`): an entity still tripping the
+   * incriminating rules keeps its incident, and one no longer in view is closed by idle expiry, not
+   * here. The incident's arbitration is rewritten to the explanation that won, so the detail says why
+   * it stood down, and the move is recorded with a null actor because the system, not a person, made it.
+   */
+  private async deescalateExplained(
+    vectors: Map<string, FeatureVector>,
+    traffic: TrafficContext,
+    handled: Set<string>,
+    source: Source,
+    asOf: number,
+  ): Promise<number> {
+    if (asOf === 0) return 0;
     const scoped =
       source === 'all'
         ? undefined
         : eq(incidents.source, source === 'replay' ? 'replay' : 'razorpay');
 
-    const stale = await this.handle.db
+    const open = await this.handle.db
       .select({
         id: incidents.id,
         status: incidents.status,
+        entityKind: incidents.entityKind,
+        entityKey: incidents.entityKey,
         thresholdHash: incidents.thresholdHash,
       })
       .from(incidents)
       .where(
         and(
           inArray(incidents.status, ['open', 'under_review']),
-          sql`${incidents.expiresAt} < ${new Date(asOf)}`,
           ...(scoped === undefined ? [] : [scoped]),
         ),
       );
 
-    for (const row of stale) {
-      await this.handle.db
-        .update(incidents)
-        .set({ status: 'expired', updatedAt: sql`now()` })
-        .where(eq(incidents.id, row.id));
+    let deescalated = 0;
+    for (const row of open) {
+      const entityId = `${row.entityKind}:${row.entityKey}`;
+      if (handled.has(entityId)) continue;
+      const vector = vectors.get(entityId);
+      if (vector === undefined) continue;
 
-      await this.handle.db.insert(incidentTransitions).values({
-        incidentId: row.id,
-        fromStatus: row.status,
-        toStatus: 'expired',
-        note: 'no activity within the idle window',
-      });
+      const arbitration = arbitrate(vector, traffic);
+      if (!arbitrationExplainsBenign(arbitration.best)) continue;
 
-      await this.audit.append({
-        actorId: null,
-        kind: 'incident.transition',
-        subjectType: 'incident',
-        subjectId: row.id,
-        payload: { from: row.status, to: 'expired', note: 'no activity within the idle window' },
-        featureSnapshotHash: row.thresholdHash,
-      });
+      await this.resolveAsBenign(row, arbitration);
+      deescalated += 1;
     }
+    return deescalated;
+  }
 
-    return stale.length;
+  /** Rewrites an incident to the benign explanation it now has, closes it, and records why. */
+  private async resolveAsBenign(
+    row: { id: string; status: IncidentStatus; thresholdHash: string },
+    arbitration: Arbitration,
+  ): Promise<void> {
+    const explanation = arbitration.best.replace(/_/g, ' ');
+    const note = `re-evaluated as ${explanation} — legitimate activity, not an attack`;
+
+    await this.handle.db
+      .update(incidents)
+      .set({
+        arbitration: arbitration as StoredArbitration,
+        status: 'resolved',
+        updatedAt: sql`now()`,
+      })
+      .where(eq(incidents.id, row.id));
+
+    await this.handle.db.insert(incidentTransitions).values({
+      incidentId: row.id,
+      fromStatus: row.status,
+      toStatus: 'resolved',
+      note,
+    });
+
+    await this.audit.append({
+      actorId: null,
+      kind: 'incident.transition',
+      subjectType: 'incident',
+      subjectId: row.id,
+      payload: { from: row.status, to: 'resolved', note, explanation: arbitration.best },
+      featureSnapshotHash: row.thresholdHash,
+    });
   }
 
   async list(
@@ -631,6 +775,13 @@ export class IncidentsService {
         from: row.firstAttemptAt.getTime(),
         to: row.lastActivityAt.getTime(),
       }),
+      graph: await this.entityGraph(
+        row.entityKind as 'session' | 'device' | 'network',
+        row.entityKey,
+        row.source as 'razorpay' | 'replay',
+        row.firstAttemptAt,
+        row.lastActivityAt,
+      ),
       history: history.map((entry) => ({
         from: entry.from,
         to: entry.to,
@@ -638,6 +789,87 @@ export class IncidentsService {
         note: entry.note,
         at: entry.at.getTime(),
       })),
+    };
+  }
+
+  /**
+   * The correlation behind an incident as a small graph: the entity, the distinct cards it touched,
+   * and — for a network-level case — the sessions those cards came through. Cards are deduplicated by
+   * their token id; each is shown by a short fingerprint, never a real number.
+   */
+  private async entityGraph(
+    entityKind: 'session' | 'device' | 'network',
+    entityKey: string,
+    source: 'razorpay' | 'replay',
+    from: Date,
+    to: Date,
+  ): Promise<IncidentGraph> {
+    const column =
+      entityKind === 'session'
+        ? checkoutSessions.sessionPseudonym
+        : entityKind === 'device'
+          ? checkoutSessions.devicePseudonym
+          : checkoutSessions.ipPseudonym;
+
+    const rows = await this.handle.db
+      .select({
+        cardId: canonicalEvents.cardId,
+        cardNetwork: canonicalEvents.cardNetwork,
+        paymentId: canonicalEvents.razorpayPaymentId,
+        status: canonicalEvents.status,
+        session: checkoutSessions.sessionPseudonym,
+      })
+      .from(canonicalEvents)
+      .innerJoin(
+        checkoutSessions,
+        eq(checkoutSessions.razorpayOrderId, canonicalEvents.razorpayOrderId),
+      )
+      .where(
+        and(
+          eq(column, entityKey),
+          eq(canonicalEvents.source, source),
+          gte(canonicalEvents.eventAt, from),
+          lte(canonicalEvents.eventAt, to),
+        ),
+      );
+
+    const cards = new Map<
+      string,
+      { network: string | null; payments: Set<string>; captured: boolean }
+    >();
+    const sessions = new Map<string, Set<string>>();
+    for (const row of rows) {
+      if (row.cardId === null || row.cardId === '') continue;
+      const card = cards.get(row.cardId) ?? {
+        network: row.cardNetwork,
+        payments: new Set<string>(),
+        captured: false,
+      };
+      if (row.paymentId !== null) card.payments.add(row.paymentId);
+      if (row.status === 'captured') card.captured = true;
+      cards.set(row.cardId, card);
+      if (row.session !== null) {
+        const set = sessions.get(row.session) ?? new Set<string>();
+        set.add(row.cardId);
+        sessions.set(row.session, set);
+      }
+    }
+
+    return {
+      entity: { kind: entityKind, fingerprint: graphFingerprint(entityKey) },
+      cards: [...cards.entries()].map(([id, card]) => ({
+        fingerprint: graphFingerprint(id),
+        network: card.network,
+        attempts: card.payments.size,
+        captured: card.captured,
+      })),
+      sessions:
+        entityKind === 'network'
+          ? [...sessions.entries()].map(([id, set]) => ({
+              fingerprint: graphFingerprint(id),
+              cards: set.size,
+            }))
+          : [],
     };
   }
 
@@ -717,7 +949,8 @@ export class IncidentsService {
       best?: IncidentSummary['primaryHypothesis'];
       decision?: IncidentSummary['recommendedDecision'];
     } | null;
-    const features = row.features as { attempts?: number; failures?: number } | null;
+    const fired = firedRules(computed);
+    const primaryHypothesis = arbitration?.best ?? 'insufficient_evidence';
 
     return {
       id: row.id,
@@ -737,11 +970,15 @@ export class IncidentsService {
       timeToDetectMs: timeToDetect(computed),
       observations: row.observations,
       source: row.source,
-      firedRules: firedRules(computed),
+      firedRules: fired,
       recommendedDecision: arbitration?.decision ?? 'none',
-      primaryHypothesis: arbitration?.best ?? 'insufficient_evidence',
-      attempts: features?.attempts ?? row.observations,
-      failures: features?.failures ?? 0,
+      primaryHypothesis,
+      // Exact counts, captured from the feature vector at evaluation. `observations` is the
+      // fallback only for incidents recorded before these columns existed.
+      attempts: row.attempts ?? row.observations,
+      failures: row.failures ?? 0,
+      distinctCards: row.distinctCards ?? null,
+      title: incidentTitle({ entityKind: row.entityKind, primaryHypothesis, firedRules: fired }),
     };
   }
 }

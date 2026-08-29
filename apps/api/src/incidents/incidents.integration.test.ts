@@ -90,6 +90,14 @@ describe('incidents', () => {
     // The narrowest key that explains it: containing one session is a smaller act than
     // containing a network.
     expect(body.incidents[0]!.entityKind).toBe('session');
+
+    // The display counts are the exact ones from the vector, not the old phantom read that
+    // reported "0 failures" on every incident. An enumeration burst is many cards and failures.
+    const summary = body.incidents[0]!;
+    expect(summary.attempts).toBeGreaterThan(0);
+    expect(summary.failures).toBeGreaterThan(0);
+    expect(summary.distinctCards ?? 0).toBeGreaterThan(1);
+    expect(summary.title).toBe('Coordinated card testing');
   });
 
   it('opens nothing below the floor', async () => {
@@ -119,6 +127,21 @@ describe('incidents', () => {
     expect(second.body.updated).toBeGreaterThan(0);
     expect(after.incidents).toHaveLength(before.incidents.length);
     expect(after.incidents[0]!.key).toBe(before.incidents[0]!.key);
+  });
+
+  it('never de-escalates a real attack — a card-testing burst does not explain itself benign', async () => {
+    // De-escalation closes only incidents whose entity has positively re-explained itself as
+    // dunning, an outage or a busy hour. Enumeration never does — its cards keep multiplying — so
+    // re-evaluating it any number of times must leave the incident open. Auto-resolving a real
+    // attack as "legitimate" would be the worst possible failure of this mechanism, so it is asserted.
+    const pass = await h.post('/api/incidents/evaluate');
+    expect(pass.body.deescalated).toBe(0);
+
+    const body = (await h.get('/api/incidents')).body as IncidentListResponse;
+    const attack = body.incidents.find((i) => i.firedRules.includes('card_spread'));
+    expect(attack).toBeDefined();
+    expect(attack!.status).not.toBe('resolved');
+    expect(attack!.status).not.toBe('expired');
   });
 
   it('says which threshold set judged it', async () => {
