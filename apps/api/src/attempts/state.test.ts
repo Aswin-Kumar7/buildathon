@@ -14,6 +14,7 @@ function event(overrides: Partial<AttemptEvent> & { eventType: string }): Attemp
     errorDescription: null,
     cardNetwork: null,
     cardIssuer: null,
+    cardId: null,
     amountPaise: 149_900,
     eventAt: new Date('2026-01-01T00:00:00Z'),
     late: false,

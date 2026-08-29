@@ -61,6 +61,7 @@ export interface AttemptEvent {
   errorDescription: string | null;
   cardNetwork: string | null;
   cardIssuer: string | null;
+  cardId: string | null;
   amountPaise: number | null;
   eventAt: Date;
   late: boolean;
@@ -74,6 +75,7 @@ export interface ResolvedAttempt {
   method: string | null;
   cardNetwork: string | null;
   cardIssuer: string | null;
+  cardId: string | null;
 
   /** Present when this attempt was ever seen to fail, whatever it resolved to. */
   failure: {
@@ -159,6 +161,7 @@ export function resolveAttempt(events: readonly AttemptEvent[]): ResolvedAttempt
     method: pick(events, (e) => e.method),
     cardNetwork: pick(events, (e) => e.cardNetwork),
     cardIssuer: pick(events, (e) => e.cardIssuer),
+    cardId: pick(events, (e) => e.cardId),
     failure,
     firstSeenAt: new Date(Math.min(...times)),
     lastSeenAt: new Date(Math.max(...times)),

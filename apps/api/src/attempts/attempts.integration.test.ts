@@ -4,7 +4,11 @@ import request from 'supertest';
 import type { INestApplication } from '@nestjs/common';
 import { canonicalEvents, checkoutSessions, inboxEvents, type DbHandle } from '@sentinel/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { ordersResponseSchema } from '@sentinel/contracts';
+import {
+  attemptDetailResponseSchema,
+  attemptRowsResponseSchema,
+  ordersResponseSchema,
+} from '@sentinel/contracts';
 import { AppModule } from '../app.module.js';
 import { DB } from '../db/db.module.js';
 import { AuthService } from '../auth/auth.service.js';
@@ -271,5 +275,97 @@ describe('attempts', () => {
       .set('Cookie', cookie);
 
     expect(response.status).toBe(404);
+  });
+
+  it('serves a flat attempts table with KPIs over the whole scoped set', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/attempts/rows?source=razorpay&page=1&pageSize=50')
+      .set('Cookie', cookie);
+
+    expect(response.status).toBe(200);
+    const body = attemptRowsResponseSchema.parse(response.body);
+
+    // Two orders resolve to four attempts: REC (failed + recovered), BAD (failed + failed).
+    expect(body.kpis.total).toBe(4);
+    expect(body.kpis.failed).toBe(3);
+    expect(body.kpis.recovered).toBe(1);
+    expect(body.kpis.captured).toBe(0);
+    // No detection ran here, so nothing falls inside an incident.
+    expect(body.kpis.inIncident).toBe(0);
+
+    const rec = body.rows.filter((row) => row.orderId === 'order_REC');
+    expect(rec.map((row) => row.status).sort()).toEqual(['failed', 'recovered']);
+
+    // No detection ran here, so no attempt is part of an incident — and none is individually scored,
+    // because a single attempt never carries a risk number of its own.
+    expect(body.rows.every((row) => row.incidentId === null && row.incidentTitle === null)).toBe(
+      true,
+    );
+  });
+
+  it('filters the flat table without changing the KPIs', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/attempts/rows?source=razorpay&status=failed&page=1&pageSize=50')
+      .set('Cookie', cookie);
+
+    const body = attemptRowsResponseSchema.parse(response.body);
+    expect(body.rows.every((row) => row.status === 'failed')).toBe(true);
+    expect(body.total).toBe(3);
+    // KPIs describe the whole set, not the filtered view.
+    expect(body.kpis.total).toBe(4);
+  });
+
+  const detail = (paymentId: string) =>
+    request(app.getHttpServer()).get(`/api/attempts/payment/${paymentId}`).set('Cookie', cookie);
+
+  it('serves one payment attempt in full, matching the contract', async () => {
+    const response = await detail('pay_1');
+    expect(response.status).toBe(200);
+    const { attempt } = attemptDetailResponseSchema.parse(response.body);
+
+    expect(attempt.payment.paymentId).toBe('pay_1');
+    expect(attempt.payment.orderId).toBe('order_REC');
+    expect(attempt.payment.status).toBe('failed');
+    expect(attempt.payment.method).toBe('card');
+    expect(attempt.payment.failure?.reason).toBe('international_transaction_not_allowed');
+    // No incidents were detected in this suite, so the attempt is standalone — never invented.
+    expect(attempt.incident).toBeNull();
+  });
+
+  it('shows the raw canonical event, and never a stored card last four', async () => {
+    const { attempt } = attemptDetailResponseSchema.parse((await detail('pay_1')).body);
+    expect(attempt.rawEvents.length).toBeGreaterThan(0);
+    expect(attempt.rawEvents[0]).toMatchObject({ razorpayPaymentId: 'pay_1' });
+    // The canonical layer never carries customer data, and the detail must not smuggle any in.
+    for (const event of attempt.rawEvents) {
+      expect(Object.keys(event)).not.toContain('last4');
+      expect(Object.keys(event)).not.toContain('email');
+    }
+  });
+
+  it('computes device observations from real events when there is checkout context', async () => {
+    const { attempt } = attemptDetailResponseSchema.parse((await detail('pay_1')).body);
+    // order_REC has a checkout session, so the device is known and its counts are observable.
+    expect(attempt.context).not.toBeNull();
+    expect(attempt.signals).not.toBeNull();
+    // Only pay_1 falls in the trailing minute; pay_2 is minutes later. The count is measured, not one.
+    expect(attempt.signals?.attemptsInWindow).toBe(1);
+    expect(attempt.signals?.failuresInWindow).toBe(1);
+    // No card token on these events, so card reuse is null rather than a fabricated zero.
+    expect(attempt.signals?.cardReuseInWindow).toBeNull();
+    // pay_1 and pay_2 share the device, so its recent history has both.
+    expect(attempt.recentFromDevice.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('admits it cannot observe when a payment has no checkout context', async () => {
+    // order_BAD was written with no checkout session, so there is no device to observe from.
+    const { attempt } = attemptDetailResponseSchema.parse((await detail('pay_3')).body);
+    expect(attempt.context).toBeNull();
+    expect(attempt.signals).toBeNull();
+    expect(attempt.recentFromDevice).toEqual([]);
+  });
+
+  it('404s a payment it has never seen', async () => {
+    expect((await detail('pay_NOPE')).status).toBe(404);
   });
 });
