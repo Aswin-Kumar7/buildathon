@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import {
   canonicalEvents,
   checkoutSessions,
@@ -42,6 +42,37 @@ export interface ReplayResult {
   eventsWritten: number;
   duplicatesSkipped: number;
   detection: EvaluateResponse;
+}
+
+/** The event's own timestamp in seconds, preferring the payment entity's over the envelope's. */
+function eventCreatedSeconds(body: unknown): number | null {
+  const shape = body as {
+    created_at?: unknown;
+    payload?: { payment?: { entity?: { created_at?: unknown } } };
+  };
+  const entity = shape.payload?.payment?.entity?.created_at;
+  if (typeof entity === 'number') return entity;
+  if (typeof shape.created_at === 'number') return shape.created_at;
+  return null;
+}
+
+/**
+ * A copy of the webhook body with every `created_at` moved forward by `offsetSeconds`.
+ *
+ * The canonical event time the console reads is re-derived by the drain from the *body*, not the
+ * inbox row, so shifting the body is the only place a re-base actually lands.
+ */
+function shiftEventTime(body: unknown, offsetSeconds: number): unknown {
+  const clone = structuredClone(body) as {
+    created_at?: number;
+    payload?: { payment?: { entity?: { created_at?: number } } };
+  };
+  if (typeof clone.created_at === 'number') clone.created_at += offsetSeconds;
+  const entity = clone.payload?.payment?.entity;
+  if (entity !== undefined && typeof entity.created_at === 'number') {
+    entity.created_at += offsetSeconds;
+  }
+  return clone;
 }
 
 /**
@@ -87,7 +118,12 @@ export class ReplayService {
     }
   }
 
-  async replay(family: ScenarioFamily): Promise<ReplayResult> {
+  /**
+   * @param rebase When true, shift the scenario so its latest moment is ~now — recent-looking
+   * traffic for a demo. When false (the default), the recorded timestamps are preserved, which is
+   * the historical case the feature-freshness and window-anchoring behaviour is defined against.
+   */
+  async replay(family: ScenarioFamily, rebase = false): Promise<ReplayResult> {
     assertReplayAllowed(this.env.NODE_ENV);
 
     const scenario = await this.load(family);
@@ -100,6 +136,19 @@ export class ReplayService {
     let checkoutsWritten = 0;
     let eventsWritten = 0;
     let duplicatesSkipped = 0;
+
+    // Shift the whole scenario so its latest moment is ~now. Every timestamp moves by the same
+    // offset, so relative timing — and therefore the detection result — is unchanged, but the
+    // replayed activity reads as recent traffic instead of a fixed historical date. That is what
+    // lets the time-series ("risk over the last day/week/month") and the "today" counters actually
+    // show a scenario replayed for a demo, rather than one dated months in the past.
+    const eventSeconds = scenario.events
+      .map((event) => eventCreatedSeconds(event.body))
+      .filter((seconds): seconds is number => seconds !== null);
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const latestSeconds = eventSeconds.length === 0 ? 0 : Math.max(...eventSeconds);
+    const offsetSeconds = rebase && latestSeconds !== 0 ? nowSeconds - latestSeconds : 0;
+    const offsetMs = offsetSeconds * 1000;
 
     // The sensor half. Pseudonymised through exactly the same functions the storefront uses,
     // so a replayed session correlates the way a real one would — which is the only reason the
@@ -118,8 +167,9 @@ export class ReplayService {
           userAgentFamily: checkout.userAgentFamily,
           amountPaise: checkout.amountPaise,
           itemCount: checkout.itemCount,
-          createdAt: new Date(checkout.createdAt),
+          createdAt: new Date(new Date(checkout.createdAt).getTime() + offsetMs),
           source: 'replay',
+          family,
         })
         .onConflictDoNothing()
         .returning();
@@ -128,10 +178,11 @@ export class ReplayService {
     }
 
     for (const event of scenario.events) {
-      const raw = JSON.stringify(event.body);
-      const envelope = webhookEnvelopeSchema.parse(event.body);
+      const body = shiftEventTime(event.body, offsetSeconds);
+      const raw = JSON.stringify(body);
+      const envelope = webhookEnvelopeSchema.parse(body);
       const sealed = seal(raw, masterKey, this.env.PAYLOAD_KEY_VERSION);
-      const eventAt = toEventTime(envelope.created_at, new Date());
+      const eventAt = toEventTime(eventCreatedSeconds(body), new Date());
 
       const inserted = await this.handle.db
         .insert(inboxEvents)
@@ -149,6 +200,7 @@ export class ReplayService {
           eventAt,
           receivedAt: sql`now()`,
           late: false,
+          family,
         })
         .onConflictDoNothing()
         .returning();
@@ -167,6 +219,7 @@ export class ReplayService {
       if (report.claimed === 0) break;
     }
     const detection = await this.incidents.evaluate('replay');
+    await this.tagReplayFamily(family);
 
     return { family, checkoutsWritten, eventsWritten, duplicatesSkipped, detection };
   }
@@ -193,6 +246,64 @@ export class ReplayService {
     await this.handle.db.delete(checkoutSessions).where(eq(checkoutSessions.source, 'replay'));
 
     return { removed: events.length + removedIncidents.length };
+  }
+
+  /** Tags this pass's freshly-opened replay incidents with their scenario, so a re-run resets only them. */
+  private async tagReplayFamily(family: string): Promise<void> {
+    await this.handle.db
+      .update(incidents)
+      .set({ family })
+      .where(and(eq(incidents.source, 'replay'), isNull(incidents.family)));
+  }
+
+  /**
+   * Removes one scenario's replayed rows, and nothing else — so re-running a scenario replaces its
+   * own incidents while the other scenarios stay. Scoped by source AND family.
+   */
+  async clearFamily(family: string): Promise<{ removed: number }> {
+    assertReplayAllowed(this.env.NODE_ENV);
+
+    const removedIncidents = await this.handle.db
+      .delete(incidents)
+      .where(and(eq(incidents.source, 'replay'), eq(incidents.family, family)))
+      .returning();
+
+    const events = await this.handle.db
+      .delete(inboxEvents)
+      .where(and(eq(inboxEvents.source, 'replay'), eq(inboxEvents.family, family)))
+      .returning();
+
+    await this.handle.db
+      .delete(checkoutSessions)
+      .where(and(eq(checkoutSessions.source, 'replay'), eq(checkoutSessions.family, family)));
+
+    return { removed: events.length + removedIncidents.length };
+  }
+
+  /**
+   * Wipes all detection data — incidents, canonical events, inbox events and checkout sessions,
+   * across every source — so a demo can start from a clean slate. Deleting incidents cascades to
+   * their transitions and containments. The audit trail, policies and users are left intact, and
+   * the storefront's own product catalogue is a separate concern this never touches.
+   *
+   * Dev-only, by the same rule replay is: never destroy data in a deployment whose numbers are
+   * cited as evidence.
+   */
+  async resetAll(): Promise<{ removed: number }> {
+    assertReplayAllowed(this.env.NODE_ENV);
+
+    const removedIncidents = await this.handle.db.delete(incidents).returning();
+    const removedCanonical = await this.handle.db.delete(canonicalEvents).returning();
+    const removedInbox = await this.handle.db.delete(inboxEvents).returning();
+    const removedCheckouts = await this.handle.db.delete(checkoutSessions).returning();
+
+    return {
+      removed:
+        removedIncidents.length +
+        removedCanonical.length +
+        removedInbox.length +
+        removedCheckouts.length,
+    };
   }
 
   /** Counts by source, so the console can say what is real and what is not. */

@@ -4,11 +4,13 @@ import { IncidentsModule } from '../incidents/incidents.module.js';
 import { WebhooksModule } from '../webhooks/webhooks.module.js';
 import { ReplayController } from './replay.controller.js';
 import { ReplayService } from './replay.service.js';
+import { SimulationController } from './simulation.controller.js';
+import { SimulationService } from './simulation.service.js';
 
 @Module({
   imports: [AuthModule, IncidentsModule, WebhooksModule],
-  controllers: [ReplayController],
-  providers: [ReplayService],
-  exports: [ReplayService],
+  controllers: [ReplayController, SimulationController],
+  providers: [ReplayService, SimulationService],
+  exports: [ReplayService, SimulationService],
 })
 export class ReplayModule {}

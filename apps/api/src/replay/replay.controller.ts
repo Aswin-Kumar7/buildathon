@@ -37,12 +37,21 @@ export class ReplayController {
 
   @Post()
   @HttpCode(200)
-  async run(@Body() body: { family?: string }): Promise<ReplayResult> {
-    return this.replay.replay(body.family as ScenarioFamily);
+  async run(@Body() body: { family?: string; fresh?: boolean }): Promise<ReplayResult> {
+    // `fresh` re-bases the scenario to now, so a demo replay reads as recent traffic. Off by
+    // default: an integration test asserting the historical-evaluation behaviour must keep the
+    // recorded timestamps.
+    return this.replay.replay(body.family as ScenarioFamily, body.fresh === true);
   }
 
   @Delete()
   async clear() {
     return this.replay.clear();
+  }
+
+  /** Wipes all detection data (both sources) for a clean demo. Dev-only in the service. */
+  @Delete('all')
+  async resetAll() {
+    return this.replay.resetAll();
   }
 }

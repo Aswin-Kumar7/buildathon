@@ -3,14 +3,20 @@ import cookieParser from 'cookie-parser';
 import request from 'supertest';
 import type { INestApplication } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
-import { canonicalEvents, checkoutSessions, inboxEvents, type DbHandle } from '@sentinel/db';
+import {
+  canonicalEvents,
+  checkoutSessions,
+  incidents,
+  inboxEvents,
+  type DbHandle,
+} from '@sentinel/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from '../app.module.js';
 import { DB } from '../db/db.module.js';
 import { AuthService } from '../auth/auth.service.js';
 import { CSRF_HEADER, SESSION_COOKIE } from '../auth/session.guard.js';
 import { DrainService } from '../webhooks/drain.service.js';
-import { assertReplayAllowed } from './replay.service.js';
+import { assertReplayAllowed, ReplayService } from './replay.service.js';
 
 describe('replay', () => {
   let app: INestApplication;
@@ -61,11 +67,15 @@ describe('replay', () => {
     const response = await request(app.getHttpServer()).get('/api/replay').set('Cookie', cookie);
 
     expect(response.status).toBe(200);
-    expect(response.body.scenarios).toHaveLength(8);
+    expect(response.body.scenarios).toHaveLength(11);
 
     const families = response.body.scenarios.map((s: { family: string }) => s.family);
     expect(families).toContain('attack_distributed');
     expect(families).toContain('retry_storm');
+    // The added attack shapes, so the demo's incident feed shows the detector's range.
+    expect(families).toContain('attack_carding');
+    expect(families).toContain('attack_proxy');
+    expect(families).toContain('attack_partial');
 
     const dunning = response.body.scenarios.find(
       (s: { family: string }) => s.family === 'retry_storm',
@@ -181,6 +191,70 @@ describe('replay', () => {
     const left = await handle.db.select().from(inboxEvents);
     expect(left.map((row) => row.razorpayEventId)).toContain('evt_REAL_KEEPME');
     expect(left.every((row) => row.source === 'razorpay')).toBe(true);
+  });
+
+  it('wipes everything, both sources, on a full reset', async () => {
+    // Unlike the scoped clear, a full reset is the demo control that takes real events too.
+    await handle.db.insert(inboxEvents).values({
+      razorpayEventId: 'evt_RESET_ME',
+      eventType: 'payment.captured',
+      eventAt: new Date(),
+    });
+
+    const reset = await request(app.getHttpServer())
+      .delete('/api/replay/all')
+      .set('Cookie', cookie)
+      .set(CSRF_HEADER, csrf);
+    expect(reset.status).toBe(200);
+    expect(reset.body.removed).toBeGreaterThan(0);
+
+    expect(await handle.db.select().from(inboxEvents)).toHaveLength(0);
+  });
+
+  it('accumulates scenarios and resets only the one re-run', async () => {
+    // The board keeps incidents from every scenario, and re-running one replaces only its own
+    // rows — what the simulation controller does per run via clearFamily(family). Different
+    // scenarios accumulate; the same scenario resets. Start from a clean slate to count cleanly.
+    await request(app.getHttpServer())
+      .delete('/api/replay/all')
+      .set('Cookie', cookie)
+      .set(CSRF_HEADER, csrf);
+
+    await run('attack_loud');
+    await run('attack_distributed');
+
+    // Every row a scenario wrote is tagged with that scenario.
+    const wroteLoud = await handle.db
+      .select()
+      .from(inboxEvents)
+      .where(eq(inboxEvents.family, 'attack_loud'));
+    const wroteDistributed = await handle.db
+      .select()
+      .from(inboxEvents)
+      .where(eq(inboxEvents.family, 'attack_distributed'));
+    expect(wroteLoud.length).toBeGreaterThan(0);
+    expect(wroteDistributed.length).toBeGreaterThan(0);
+
+    // Resetting one scenario removes only its rows; the other scenario stays.
+    await app.get(ReplayService).clearFamily('attack_loud');
+
+    const loudLeft = await handle.db
+      .select()
+      .from(inboxEvents)
+      .where(eq(inboxEvents.family, 'attack_loud'));
+    const distributedLeft = await handle.db
+      .select()
+      .from(inboxEvents)
+      .where(eq(inboxEvents.family, 'attack_distributed'));
+    expect(loudLeft).toHaveLength(0);
+    expect(distributedLeft.length).toBeGreaterThan(0);
+
+    // Incidents are scoped the same way: none of the reset scenario's incidents remain.
+    const replayIncidents = await handle.db
+      .select()
+      .from(incidents)
+      .where(eq(incidents.source, 'replay'));
+    expect(replayIncidents.every((row) => row.family !== 'attack_loud')).toBe(true);
   });
 });
 
