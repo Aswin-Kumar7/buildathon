@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
@@ -11,6 +11,13 @@ const T0 = Date.parse('2026-03-01T09:00:00.000Z');
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="#stub">{children}</a>,
+  useNavigate: () => vi.fn(),
+}));
+
+// The simulation panel's open/minimized state lives at the shell level; isolate it from the unit.
+vi.mock('../shell/SimulationDock.js', () => ({
+  useSimDock: () => ({ view: 'hidden', open: () => {}, minimize: () => {}, dismiss: () => {} }),
+  SimDockProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 function incident(overrides: Partial<IncidentSummary> = {}): IncidentSummary {
@@ -37,6 +44,8 @@ function incident(overrides: Partial<IncidentSummary> = {}): IncidentSummary {
     primaryHypothesis: 'attack',
     attempts: 3,
     failures: 3,
+    distinctCards: 18,
+    title: 'Coordinated card testing',
     ...overrides,
   };
 }
@@ -62,74 +71,92 @@ function stub(body: IncidentListResponse): ReturnType<typeof vi.fn> {
 }
 
 describe('IncidentsPage', () => {
-  it('shows one row per episode with what it would take to act', async () => {
+  it('shows an incident row with its title, risk tier and correlated counts', async () => {
     stub(response());
     render(wrap(<IncidentsPage />));
 
-    expect(await screen.findByText(/Card spread/)).toBeInTheDocument();
-    expect(screen.getByText(/score 0\.90/)).toBeInTheDocument();
-    expect(screen.getByText('high')).toBeInTheDocument();
+    expect(await screen.findByText('Coordinated card testing')).toBeInTheDocument();
+    // A high-severity incident at score 0.90 reads as the CRITICAL display tier (existing convention).
+    expect(screen.getByText('CRITICAL')).toBeInTheDocument();
+    expect(screen.getByText(/18 cards/)).toBeInTheDocument();
+    expect(screen.getByText(/90/)).toBeInTheDocument(); // score /100
   });
 
-  it('marks replayed incidents as replayed', async () => {
-    // The same separation the health page and the feature inspector make. A replayed incident
-    // is not evidence the system works against Razorpay.
+  it('marks simulated incidents as simulated', async () => {
     stub(response());
     render(wrap(<IncidentsPage />));
 
-    expect(await screen.findByText(/replayed/)).toBeInTheDocument();
+    expect(await screen.findByText('Simulated')).toBeInTheDocument();
   });
 
-  it('flags a wide band when the score is not confident', async () => {
-    stub(response({ incidents: [incident({ band: 'medium', scoreLower: 0.5, scoreUpper: 0.9 })] }));
-    render(wrap(<IncidentsPage />));
-
-    expect(await screen.findByText(/wide range/i)).toBeInTheDocument();
-  });
-
-  it('names the threshold set that judged them', async () => {
-    // A score without the thresholds that produced it is a number nobody can argue with.
+  it('shows the incident status as a pill', async () => {
     stub(response());
     render(wrap(<IncidentsPage />));
 
-    expect(await screen.findByText('a1b2c3d4')).toBeInTheDocument();
+    const row = (await screen.findByText('Coordinated card testing')).closest('tr');
+    expect(row).toHaveTextContent('Active'); // open → Active
   });
 
-  it('filters by status', async () => {
-    const fetchMock = stub(response());
+  it('filters the table by status client-side', async () => {
+    stub(response());
     render(wrap(<IncidentsPage />));
-    await screen.findByText(/Card spread/);
+    await screen.findByText('Coordinated card testing');
 
-    await userEvent.click(screen.getByRole('tab', { name: 'Contained' }));
-    expect(fetchMock).toHaveBeenCalledWith('/api/incidents?status=contained', expect.anything());
+    // The one incident is open; selecting Under review must filter it out.
+    await userEvent.selectOptions(screen.getByLabelText('Status'), 'under_review');
+    expect(screen.queryByText('Coordinated card testing')).not.toBeInTheDocument();
   });
 
-  it('separates real traffic from replayed, and scopes detection to it', async () => {
-    // The same separation the health page and the feature inspector make. Evaluating everything
-    // while showing one source would let a replayed scenario hide behind a single live attempt.
-    const fetchMock = stub(response());
-    render(wrap(<IncidentsPage />));
-    await screen.findByText(/Card spread/);
-
-    await userEvent.click(screen.getByRole('button', { name: 'Replayed' }));
-    expect(fetchMock).toHaveBeenCalledWith('/api/incidents?source=replay', expect.anything());
-
-    await userEvent.click(screen.getByRole('button', { name: 'Run detection' }));
-    expect(fetchMock).toHaveBeenCalledWith(
-      '/api/incidents/evaluate?source=replay',
-      expect.objectContaining({ method: 'POST' }),
+  it('filters the table when a summary tier card is clicked', async () => {
+    stub(
+      response({
+        incidents: [
+          incident({ id: 'crit', title: 'Critical case', severity: 'high', score: 0.95 }),
+          incident({ id: 'low', title: 'Low case', severity: 'low', score: 0.2 }),
+        ],
+      }),
     );
+    render(wrap(<IncidentsPage />));
+    await screen.findByText('Critical case');
+
+    // The Low tier card is a one-click filter — clicking it narrows the queue to low-tier rows.
+    await userEvent.click(screen.getByRole('button', { name: /^Low/ }));
+
+    expect(screen.queryByText('Critical case')).not.toBeInTheDocument();
+    expect(screen.getByText('Low case')).toBeInTheDocument();
   });
 
-  it('says what to do when the queue is empty', async () => {
+  it('surfaces the recommended action and a Review CTA on an actionable row', async () => {
+    stub(response({ incidents: [incident({ recommendedDecision: 'contain', status: 'open' })] }));
+    render(wrap(<IncidentsPage />));
+    await screen.findByText('Coordinated card testing');
+
+    const row = screen.getByText('Coordinated card testing').closest('tr') as HTMLElement;
+    // 'contain' is what a merchant reads as Block — the row states what Sentinel recommends.
+    expect(within(row).getByText('Block')).toBeInTheDocument();
+    expect(
+      within(row).getByRole('button', { name: 'Review Coordinated card testing' }),
+    ).toBeInTheDocument();
+  });
+
+  it('scopes the fetch to the chosen source', async () => {
+    // Source is a real backend filter; the health page and feature inspector make the same separation.
+    const fetchMock = stub(response());
+    render(wrap(<IncidentsPage />));
+    await screen.findByText('Coordinated card testing');
+
+    await userEvent.selectOptions(screen.getByLabelText('Source'), 'replay');
+    expect(fetchMock).toHaveBeenCalledWith('/api/incidents?source=replay', expect.anything());
+  });
+
+  it('says when nothing matches', async () => {
     stub(response({ incidents: [] }));
     render(wrap(<IncidentsPage />));
 
-    expect(await screen.findByText(/Nothing in the queue/)).toBeInTheDocument();
-    expect(screen.getByText(/Run a simulation/)).toBeInTheDocument();
+    expect(await screen.findByText('No incidents match these filters.')).toBeInTheDocument();
   });
 
-  it('surfaces a failure rather than an empty queue', async () => {
+  it('surfaces a failure rather than an empty table', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) })),

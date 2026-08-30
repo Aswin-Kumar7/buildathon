@@ -1,0 +1,113 @@
+.csp-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+}
+
+/* Invisible overlay native select — 100% visible to DOM/tests, styled visually by custom trigger */
+.csp-native-select {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  outline: none;
+}
+
+.csp-native-select option {
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #0f172a;
+  background-color: #ffffff;
+  padding: 0.6rem 0.85rem;
+}
+
+/* ── Pill Variant Trigger ── */
+.csp-container--pill .csp-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.42rem 0.85rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 9999px;
+  color: #334155;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  box-shadow: 0 1px 3px rgba(13, 21, 38, 0.04);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  pointer-events: none; /* Let clicks pass to overlay select */
+}
+
+.csp-container--pill:hover .csp-trigger {
+  border-color: #cbd5e1;
+  color: #0f172a;
+  box-shadow: 0 2px 5px rgba(13, 21, 38, 0.08);
+}
+
+.csp-container--pill:focus-within .csp-trigger {
+  border-color: #0b72e7;
+  box-shadow: 0 0 0 3px rgba(11, 114, 231, 0.12);
+}
+
+/* ── Field Variant Trigger ── */
+.csp-container--field {
+  width: 100%;
+}
+
+.csp-container--field .csp-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.55rem 0.85rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #0f172a;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  pointer-events: none; /* Let clicks pass to overlay select */
+}
+
+.csp-container--field:hover .csp-trigger {
+  border-color: #cbd5e1;
+}
+
+.csp-container--field:focus-within .csp-trigger {
+  border-color: #0b72e7;
+  box-shadow: 0 0 0 3px rgba(11, 114, 231, 0.12);
+}
+
+.csp-icon {
+  display: inline-flex;
+  align-items: center;
+  color: #64748b;
+}
+
+.csp-label {
+  flex: 1;
+  text-align: left;
+}
+
+.csp-chevron {
+  display: inline-flex;
+  align-items: center;
+  color: #64748b;
+  transition: transform 0.18s ease;
+}
+
+.csp-chevron.is-expanded {
+  transform: rotate(180deg);
+  color: #0b72e7;
+}
