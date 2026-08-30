@@ -1,0 +1,101 @@
+.rg-gauge-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.85rem 1rem;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0px 4px 18px rgba(13, 21, 38, 0.04), 0px 1px 3px rgba(13, 21, 38, 0.02);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rg-gauge-card--nobox {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0.25rem 0.5rem !important;
+}
+
+.rg-gauge-card--sm {
+  max-width: 140px;
+  padding: 0.25rem;
+}
+
+.rg-gauge-card--sm .rg-gauge-score {
+  font-size: 1.15rem;
+}
+
+.rg-gauge-card--sm .rg-gauge-pill {
+  font-size: 0.6875rem;
+  padding: 0.15rem 0.45rem;
+}
+
+.rg-gauge-card__head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  margin-bottom: 0.25rem;
+  text-align: center;
+}
+
+.rg-gauge-card__title {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #1e293b;
+  letter-spacing: -0.01em;
+}
+
+.rg-gauge-card__sub {
+  font-size: 0.875rem;
+  color: #64748b;
+}
+
+.rg-gauge-visual {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 160px;
+}
+
+.rg-gauge-svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.rg-gauge-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: -0.6rem;
+}
+
+.rg-gauge-score {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.rg-gauge-score small {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: #94a3b8;
+  margin-left: 2px;
+}
+
+.rg-gauge-pill {
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.18rem 0.55rem;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  line-height: 1.2;
+}

@@ -1,0 +1,232 @@
+/* Header toolbar (search + status filter), sits in the Card header actions slot. */
+.ia-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+.ia-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 18rem;
+}
+.ia-search__icon {
+  position: absolute;
+  left: 0.7rem;
+  color: var(--s-ink-3);
+  font-size: 1rem;
+}
+.ia-search input {
+  width: 100%;
+  padding: 0.45rem 0.75rem 0.45rem 2rem;
+  border: 1px solid var(--s-line-2);
+  border-radius: var(--s-radius-sm);
+  background: var(--s-surface);
+  color: var(--s-ink);
+  font-size: var(--s-text-sm);
+}
+.ia-fselect {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--s-line-2);
+  border-radius: var(--s-radius-sm);
+  background: var(--s-surface);
+  color: var(--s-ink);
+  font-size: var(--s-text-sm);
+}
+
+.ia-empty {
+  margin: 0;
+  padding: var(--s-4) var(--s-5);
+  color: var(--s-ink-3);
+  font-size: var(--s-text-sm);
+  line-height: 1.5;
+}
+
+/* ---- table ---- */
+.ia-table-wrap {
+  overflow-x: auto;
+  padding: 0 0.5rem;
+}
+.ia-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+.ia-table th {
+  text-align: left;
+  padding: 0.85rem 0.75rem;
+  color: #475569;
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
+  white-space: nowrap;
+}
+.ia-table td {
+  padding: 0.9rem 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.ia-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.ia-table tbody tr {
+  transition: background 0.12s ease;
+}
+.ia-table tbody tr:hover {
+  background: #f8fafc;
+}
+.ia-time {
+  color: var(--s-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.ia-id {
+  font-family: var(--s-font-mono, ui-monospace, monospace);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink);
+}
+.ia-id--muted {
+  color: var(--s-ink-2);
+}
+.ia-id--link {
+  font-weight: 500;
+  color: var(--s-accent-ink);
+  text-decoration: none;
+}
+.ia-id--link:hover {
+  text-decoration: underline;
+}
+.ia-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.ia-card__fp {
+  font-family: var(--s-font-mono, ui-monospace, monospace);
+  font-size: var(--s-text-xs);
+  color: var(--s-ink);
+}
+.ia-card__net {
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--s-line-2);
+  border-radius: var(--s-radius-sm);
+  font-size: 0.6rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--s-ink-2);
+}
+.ia-amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.ia-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.ia-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+}
+.ia-dot--ok {
+  background: #059669;
+}
+.ia-dot--critical {
+  background: #dc2626;
+}
+.ia-dot--warn {
+  background: #d97706;
+}
+.ia-dot--neutral {
+  background: #64748b;
+}
+.ia-chip--ok {
+  background: #ecfdf5;
+  color: #059669;
+}
+.ia-chip--critical {
+  background: #fef2f2;
+  color: #dc2626;
+}
+.ia-chip--warn {
+  background: #fffbeb;
+  color: #d97706;
+}
+.ia-chip--neutral {
+  background: #f1f5f9;
+  color: #475569;
+}
+.ia-reason {
+  color: var(--s-ink-2);
+  max-width: 15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ia-actions a {
+  font-size: 1.25rem;
+  color: var(--s-accent-ink);
+  text-decoration: none;
+}
+.ia-muted {
+  color: var(--s-ink-3);
+}
+
+/* ---- footer / pager ---- */
+.ia-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--s-line);
+  font-size: var(--s-text-xs);
+}
+.ia-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.ia-pager button {
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.5rem;
+  border: 1px solid var(--s-line-2);
+  border-radius: var(--s-radius-sm);
+  background: var(--s-surface);
+  color: var(--s-ink-2);
+  font-size: var(--s-text-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.ia-pager button:hover:not(:disabled) {
+  border-color: var(--s-accent);
+  color: var(--s-accent-ink);
+}
+.ia-pager button.is-active {
+  background: var(--s-accent);
+  border-color: var(--s-accent);
+  color: #fff;
+}
+.ia-pager button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.ia-pager__gap {
+  padding: 0 0.2rem;
+  color: var(--s-ink-3);
+}
+
+@media (max-width: 60rem) {
+  .ia-search {
+    min-width: 0;
+    flex: 1;
+  }
+}

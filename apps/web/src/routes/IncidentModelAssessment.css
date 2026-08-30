@@ -1,0 +1,270 @@
+.ma {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.ma-head h3 {
+  margin: 0;
+  font-size: var(--s-text-lg);
+  font-weight: 400;
+  color: var(--s-ink);
+}
+.ma-head p {
+  margin: 0.25rem 0 0;
+  color: var(--s-ink-3);
+  font-size: var(--s-text-sm);
+}
+
+.ma-grid {
+  display: grid;
+  grid-template-columns: minmax(18rem, 1fr) minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: var(--s-4);
+  align-items: start;
+}
+@media (max-width: 68rem) {
+  .ma-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- risk gauge ---- */
+.ma-gauge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 22rem;
+  margin: 0 auto;
+}
+.ma-gauge__info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: -0.25rem;
+}
+.ma-gauge__score {
+  font-size: 2.2rem;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--s-ink);
+  font-variant-numeric: tabular-nums;
+}
+.ma-band {
+  padding: 0.2rem 0.7rem;
+  border-radius: var(--s-radius-full);
+  font-size: var(--s-text-xs);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.ma-band--critical {
+  background: var(--s-critical-soft);
+  color: var(--s-critical-ink);
+}
+.ma-band--warn {
+  background: var(--s-warn-soft);
+  color: var(--s-warn-ink);
+}
+.ma-band--ok {
+  background: var(--s-ok-soft);
+  color: var(--s-ok-ink);
+}
+
+/* Reconciles the canonical gauge score with the model's own independent read. */
+.ma-modelread {
+  margin-top: var(--s-3);
+  padding: 0.5rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.6rem;
+  border-top: 1px solid var(--s-line);
+}
+.ma-modelread__label {
+  font-size: var(--s-text-xs);
+  color: var(--s-ink-3);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 500;
+}
+.ma-modelread__val {
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+  font-variant-numeric: tabular-nums;
+}
+.ma-influence {
+  margin-left: auto;
+  font-size: var(--s-text-xs);
+  font-weight: 500;
+  padding: 0.12rem 0.5rem;
+  border-radius: var(--s-radius-full);
+}
+.ma-influence--ok {
+  background: var(--s-ok-soft);
+  color: var(--s-ok-ink);
+}
+.ma-influence--critical {
+  background: var(--s-critical-soft);
+  color: var(--s-critical-ink);
+}
+.ma-influence--warn {
+  background: var(--s-warn-soft);
+  color: var(--s-warn-ink);
+}
+.ma-influence--neutral {
+  background: var(--s-surface-3);
+  color: var(--s-ink-2);
+}
+
+.ma-note {
+  margin: var(--s-3) 0 0;
+  color: var(--s-ink-3);
+  font-size: var(--s-text-xs);
+  line-height: 1.55;
+}
+
+/* ---- score breakdown bars ---- */
+.ma-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.ma-bars li {
+  display: grid;
+  grid-template-columns: 11rem 1fr 3.2rem;
+  align-items: center;
+  gap: var(--s-3);
+}
+.ma-bar__label {
+  font-size: var(--s-text-sm);
+  color: var(--s-ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ma-bar__track {
+  position: relative;
+  height: 0.6rem;
+  border-radius: var(--s-radius-full);
+  background: var(--s-surface-3);
+  overflow: hidden;
+}
+.ma-bar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--s-radius-full);
+}
+.ma-bar__fill--up {
+  background: #D72424;
+}
+.ma-bar__fill--down {
+  background: #0E5700;
+}
+.ma-bar__val {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--s-text-xs);
+  font-weight: 500;
+  color: var(--s-ink-2);
+}
+@media (max-width: 40rem) {
+  .ma-bars li {
+    grid-template-columns: 8rem 1fr 3rem;
+  }
+}
+
+/* ---- top factors ---- */
+.ma-factors {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.ma-factors li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+}
+.ma-factors__num {
+  font-family: var(--s-font-mono, ui-monospace, monospace);
+  font-size: var(--s-text-xs);
+  font-weight: 400;
+  color: var(--s-ink-3);
+}
+.ma-factors__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.ma-factors__text strong {
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+}
+.ma-impact {
+  font-size: var(--s-text-xs);
+}
+.ma-impact--critical {
+  color: var(--s-critical-ink);
+}
+.ma-impact--ok {
+  color: var(--s-ok-ink);
+}
+
+/* ---- model information ---- */
+.ma-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--s-4);
+}
+.ma-meta__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.ma-meta__label {
+  font-size: var(--s-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--s-ink-3);
+  font-weight: 500;
+}
+.ma-meta__value {
+  font-size: var(--s-text-sm);
+  color: var(--s-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- explanation ---- */
+.ma-explain {
+  margin: 0;
+  font-size: var(--s-text-md, 0.95rem);
+  line-height: 1.65;
+  color: var(--s-ink);
+}
+.ma-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: var(--s-text-sm);
+  font-weight: 500;
+  color: var(--s-accent-ink);
+  cursor: pointer;
+}
+.ma-link:hover {
+  text-decoration: underline;
+}
+
+.ma-unavailable {
+  margin: 0;
+  padding: var(--s-3) 0;
+  color: var(--s-ink-2);
+  font-size: var(--s-text-sm);
+  line-height: 1.6;
+}
