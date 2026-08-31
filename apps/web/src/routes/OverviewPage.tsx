@@ -1,17 +1,57 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState, type ReactNode } from 'react';
+import { keepPreviousData, useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
-import { Badge, EmptyState, ErrorState, Loading } from '@sentinel/ui';
+import { EmptyState, Loading } from '@sentinel/ui';
 import {
   overviewResponseSchema,
-  riskModelMetricsResponseSchema,
   systemHealthResponseSchema,
+  type IncidentSummary,
   type OverviewResponse,
-  type RiskModelMetrics,
-  type RiskModelMetricsResponse,
   type SystemHealthResponse,
 } from '@sentinel/contracts';
-import { useSession } from '../auth/useSession.js';
 import './OverviewPage.css';
+import './AttemptsPage.css'; // import to share kpi card layout
+import { RiskGauge } from '../components/RiskGauge.js';
+import { CustomSelectPill } from '../components/CustomSelectPill.js';
+import {
+  CreditCard,
+  Shield,
+  LockKey,
+  Laptop,
+  TrendUp,
+  Users,
+  Flag,
+  ArrowRight,
+  CaretDown,
+  ArrowsClockwise,
+  ShieldCheck,
+} from '@phosphor-icons/react';
+
+type Source = 'all' | 'razorpay' | 'replay';
+type WindowKey = '24h' | '7d' | '30d';
+
+const WINDOW_OPTIONS: { id: WindowKey; label: string }[] = [
+  { id: '24h', label: 'Today' },
+  { id: '7d', label: 'This Week' },
+  { id: '30d', label: 'This Month' },
+];
+
+const RANGE_NOUN: Record<WindowKey, string> = {
+  '24h': 'today',
+  '7d': 'this week',
+  '30d': 'this month',
+};
+/** What the previous window is called, so a delta reads honestly for the range it compares. */
+const PRIOR_NOUN: Record<WindowKey, string> = {
+  '24h': 'yesterday',
+  '7d': 'last week',
+  '30d': 'last month',
+};
+const RISK_SUBTITLE: Record<'low' | 'medium' | 'high', string> = {
+  low: 'Low risk',
+  medium: 'Elevated activity',
+  high: 'High risk',
+};
 
 async function getJson<T>(path: string, parse: (value: unknown) => T): Promise<T> {
   const response = await fetch(path, { credentials: 'include' });
@@ -19,310 +59,272 @@ async function getJson<T>(path: string, parse: (value: unknown) => T): Promise<T
   return parse(await response.json());
 }
 
-const fetchOverview = (): Promise<OverviewResponse> =>
-  getJson('/api/overview?window=24h', (value) => overviewResponseSchema.parse(value));
-const fetchModel = (): Promise<RiskModelMetricsResponse> =>
-  getJson('/api/model/metrics', (value) => riskModelMetricsResponseSchema.parse(value));
+const fetchOverview = (source: Source, range: WindowKey): Promise<OverviewResponse> =>
+  getJson(`/api/overview?window=${range}&source=${source}`, (value) =>
+    overviewResponseSchema.parse(value),
+  );
 const fetchSystem = (): Promise<SystemHealthResponse> =>
   getJson('/api/system/health', (value) => systemHealthResponseSchema.parse(value));
 
-type Honest = RiskModelMetrics['honest'];
-const pct = (value: number): string => `${Math.round(value * 100)}%`;
-const rupees = (paise: number | null): string =>
-  paise === null ? '—' : `₹${(paise / 100).toLocaleString('en-IN')}`;
-
-function level(value: number): { label: string; tone: 'ok' | 'warn' | 'critical' } {
-  return value >= 0.5
-    ? { label: 'High', tone: 'critical' }
-    : value >= 0.2
-      ? { label: 'Medium', tone: 'warn' }
-      : { label: 'Low', tone: 'ok' };
+function timeAgo(ms: number): string {
+  const seconds = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min ago`;
+  if (seconds < 86_400) return `${Math.round(seconds / 3600)} hr ago`;
+  return `${Math.round(seconds / 86_400)}d ago`;
 }
 
-function IconCircle({ icon, tone }: { icon: string; tone: string }): React.JSX.Element {
+/** The attempts delta, straight from the backend — or an honest "no baseline" when it is null. */
+function AttemptsDelta({
+  pct,
+  range,
+}: {
+  pct: number | null;
+  range: WindowKey;
+}): React.JSX.Element {
+  if (pct === null) {
+    return <span className="ov-stat-sub">No {PRIOR_NOUN[range]} to compare</span>;
+  }
+  const up = pct >= 0;
+  const magnitude = Math.round(Math.abs(pct) * 1000) / 10;
   return (
-    <span className={`ov-icon ov-icon--${tone}`} aria-hidden="true">
-      {icon}
+    <span className={`ov-delta ov-delta--${up ? 'up' : 'down'}`}>
+      {up ? <>&uarr;</> : <>&darr;</>} {magnitude}% vs {PRIOR_NOUN[range]}
     </span>
   );
 }
 
-function Stat({
-  icon,
-  tone,
-  label,
-  value,
-  hint,
-}: {
-  icon: string;
-  tone: string;
-  label: string;
-  value: string | number;
-  hint: string;
-}): React.JSX.Element {
-  return (
-    <article className="ov-stat">
-      <div className="ov-stat__head">
-        <IconCircle icon={icon} tone={tone} />
-        <span>{label}</span>
-      </div>
-      <strong className="ov-stat__value">{value}</strong>
-      <span className="ov-stat__hint">{hint}</span>
-    </article>
-  );
-}
-
-function RiskGauge({
-  risk,
-  riskLevel,
-}: {
-  risk: number | null;
-  riskLevel: OverviewResponse['riskLevel'];
-}): React.JSX.Element {
-  if (risk === null) {
-    return (
-      <section className="ov-panel ov-gauge-panel">
-        <div className="ov-panel__title">
-          <h2>Risk level</h2>
-        </div>
-        <div className="ov-gauge ov-gauge--empty" aria-label="No recent risk activity">
-          <svg viewBox="0 0 220 125" role="img" aria-hidden="true">
-            <path className="ov-gauge__track" pathLength="100" d="M25 105 A85 85 0 0 1 195 105" />
-          </svg>
-          <strong>No recent risk activity</strong>
-        </div>
-        <p className="ov-muted">No live incidents in the selected window.</p>
-      </section>
-    );
+/** The system-health pill, reflecting the real shedding state — never a hardcoded "healthy". */
+function healthPill(system: UseQueryResult<SystemHealthResponse>): { label: string; ok: boolean } {
+  if (system.isPending) return { label: 'Checking system…', ok: true };
+  if (system.isError || system.data === undefined) {
+    return { label: 'System status unavailable', ok: false };
   }
-  const current = riskLevel
-    ? {
-        label: riskLevel,
-        tone:
-          riskLevel === 'high'
-            ? ('critical' as const)
-            : riskLevel === 'medium'
-              ? ('warn' as const)
-              : ('ok' as const),
-      }
-    : level(risk);
-  const dash = Math.max(8, Math.round(Math.min(risk, 1) * 100));
-  return (
-    <section className="ov-panel ov-gauge-panel">
-      <div className="ov-panel__title">
-        <h2>Risk level</h2>
-        <span className={`ov-level ov-level--${current.tone}`}>{current.label}</span>
-      </div>
-      <div className="ov-gauge" aria-label={`${current.label} risk level`}>
-        <svg viewBox="0 0 220 125" role="img" aria-hidden="true">
-          <path className="ov-gauge__track" pathLength="100" d="M25 105 A85 85 0 0 1 195 105" />
-          <path
-            className={`ov-gauge__value ov-gauge__value--${current.tone}`}
-            pathLength="100"
-            strokeDasharray={`${dash} 100`}
-            d="M25 105 A85 85 0 0 1 195 105"
-          />
-        </svg>
-        <strong>{current.label}</strong>
-        <span>{risk < 0.2 ? 'Normal traffic' : 'Needs attention'}</span>
-      </div>
-      <p className="ov-muted">Highest detected incident risk in the last 24 hours.</p>
-    </section>
-  );
+  const shedding = system.data.health.shedding;
+  return shedding.length === 0
+    ? { label: 'System healthy', ok: true }
+    : {
+        label: `Degraded — shedding ${shedding.length} tier${shedding.length === 1 ? '' : 's'}`,
+        ok: false,
+      };
 }
 
-function RiskTrend({ trend }: { trend: OverviewResponse['riskTrend'] }): React.JSX.Element {
-  const hasActivity = trend.some((point) => point.events > 0);
-  const points = hasActivity ? trend : [];
-  const max = Math.max(...points.map((point) => point.risk), 0.01);
-  const coords = points
-    .map(
-      (point, index) =>
-        `${(index / Math.max(points.length - 1, 1)) * 100},${92 - (point.risk / max) * 72}`,
-    )
+/** Evenly-spaced real timestamps from the trend, for the x-axis — never fixed placeholder ticks. */
+function axisLabels(trend: OverviewResponse['riskTrend'], range: WindowKey): string[] {
+  if (trend.length === 0) return [];
+  const fmt = (iso: string): string => {
+    const date = new Date(iso);
+    return range === '24h'
+      ? date.toLocaleTimeString('en-IN', { hour: 'numeric', hour12: true })
+      : date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  };
+  const positions = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(f * (trend.length - 1)));
+  return [...new Set(positions)].map((index) => fmt(trend[index]!.at));
+}
+
+function RiskTrendChart({
+  trend,
+  range,
+  onWindow,
+}: {
+  trend: OverviewResponse['riskTrend'];
+  range: WindowKey;
+  onWindow: (value: WindowKey) => void;
+}): React.JSX.Element {
+  // Map each real bucket to the chart: risk 0 sits on the baseline (y=86), risk 1 near the top (y=18).
+  const points = trend.map((point, index) => ({
+    x: trend.length <= 1 ? 50 : (index / (trend.length - 1)) * 100,
+    y: 86 - point.risk * 68,
+    risk: point.risk,
+  }));
+  const hasActivity = trend.some((point) => point.risk > 0);
+  const line = points
+    .map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)},${pt.y.toFixed(1)}`)
     .join(' ');
+  const area = line === '' ? '' : `${line} L 100,98 L 0,98 Z`;
+  const labels = axisLabels(trend, range);
+
   return (
-    <section className="ov-panel ov-trend">
-      <div className="ov-panel__title">
-        <div>
-          <h2>Risk over time</h2>
-          <p>Risk activity from detected live incidents</p>
-        </div>
-        <select aria-label="Risk time range" defaultValue="24h">
-          <option value="24h">Last 24 hours</option>
-          <option value="7d">Last 7 days</option>
-        </select>
+    <section className="ov-card ov-panel ov-trend-card">
+      <div className="ov-panel-header">
+        <h2>Risk activity over time</h2>
+        <CustomSelectPill
+          value={range}
+          options={WINDOW_OPTIONS.map((opt) => ({
+            value: opt.id,
+            label: opt.label,
+          }))}
+          onChange={(val) => onWindow(val as WindowKey)}
+          ariaLabel="Time range"
+        />
       </div>
-      <div className={`ov-chart${hasActivity ? '' : ' ov-chart--empty'}`}>
-        <div className="ov-chart__labels">
+      <div className="ov-chart-container">
+        <div className="ov-chart-y-axis">
           <span>High</span>
           <span>Medium</span>
           <span>Low</span>
         </div>
-        {hasActivity ? (
-          <svg
-            viewBox="0 0 100 100"
-            preserveAspectRatio="none"
-            role="img"
-            aria-label="Risk signal trend"
-          >
-            <path className="ov-chart__area" d={`M ${coords} L 100,100 L 0,100 Z`} />
-            <polyline className="ov-chart__line" points={coords} />
-          </svg>
+        <div className="ov-chart-body">
+          <div className="ov-chart-grid-lines">
+            <div className="ov-grid-line" />
+            <div className="ov-grid-line" />
+            <div className="ov-grid-line" />
+          </div>
+          {hasActivity ? (
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="ov-chart-svg">
+              <defs>
+                <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#0b72e7" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="#0b72e7" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+              <path d={area} fill="url(#chartGradient)" />
+              <path
+                d={line}
+                fill="none"
+                stroke="#0b72e7"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            </svg>
+          ) : (
+            <div className="ov-chart-empty">No elevated risk in this window.</div>
+          )}
+        </div>
+      </div>
+      <div className="ov-chart-x-axis">
+        {labels.length === 0 ? (
+          <span>&nbsp;</span>
         ) : (
-          <p>No recent activity</p>
+          labels.map((label, i) => <span key={i}>{label}</span>)
         )}
       </div>
-      <div className="ov-chart__axis">
-        <span>24h ago</span>
-        <span>12h ago</span>
-        <span>Now</span>
-      </div>
     </section>
   );
 }
 
-const eventTone = (status: string | null): 'ok' | 'warn' | 'critical' =>
-  status === 'failed' ? 'critical' : status === 'captured' ? 'ok' : 'warn';
-
-function RecentEvents({ events }: { events: OverviewResponse['recentEvents'] }): React.JSX.Element {
-  return (
-    <section className="ov-panel ov-recent">
-      <div className="ov-panel__title">
-        <div>
-          <h2>Recent events</h2>
-          <p>Live Razorpay activity · replay traffic excluded</p>
-        </div>
-        <Link to="/console/attempts">View all →</Link>
-      </div>
-      {events.length === 0 ? (
-        <EmptyState
-          icon="—"
-          title="No live events yet"
-          description="Complete a test-mode storefront checkout to see it here."
-        />
-      ) : (
-        <div className="ov-event-list">
-          {events.slice(0, 6).map((event) => (
-            <div className="ov-event" key={event.id}>
-              <IconCircle
-                icon={event.status === 'failed' ? '−' : event.status === 'captured' ? '✓' : '·'}
-                tone={eventTone(event.status)}
-              />
-              <div className="ov-event__copy">
-                <strong>
-                  {event.status === 'failed'
-                    ? 'Payment failed'
-                    : event.status === 'captured'
-                      ? 'Payment captured'
-                      : event.eventType}
-                </strong>
-                <span>
-                  {event.orderId ?? 'No order id'} · {rupees(event.amountPaise)}
-                </span>
-              </div>
-              <Badge tone={eventTone(event.status)} size="sm">
-                {event.status === 'failed'
-                  ? 'Review'
-                  : event.status === 'captured'
-                    ? 'Safe'
-                    : 'Pending'}
-              </Badge>
-              <time>
-                {new Date(event.eventAt).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </time>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
+function badgeToneClass(severity: string, score: number): string {
+  if (severity === 'high' && score >= 0.9) return 'ov-badge--critical';
+  if (severity === 'high') return 'ov-badge--high';
+  if (severity === 'medium') return 'ov-badge--medium';
+  return 'ov-badge--low';
 }
 
-const incidentTone = (severity: 'low' | 'medium' | 'high'): 'ok' | 'warn' | 'critical' =>
-  severity === 'high' ? 'critical' : severity === 'medium' ? 'warn' : 'ok';
+function statusPillClass(incident: IncidentSummary): { label: string; tone: string } {
+  switch (incident.status) {
+    case 'open':
+      return incident.recommendedDecision === 'monitor'
+        ? { label: 'Monitoring', tone: 'monitoring' }
+        : { label: 'Needs review', tone: 'needs-review' };
+    case 'under_review':
+      return { label: 'Reviewing', tone: 'reviewing' };
+    case 'contained':
+      return { label: 'Contained', tone: 'resolved' };
+    case 'resolved':
+      return { label: 'Resolved', tone: 'resolved' };
+    default:
+      return { label: 'Closed', tone: 'neutral' };
+  }
+}
 
-function RecentIncidents({
+function cardsPhrase(count: number | null): string {
+  if (count === null || count <= 0) return '';
+  return ` · ${count} ${count === 1 ? 'card' : 'cards'}`;
+}
+
+function RecentIncidentsSection({
   incidents,
 }: {
   incidents: OverviewResponse['recentIncidents'];
 }): React.JSX.Element {
+  const items = incidents.slice(0, 5);
+
   return (
-    <section className="ov-panel ov-recent">
-      <div className="ov-panel__title">
-        <div>
-          <h2>Recent incidents</h2>
-          <p>Correlated suspicious activity · live Razorpay only</p>
-        </div>
-        <Link to="/console/incidents">View all →</Link>
+    <section className="ov-card ov-panel ov-incidents-card">
+      <div className="ov-panel-header">
+        <h2>Recent incidents</h2>
+        <Link to="/console/incidents" className="ov-link-all">
+          View all
+        </Link>
       </div>
-      {incidents.length === 0 ? (
+      {items.length === 0 ? (
         <EmptyState
-          icon="✓"
-          title="No live incidents"
-          description="Incidents will appear when the detector correlates suspicious activity."
+          icon="🛡"
+          title="No incidents"
+          description="Incidents appear when the detector correlates suspicious activity."
         />
       ) : (
-        <div className="ov-event-list">
-          {incidents.slice(0, 5).map((incident) => (
-            <Link
-              className="ov-event ov-incident"
-              key={incident.id}
-              to="/console/incidents/$id"
-              params={{ id: incident.id }}
-            >
-              <IconCircle icon="!" tone={incidentTone(incident.severity)} />
-              <div className="ov-event__copy">
-                <strong>{incident.primaryHypothesis.replaceAll('_', ' ')}</strong>
-                <span>
-                  {incident.entityKind} · {incident.observations} observations · score{' '}
-                  {incident.score.toFixed(2)}
-                </span>
-              </div>
-              <Badge tone={incidentTone(incident.severity)} size="sm">
-                {incident.recommendedDecision}
-              </Badge>
-              <time>
-                {new Date(incident.detectedAt).toLocaleDateString([], {
-                  day: '2-digit',
-                  month: 'short',
-                })}
-              </time>
-            </Link>
-          ))}
-        </div>
+        <ul className="ov-incident-list">
+          {items.map((inc) => {
+            const pill = statusPillClass(inc);
+            const badgeClass = badgeToneClass(inc.severity, inc.score);
+            const badgeText =
+              inc.severity === 'high' && inc.score >= 0.9 ? 'CRITICAL' : inc.severity.toUpperCase();
+
+            return (
+              <li key={inc.id}>
+                <Link
+                  to="/console/incidents/$id"
+                  params={{ id: inc.id }}
+                  className="ov-incident-row"
+                >
+                  <span className={`ov-badge ${badgeClass}`}>{badgeText}</span>
+                  <div className="ov-incident-info">
+                    <strong className="ov-incident-title">{inc.title}</strong>
+                    <span className="ov-incident-meta">
+                      {Math.round(inc.score * 100)}% risk · {inc.attempts} attempts
+                      {cardsPhrase(inc.distinctCards)} · {timeAgo(inc.detectedAt)}
+                    </span>
+                  </div>
+                  <span className={`ov-status-pill ov-status-pill--${pill.tone}`}>
+                    {pill.label}
+                  </span>
+                  <ArrowRight />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       )}
     </section>
   );
 }
 
-function ProtectionFlow(): React.JSX.Element {
+function ProtectionFlowSection(): React.JSX.Element {
   const steps = [
-    ['◈', 'Detect', 'Observe each checkout and Razorpay event'],
-    ['⌁', 'Score', 'Rules, features and ML weigh evidence'],
-    ['◇', 'Decide', 'Policy controls the permitted response'],
-    ['▣', 'Act', 'Review and reversible containment'],
-    ['▥', 'Learn', 'Analyst verdicts improve scoring'],
+    {
+      num: '1',
+      title: 'Detect',
+      desc: 'We analyze every payment in real time',
+      icon: <Shield color="#0b72e7" />,
+    },
+    { num: '2', title: 'Score', desc: 'Rules, behavior and ML assess risk', icon: <Users /> },
+    { num: '3', title: 'Decide', desc: 'Policy determines the best response', icon: <Flag /> },
+    {
+      num: '4',
+      title: 'Act',
+      desc: 'Review, contain or monitor suspicious activity',
+      icon: <LockKey />,
+    },
+    { num: '5', title: 'Learn', desc: 'Outcomes improve future detection', icon: <TrendUp /> },
   ];
+
   return (
-    <section className="ov-panel ov-flow">
-      <div className="ov-panel__title">
-        <div>
-          <h2>How Sentinel protects you</h2>
-          <p>One transparent path from event to accountable action</p>
-        </div>
+    <section className="ov-card ov-panel ov-flow-card">
+      <div className="ov-panel-header">
+        <h2>How Sentinel protects you</h2>
       </div>
-      <div className="ov-flow__steps">
-        {steps.map(([icon, title, copy], index) => (
-          <div className="ov-flow__step" key={title}>
-            <span className="ov-flow__icon">{icon}</span>
-            <b>
-              {index + 1}. {title}
-            </b>
-            <p>{copy}</p>
+      <div className="ov-flow-steps">
+        <div className="ov-flow-line" />
+        {steps.map((step) => (
+          <div key={step.num} className="ov-flow-step">
+            <div className="ov-flow-icon-bubble">{step.icon}</div>
+            <strong className="ov-flow-step-title">
+              {step.num}. {step.title}
+            </strong>
+            <p className="ov-flow-step-desc">{step.desc}</p>
           </div>
         ))}
       </div>
@@ -330,194 +332,217 @@ function ProtectionFlow(): React.JSX.Element {
   );
 }
 
-function RiskReasons({
+const REASON_COLORS = ['#F04438', '#F79009', '#F59E0B', '#7A5AF8', '#2E90FA'];
+const REASON_ICONS = [<Shield color="#F04438" />, <Laptop />, <TrendUp />, <LockKey />, <Flag />];
+
+function RiskReasonsSection({
   reasons,
 }: {
   reasons: OverviewResponse['topRiskReasons'];
 }): React.JSX.Element {
-  const total = reasons.reduce((sum, reason) => sum + reason.count, 0) || 1;
+  const total = reasons.reduce((acc, r) => acc + r.count, 0);
+
   return (
-    <section className="ov-panel ov-reasons">
-      <div className="ov-panel__title">
-        <div>
-          <h2>Top risk reasons</h2>
-          <p>Evidence codes from live incidents</p>
-        </div>
-        <Link to="/console/incidents">View all →</Link>
+    <section className="ov-card ov-panel ov-reasons-card">
+      <div className="ov-panel-header">
+        <h2>Top risk reasons</h2>
+        <Link to="/console/incidents" className="ov-link-all">
+          View all
+        </Link>
       </div>
       {reasons.length === 0 ? (
-        <p className="ov-muted">No risk activity detected</p>
+        <EmptyState
+          title="No risk drivers yet"
+          description="Reasons appear here once the detector opens incidents — each one grouped by what it was."
+        />
       ) : (
-        reasons.map((reason) => (
-          <div className="ov-reason" key={reason.code}>
-            <div>
-              <span>{reason.code.replaceAll('_', ' ')}</span>
-              <b>{Math.round((reason.count / total) * 100)}%</b>
-            </div>
-            <div className="ov-reason__bar">
-              <i style={{ width: `${Math.max(8, (reason.count / total) * 100)}%` }} />
-            </div>
-          </div>
-        ))
+        <div className="ov-reasons-list">
+          {reasons.map((item, index) => {
+            const pct = total === 0 ? 0 : Math.round((item.count / total) * 100);
+            const color = REASON_COLORS[index % REASON_COLORS.length];
+            const icon = REASON_ICONS[index % REASON_ICONS.length];
+
+            return (
+              <div key={item.code} className="ov-reason-row">
+                <div className="ov-reason-left">
+                  <div className="ov-reason-icon" style={{ color }}>
+                    {icon}
+                  </div>
+                  <span className="ov-reason-name">{item.code}</span>
+                </div>
+                <div className="ov-reason-right">
+                  <div className="ov-reason-bar-bg">
+                    <div
+                      className="ov-reason-bar-fill"
+                      style={{ width: `${pct}%`, backgroundColor: color }}
+                    />
+                  </div>
+                  <span className="ov-reason-pct">{item.count}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </section>
   );
 }
 
-function LiveFooter({
-  overview,
-  system,
-}: {
-  overview: OverviewResponse | undefined;
-  system: SystemHealthResponse | undefined;
-}): React.JSX.Element {
-  const healthy = system?.health !== undefined;
+function OverviewHeader(): React.JSX.Element {
   return (
-    <section className="ov-live-footer">
-      <IconCircle icon="✦" tone="accent" />
-      <div>
-        <strong>
-          {healthy
-            ? 'Sentinel is monitoring your checkout'
-            : 'Sentinel is connecting to the protection pipeline'}
-        </strong>
-        <span>
-          {overview
-            ? `Verified ${overview.attemptsToday} Razorpay payment attempts in the last 24 hours.`
-            : 'Live event data will appear here after the first webhook is received.'}
-        </span>
+    <header className="ov-header-hero">
+      <div className="ov-header-title-group">
+        <h1>Overview</h1>
+        <p className="ov-header-subtitle">Real-time protection for your payments</p>
       </div>
-      <Link to="/console/attempts">View attempts →</Link>
-    </section>
+    </header>
   );
 }
 
-// The page is intentionally kept as one composition so the dashboard structure is easy to scan.
-// eslint-disable-next-line max-lines-per-function
+function OverviewStats({
+  data,
+  range,
+}: {
+  data: OverviewResponse;
+  range: WindowKey;
+}): React.JSX.Element {
+  return (
+    <div className="ap-kpis">
+      <article className="ap-kpi ap-kpi--total">
+        <span
+          className="ap-kpi__icon"
+          aria-hidden="true"
+          style={{ color: '#0b72e7', backgroundColor: 'rgba(11, 114, 231, 0.1)' }}
+        >
+          <CreditCard />
+        </span>
+        <div className="ap-kpi__body">
+          <span className="ap-kpi__label">Attempts Today</span>
+          <strong className="ap-kpi__value">{data.attemptsToday.toLocaleString('en-IN')}</strong>
+          <div className="ap-kpi__subtext">
+            <AttemptsDelta pct={data.attemptsDeltaPct} range={range} />
+          </div>
+        </div>
+      </article>
+
+      <article className="ap-kpi ap-kpi--failed">
+        <span
+          className="ap-kpi__icon"
+          aria-hidden="true"
+          style={{ color: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.1)' }}
+        >
+          <Shield />
+        </span>
+        <div className="ap-kpi__body">
+          <span className="ap-kpi__label">Incidents Needing Review</span>
+          <strong className="ap-kpi__value">{data.activeIncidents}</strong>
+          <span className="ap-kpi__subtext ap-kpi__subtext--slate">
+            {data.underReview} already in review
+          </span>
+        </div>
+      </article>
+
+      <article className="ap-kpi ap-kpi--authorized">
+        <span
+          className="ap-kpi__icon"
+          aria-hidden="true"
+          style={{ color: '#0b72e7', backgroundColor: 'rgba(11, 114, 231, 0.1)' }}
+        >
+          <LockKey />
+        </span>
+        <div className="ap-kpi__body">
+          <span className="ap-kpi__label">Active Containments</span>
+          <strong className="ap-kpi__value">{data.contained}</strong>
+          <span className="ap-kpi__subtext ap-kpi__subtext--slate">
+            {data.contained === 0 ? 'None enforced right now' : 'Currently enforced'}
+          </span>
+        </div>
+      </article>
+
+      <article className="ap-kpi ap-kpi--captured">
+        <span
+          className="ap-kpi__icon"
+          aria-hidden="true"
+          style={{ color: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.1)' }}
+        >
+          <TrendUp />
+        </span>
+        <div className="ap-kpi__body">
+          <span className="ap-kpi__label">Total Incidents</span>
+          <strong className="ap-kpi__value">{data.totalIncidents}</strong>
+          <span className="ap-kpi__subtext ap-kpi__subtext--blue">
+            Resolved: {data.resolvedToday}
+          </span>
+        </div>
+      </article>
+
+      <article className="ap-kpi ap-kpi--safe">
+        <span
+          className="ap-kpi__icon"
+          aria-hidden="true"
+          style={{ color: '#0E5700', backgroundColor: 'rgba(14, 87, 0, 0.1)' }}
+        >
+          <ShieldCheck />
+        </span>
+        <div className="ap-kpi__body">
+          <span className="ap-kpi__label">Events Analyzed</span>
+          <strong className="ap-kpi__value">{data.eventsAnalyzed.toLocaleString('en-IN')}</strong>
+          <span className="ap-kpi__subtext ap-kpi__subtext--blue">Real-time protection</span>
+        </div>
+      </article>
+    </div>
+  );
+}
+
 export function OverviewPage(): React.JSX.Element {
+  const [source] = useState<Source>('all');
+  const [range, setRange] = useState<WindowKey>('24h');
+
   const overview = useQuery({
-    queryKey: ['overview', '24h'],
-    queryFn: fetchOverview,
-    refetchInterval: 10_000,
+    queryKey: ['overview', range, source],
+    queryFn: () => fetchOverview(source, range),
+    refetchInterval: 8_000,
+    placeholderData: keepPreviousData,
   });
-  const model = useQuery({ queryKey: ['model-metrics'], queryFn: fetchModel });
+
   const system = useQuery({
-    queryKey: ['system-health'],
+    queryKey: ['system-health', 'overview'],
     queryFn: fetchSystem,
     refetchInterval: 15_000,
   });
-  const metrics: Honest | null = model.data?.available === true ? model.data.model.honest : null;
-  const { user } = useSession();
 
-  if (overview.isPending)
+  if (overview.isPending) {
     return (
-      <div className="ov-page">
+      <div className="ov-page-wrapper">
         <Loading label="Loading protection overview…" />
       </div>
     );
-  if (overview.isError)
+  }
+
+  if (overview.data === undefined) {
     return (
-      <div className="ov-page">
-        <ErrorState message={overview.error.message} />
+      <div className="ov-page-wrapper">
+        <EmptyState title="Overview unavailable" description="Could not load the dashboard." />
       </div>
     );
-  if (overview.data === undefined)
-    return (
-      <div className="ov-page">
-        <ErrorState message="Overview data is unavailable" />
-      </div>
-    );
+  }
 
   const data = overview.data;
-  const risk = data.risk;
 
   return (
-    <div className="ov-page">
-      <header className="ov-hero">
-        <div>
-          <p className="ov-eyebrow">Monitor · live protection</p>
-          <h1>Overview</h1>
-          <p>Real-time protection for your Razorpay payments</p>
-        </div>
-        <div className="ov-hero__right">
-          <button type="button" className="ov-notification" aria-label="Notifications">
-            ♧
-          </button>
-          <span className="ov-merchant">{user?.displayName ?? 'Merchant workspace'}</span>
-          <span className="ov-health">
-            <i /> {system.data ? 'System healthy' : 'Checking system'}
-          </span>
-          <span className="ov-updated">
-            Last updated{' '}
-            {new Date(data.generatedAt).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </span>
-        </div>
-      </header>
-      <div className="ov-stats">
-        <Stat
-          icon="✦"
-          tone="accent"
-          label="Attempts today"
-          value={data.attemptsToday}
-          hint="payment attempts"
-        />
-        <Stat
-          icon="−"
-          tone="critical"
-          label="Active containments"
-          value={data.contained}
-          hint="active protections"
-        />
-        <Stat
-          icon="◷"
-          tone="warn"
-          label="Incidents needing review"
-          value={data.activeIncidents}
-          hint="waiting for review"
-        />
-        <Stat
-          icon="✓"
-          tone="ok"
-          label="Total incidents"
-          value={data.totalIncidents}
-          hint="in selected window"
-        />
-        <RiskGauge risk={risk} riskLevel={data.riskLevel} />
+    <div className="ov-page-wrapper">
+      <OverviewHeader />
+
+      <OverviewStats data={data} range={range} />
+
+      <div className="ov-middle-grid">
+        <RiskTrendChart trend={data.riskTrend} range={range} onWindow={setRange} />
+        <RecentIncidentsSection incidents={data.recentIncidents} />
       </div>
-      <div className="ov-main-grid">
-        <RiskTrend trend={data.riskTrend} />
-        <RecentEvents events={data.recentEvents} />
-      </div>
-      <div className="ov-case-grid">
-        <RecentIncidents incidents={data.recentIncidents} />
-      </div>
-      <div className="ov-lower-grid">
-        <ProtectionFlow />
-        <RiskReasons reasons={data.topRiskReasons} />
-      </div>
-      <div className="ov-insight-grid">
-        <section className="ov-panel ov-insight">
-          <div>
-            <h2>Detection posture</h2>
-            <p>
-              Rules, statistical change detection and the deployed model work together. High-risk
-              cases remain approval-gated.
-            </p>
-          </div>
-          <div className="ov-insight__stats">
-            <span>
-              <b>{data.activeIncidents}</b> active incidents
-            </span>
-            <span>
-              <b>{metrics ? pct(metrics.recall.point) : '—'}</b> model recall
-            </span>
-          </div>
-          <Link to="/console/metrics">Explore model →</Link>
-        </section>
-        <LiveFooter overview={data} system={system.data} />
+
+      <div className="ov-bottom-grid">
+        <ProtectionFlowSection />
+        <RiskReasonsSection reasons={data.topRiskReasons} />
       </div>
     </div>
   );
