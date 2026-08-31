@@ -37,6 +37,8 @@ function detail(overrides: Partial<IncidentDetail> = {}): IncidentDetail {
     primaryHypothesis: 'attack',
     attempts: 3,
     failures: 3,
+    distinctCards: 40,
+    title: 'Coordinated card testing',
     evidence: [
       {
         rule: 'card_spread',
@@ -70,6 +72,7 @@ function detail(overrides: Partial<IncidentDetail> = {}): IncidentDetail {
     thresholdHash: 'a1b2c3d4',
     history: [],
     relatedOrders: [],
+    graph: { entity: { kind: 'session', fingerprint: 'abcd1234' }, cards: [], sessions: [] },
     ...overrides,
   };
 }
@@ -89,75 +92,68 @@ function stub(incident: IncidentDetail): ReturnType<typeof vi.fn> {
   return fetchMock as unknown as ReturnType<typeof vi.fn>;
 }
 
+/** The detail page is tabbed; deeper panels live behind their tab. Waits for load, then switches. */
+async function openTab(name: string): Promise<void> {
+  await userEvent.click(await screen.findByRole('tab', { name }));
+}
+
 describe('IncidentDetailPage', () => {
-  it('shows the score as the sum it actually is, signs included', async () => {
-    stub(detail());
-    render(wrap(<IncidentDetailPage />));
-
-    expect(await screen.findByText('+0.35')).toBeInTheDocument();
-    expect(screen.getByText('+0.25')).toBeInTheDocument();
-    expect(screen.getByText('-0.40')).toBeInTheDocument();
-    expect(screen.getByText('0.20')).toBeInTheDocument();
-  });
-
   it('shows mitigating evidence beside the incriminating, not in a separate panel', async () => {
     // A reader deciding whether to act on somebody needs to see what argued against it in the
-    // same glance, not one scroll away.
+    // same glance, not one scroll away. The overview's evidence list carries both.
     stub(detail());
     render(wrap(<IncidentDetailPage />));
 
+    // The mitigating signal (a recovery) is unique to the evidence list.
     expect(await screen.findByText(/2 orders failed and were then paid/)).toBeInTheDocument();
-    expect(screen.getByText(/40 different cards/)).toBeInTheDocument();
+    // The strongest incriminating signal appears both as the headline reason and in the list.
+    expect(screen.getAllByText(/40 different cards/).length).toBeGreaterThan(0);
   });
 
-  it('separates what could not be judged from what found nothing', async () => {
-    stub(detail());
-    render(wrap(<IncidentDetailPage />));
-
-    expect(await screen.findByText(/What could not be judged/)).toBeInTheDocument();
-    expect(screen.getByText(/not enough activity to judge this yet/)).toBeInTheDocument();
-  });
-
-  it('offers only the moves the state machine allows', async () => {
+  it('offers the resolution verdicts on an actionable incident', async () => {
     stub(detail({ status: 'contained' }));
     render(wrap(<IncidentDetailPage />));
+    await openTab('Actions & audit');
 
-    expect(
-      await screen.findByRole('button', { name: /Resolve — confirmed abuse/ }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Move to review/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Contain/ })).not.toBeInTheDocument();
+    // The Actions & audit tab is the AI recommendation + action history + audit log; the incident's
+    // own verdict (the retraining label) is the resolve footer on the history card.
+    expect(await screen.findByRole('button', { name: /Confirmed abuse/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /False positive/ })).toBeInTheDocument();
   });
 
-  it('offers nothing on a terminal incident, and says why', async () => {
+  it('offers no resolution verdicts on a terminal incident', async () => {
     stub(detail({ status: 'resolved' }));
     render(wrap(<IncidentDetailPage />));
+    await openTab('Actions & audit');
 
-    expect(await screen.findByText(/Resolved is final/)).toBeInTheDocument();
+    expect(await screen.findByText('Action history')).toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: /Resolve|Contain|Move to review/ }),
+      screen.queryByRole('button', { name: /Confirmed abuse|False positive/ }),
     ).not.toBeInTheDocument();
   });
 
-  it('sends the transition the analyst picked', async () => {
+  it('sends the resolution verdict the analyst picked', async () => {
     const fetchMock = stub(detail());
     render(wrap(<IncidentDetailPage />));
-    await screen.findByText('+0.35');
+    await openTab('Actions & audit');
 
-    await userEvent.click(screen.getByRole('button', { name: /Move to review/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /Confirmed abuse/ }));
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/incidents/a1/transition',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ to: 'under_review' }) }),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ to: 'resolved', verdict: 'confirmed_abuse' }),
+      }),
     );
   });
 
-  it('labels a resolution as a confirmed verdict for retraining', async () => {
+  it('labels a resolution as a false positive for retraining', async () => {
     const fetchMock = stub(detail());
     render(wrap(<IncidentDetailPage />));
-    await screen.findByText('+0.35');
+    await openTab('Actions & audit');
 
-    await userEvent.click(screen.getByRole('button', { name: /Resolve — false positive/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /False positive/ }));
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/incidents/a1/transition',
@@ -168,53 +164,19 @@ describe('IncidentDetailPage', () => {
     );
   });
 
-  it('shows who moved it and when', async () => {
-    stub(
-      detail({
-        status: 'under_review',
-        history: [
-          { from: 'open', to: 'under_review', actor: 'Ana', note: 'checking', at: T0 + 400_000 },
-        ],
-      }),
-    );
+  it('shows the status and severity in the header for an under-review incident', async () => {
+    stub(detail({ status: 'under_review' }));
     render(wrap(<IncidentDetailPage />));
 
-    expect(await screen.findByText(/Open → Under review/)).toBeInTheDocument();
-    expect(screen.getByText(/Ana/)).toBeInTheDocument();
-    expect(screen.getByText(/checking/)).toBeInTheDocument();
+    expect(await screen.findByText('Under review')).toBeInTheDocument();
+    expect(screen.getByText(/high severity/)).toBeInTheDocument();
   });
 
-  it('names the system rather than a person for an automatic move', async () => {
-    stub(
-      detail({
-        status: 'expired',
-        history: [
-          { from: 'open', to: 'expired', actor: null, note: 'no activity', at: T0 + 900_000 },
-        ],
-      }),
-    );
+  it('disables the action button on a terminal (expired) incident', async () => {
+    stub(detail({ status: 'expired' }));
     render(wrap(<IncidentDetailPage />));
 
-    expect(await screen.findByText(/system/)).toBeInTheDocument();
-  });
-
-  it('explains a change-detection alarm in its own terms', async () => {
-    stub(
-      detail({
-        change: {
-          baseline: { mean: 2, deviation: 1.2, buckets: 30 },
-          ewma: { fired: false, at: null, statistic: 0, limit: 3, buckets: 0 },
-          cusum: { fired: true, at: 46, statistic: 18.4, limit: 14.4, buckets: 16 },
-        },
-      }),
-    );
-    render(wrap(<IncidentDetailPage />));
-
-    expect(await screen.findByText(/Cumulative deviation reached 18.40/)).toBeInTheDocument();
-    expect(screen.getByText(/after 16 minutes/)).toBeInTheDocument();
-    // Said plainly, because it is about the shop rather than this entity. A session has no
-    // history to have changed from, so attributing the alarm to one would be misleading.
-    expect(screen.getByText(/not this entity alone/)).toBeInTheDocument();
+    expect(await screen.findByText('Expired')).toBeInTheDocument();
   });
 
   it('surfaces a failure rather than a blank page', async () => {

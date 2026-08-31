@@ -1,37 +1,44 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Pulse, WarningCircle, Shield } from '@phosphor-icons/react';
+import { useState } from 'react';
 import { Link, useParams } from '@tanstack/react-router';
-import { Badge, Button, Card, ErrorState, Loading, StatusDot } from '@sentinel/ui';
+import { Badge, Card, ErrorState, Loading, StatusDot, Tabs, type TabItem } from '@sentinel/ui';
 import {
   incidentDetailResponseSchema,
   type EvidenceDto,
   type IncidentDetail,
   type IncidentStatusDto,
-  type ResolvedOrder,
+  type RiskRecommendation,
 } from '@sentinel/contracts';
 import { csrfHeaders } from '../auth/api.js';
-import { ABSTENTION_REASON, phraseFor, ruleName } from '../incidents/evidence.js';
-import { ContainmentPanel } from '../incidents/ContainmentPanel.js';
-import { AuditTrail } from '../incidents/AuditTrail.js';
-import { ModelOpinion } from '../incidents/ModelOpinion.js';
-import { NarrativePanel } from '../incidents/NarrativePanel.js';
+import { phraseFor } from '../incidents/evidence.js';
+import {
+  ActionsAuditTab,
+  TERMINAL,
+  PendingApproval,
+  useActionsData,
+  useActionMutations,
+} from './IncidentActionsAudit.js';
+import { TakeActionModal } from './ActionsAiCard.js';
+import { IncidentTimelineTab } from './IncidentTimelineTab.js';
+import { ModelAssessmentTab, featureLabel } from './IncidentModelAssessment.js';
+import { EvidenceSignalsTab } from './IncidentEvidence.js';
+import { RelationshipsTab } from './IncidentRelationships.js';
+import { IncidentAttemptsTab } from './IncidentAttempts.js';
+import { IncidentCopilotWidget } from './IncidentCopilot.js';
+import { RiskGauge } from '../components/RiskGauge.js';
 import './IncidentsPage.css';
 import './IncidentDetailPage.css';
 
 type Verdict = 'confirmed_abuse' | 'false_positive';
+type TabId =
+  'overview' | 'evidence' | 'relationships' | 'attempts' | 'model' | 'actions' | 'timeline';
 
 async function fetchIncident(id: string): Promise<IncidentDetail> {
   const response = await fetch(`/api/incidents/${id}`, { credentials: 'include' });
   if (!response.ok) throw new Error(`api returned ${response.status}`);
   return incidentDetailResponseSchema.parse(await response.json()).incident;
 }
-
-const NEXT: Record<IncidentStatusDto, IncidentStatusDto[]> = {
-  open: ['under_review', 'contained', 'resolved'],
-  under_review: ['contained', 'resolved'],
-  contained: ['under_review', 'resolved'],
-  resolved: [],
-  expired: [],
-};
 
 const STATUS_LABEL: Record<IncidentStatusDto, string> = {
   open: 'Open',
@@ -48,6 +55,16 @@ const STATUS_TONE: Record<IncidentStatusDto, 'critical' | 'warn' | 'ok' | 'neutr
   expired: 'neutral',
 };
 const SEVERITY_TONE = { high: 'critical', medium: 'warn', low: 'neutral' } as const;
+const BAND_LABEL: Record<string, string> = {
+  high: 'High risk',
+  medium: 'Medium risk',
+  low: 'Low risk',
+};
+const MODEL_BAND_LABEL: Record<string, string> = {
+  observe: 'Keep watching',
+  review: 'Send for review',
+  contain_eligible: 'Blocking is an option',
+};
 const HYPOTHESIS_LABEL: Record<IncidentDetail['primaryHypothesis'], string> = {
   attack: 'Coordinated abuse pattern',
   outage: 'Gateway or service outage',
@@ -55,313 +72,351 @@ const HYPOTHESIS_LABEL: Record<IncidentDetail['primaryHypothesis'], string> = {
   healthy_traffic: 'Healthy traffic pattern',
   insufficient_evidence: 'Insufficient evidence',
 };
-const DECISION_LABEL: Record<IncidentDetail['recommendedDecision'], string> = {
-  none: 'No intervention',
-  contain: 'Contain eligible activity',
-  review: 'Send for analyst review',
-  monitor: 'Monitor activity',
+const INFLUENCE_LABEL: Record<string, string> = {
+  none: 'No change to the rules',
+  corroborated: 'Corroborated the rules',
+  escalated: 'Escalated the case',
+  deescalated: 'De-escalated the case',
+  flagged: 'Flagged on its own',
 };
+
+const incidentRef = (id: string): string => `INC-${id.replace(/-/g, '').slice(0, 4).toUpperCase()}`;
+
+function timeAgo(ms: number): string {
+  const seconds = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min ago`;
+  if (seconds < 86_400) return `${Math.round(seconds / 3600)} hr ago`;
+  return `${Math.round(seconds / 86_400)}d ago`;
+}
+
+function formatWindow(ms: number): string {
+  const total = Math.max(0, Math.round(ms / 1000));
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  if (minutes === 0) return `${seconds} sec`;
+  if (minutes < 60) return `${minutes} min ${seconds} sec`;
+  return `${Math.floor(minutes / 60)} hr ${minutes % 60} min`;
+}
+
+const clockTime = (ms: number): string =>
+  new Date(ms).toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 
 type Move = { to: IncidentStatusDto; verdict?: Verdict };
 
-function Breakdown({ incident }: { incident: IncidentDetail }): React.JSX.Element {
-  const rows = [...incident.evidence].sort((a, b) => b.weight - a.weight);
-  const total = rows.reduce((sum, item) => sum + item.weight, 0);
+function reasonLine(it: IncidentDetail): string {
+  const top = [...it.evidence].filter((e) => e.weight > 0).sort((a, b) => b.weight - a.weight)[0];
+  return top !== undefined ? phraseFor(top) : HYPOTHESIS_LABEL[it.primaryHypothesis];
+}
 
+function OvSparkle(): React.JSX.Element {
   return (
-    <Card title="Why this score" subtitle="Every term signed, so the arithmetic can be checked.">
-      <ul className="breakdown">
-        {rows.map((item: EvidenceDto) => (
-          <li key={`${item.rule}:${item.code}`} className={item.weight < 0 ? 'is-mitigating' : ''}>
-            <span className="breakdown__weight">
-              {item.weight > 0 ? '+' : ''}
-              {item.weight.toFixed(2)}
-            </span>
-            <span className="breakdown__text">
-              <strong>{ruleName(item.rule)}</strong>
-              <br />
-              {phraseFor(item)}
-            </span>
-          </li>
-        ))}
-        <li className="breakdown__total">
-          <span className="breakdown__weight">{total.toFixed(2)}</span>
-          <span className="breakdown__text">
-            <strong>Total</strong>
-            <br />
-            Clamped to {incident.score.toFixed(2)}
-            {incident.band !== 'high' &&
-              `, and could be anywhere from ${incident.scoreLower.toFixed(2)} to ${incident.scoreUpper.toFixed(2)}`}
-          </span>
-        </li>
-      </ul>
-
-      {incident.abstentions.length > 0 && (
-        <>
-          <h3>What could not be judged</h3>
-          <ul className="abstentions">
-            {incident.abstentions.map((abstention) => (
-              <li key={abstention.rule}>
-                <strong>{ruleName(abstention.rule)}</strong> —{' '}
-                {ABSTENTION_REASON[abstention.reason] ?? abstention.reason}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </Card>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2l1.9 5.6L19.5 9l-4.6 3.3L16.4 18 12 14.7 7.6 18l1.5-5.7L4.5 9l5.6-1.4z" />
+    </svg>
   );
 }
 
-function Change({ incident }: { incident: IncidentDetail }): React.JSX.Element | null {
-  if (incident.change === null) return null;
-  const { ewma, cusum, baseline } = incident.change;
-  if (!ewma.fired && !cusum.fired) return null;
+const rupees = (paise: number): string =>
+  new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(paise / 100);
 
-  return (
-    <Card title="Change across the shop">
-      <p className="detail-note">
-        Normal for this shop was {baseline.mean.toFixed(1)} attempts a minute, learned over{' '}
-        {baseline.buckets} minutes — the shop’s overall traffic, not this entity alone.
-      </p>
-      <ul className="abstentions">
-        {ewma.fired && (
-          <li>
-            The weighted average rose {ewma.statistic.toFixed(2)} above normal, past a limit of{' '}
-            {ewma.limit.toFixed(2)}.
-          </li>
-        )}
-        {cusum.fired && (
-          <li>
-            Cumulative deviation reached {cusum.statistic.toFixed(2)} against a limit of{' '}
-            {cusum.limit.toFixed(2)}, after {cusum.buckets} minutes — a shift too small to trip a
-            fixed threshold.
-          </li>
-        )}
-      </ul>
-    </Card>
-  );
-}
-
-function Summary({ incident }: { incident: IncidentDetail }): React.JSX.Element {
-  const rows: [string, string][] = [
-    ['First attempt', new Date(incident.firstAttemptAt).toLocaleString()],
-    ['Detected', new Date(incident.detectedAt).toLocaleString()],
-    ['Time to detect', `${Math.round(incident.timeToDetectMs / 1000)}s`],
-    ['Last activity', new Date(incident.lastActivityAt).toLocaleString()],
-    ['Expires', new Date(incident.expiresAt).toLocaleString()],
-    ['Evaluations', String(incident.observations)],
-  ];
-  return (
-    <Card title="Summary">
-      <dl className="detail-facts">
-        {rows.map(([k, v]) => (
-          <div key={k}>
-            <dt>{k}</dt>
-            <dd>{v}</dd>
-          </div>
-        ))}
-      </dl>
-    </Card>
-  );
-}
-
-function DecisionRail({ incident }: { incident: IncidentDetail }): React.JSX.Element {
-  const needsApproval = incident.recommendedDecision === 'contain';
-  return (
-    <Card
-      title="Decision summary"
-      subtitle="Detection, recommendation, action and status are separate records."
-    >
-      <div className="decision-rail">
-        <div>
-          <span>Detection</span>
-          <strong>{HYPOTHESIS_LABEL[incident.primaryHypothesis]}</strong>
-          <small>Evidence-backed risk type · {incident.score.toFixed(2)} score</small>
-        </div>
-        <div>
-          <span>Recommendation</span>
-          <strong>{DECISION_LABEL[incident.recommendedDecision]}</strong>
-          <small>Produced under threshold set {incident.thresholdHash.slice(0, 8)}</small>
-        </div>
-        <div>
-          <span>Action</span>
-          <strong>{needsApproval ? 'Approval required' : 'No customer-impacting action'}</strong>
-          <small>
-            {needsApproval
-              ? 'Use the Action panel to propose and approve containment.'
-              : 'The engine is observing or escalating only.'}
-          </small>
-        </div>
-        <div>
-          <span>Status</span>
-          <strong>{STATUS_LABEL[incident.status]}</strong>
-          <small>Every transition is recorded in the audit trail.</small>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-const rupees = (paise: number | null): string =>
-  paise === null
-    ? '—'
-    : new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(paise / 100);
-
-function RelatedAttempts({ incident }: { incident: IncidentDetail }): React.JSX.Element {
-  const attempts = incident.relatedOrders.flatMap((order) =>
-    order.attempts.map((attempt) => ({ order, attempt })),
-  );
-
-  return (
-    <Card
-      title="Related payment attempts"
-      subtitle="Orders linked through this incident's session, device or network fingerprint."
-    >
-      {attempts.length === 0 ? (
-        <p className="detail-note">
-          No canonical payment attempts are linked yet. The checkout context may have arrived before
-          its Razorpay webhook, or this incident may be based on pre-payment activity.
-        </p>
-      ) : (
-        <div className="detail-attempts">
-          <a
-            className="detail-attempts__link"
-            href={`/console/attempts?entityKind=${incident.entityKind}&entityKey=${encodeURIComponent(incident.entityKey)}&source=${incident.source}`}
-          >
-            Open all related attempts →
-          </a>
-          {incident.relatedOrders.map((order: ResolvedOrder) => (
-            <div className="detail-attempt" key={order.razorpayOrderId}>
-              <div>
-                <strong>{order.razorpayOrderId}</strong>
-                <span>{rupees(order.amountPaise)}</span>
-              </div>
-              <div className="detail-attempt__meta">
-                {order.attempts.length} attempt{order.attempts.length === 1 ? '' : 's'} ·{' '}
-                {order.failureCount} failed · {order.outcome}
-                {order.recovered ? ' · recovered' : ''}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
-  );
-}
-
-function Actions({
-  status,
-  onMove,
-  pending,
+function Fact({
+  label,
+  children,
 }: {
-  status: IncidentStatusDto;
-  onMove: (move: Move) => void;
-  pending: boolean;
+  label: string;
+  children: React.ReactNode;
 }): React.JSX.Element {
-  const next = NEXT[status];
-  if (next.length === 0) {
+  return (
+    <div className="ad-fact">
+      <dt>{label}</dt>
+      <dd>{children}</dd>
+    </div>
+  );
+}
+
+function CardHeaderTitle({
+  icon,
+  text,
+  badgeTone,
+}: {
+  icon: React.ReactNode;
+  text: string;
+  badgeTone: string;
+}): React.JSX.Element {
+  return (
+    <div className="ad-card-head-inner">
+      <span className={`ad-card-badge ad-card-badge--${badgeTone}`}>{icon}</span>
+      <span>{text}</span>
+    </div>
+  );
+}
+
+function BriefActionSection({
+  rec,
+  loading,
+  error,
+  terminal,
+  hasLive,
+  onAction,
+}: {
+  rec: RiskRecommendation | null;
+  loading: boolean;
+  error: boolean;
+  terminal: boolean;
+  hasLive: boolean;
+  onAction: () => void;
+}): React.JSX.Element {
+  if (loading) return <p className="ad-muted">Loading recommendation…</p>;
+  if (error || rec === null) {
     return (
-      <p className="detail-note">
-        {STATUS_LABEL[status]} is final — an incident that could be reopened is a record whose
-        history can be rewritten.
+      <p className="ad-muted">
+        {error ? 'Could not load recommendation.' : 'No recommendation available.'}
       </p>
     );
   }
+  const disabled = terminal || (rec.action === 'contain' && hasLive);
   return (
-    <div className="detail-actions">
-      {next.includes('under_review') && (
-        <Button
-          variant="secondary"
-          block
-          onClick={() => onMove({ to: 'under_review' })}
-          disabled={pending}
-        >
-          Move to review
-        </Button>
+    <div>
+      <h3
+        className="ov-brief__heading"
+        style={{
+          fontSize: '0.88rem',
+          color: '#0f172a',
+          textTransform: 'none',
+          margin: '0 0 0.4rem',
+        }}
+      >
+        Sentinel recommends: <strong style={{ color: '#0b72e7' }}>{rec.actionLabel}</strong>
+      </h3>
+      <p className="ov-brief__text">{rec.rationale}</p>
+      {rec.alignment === 'diverges' && <p className="ov-brief__warn">{rec.alignmentNote}</p>}
+      <button
+        type="button"
+        className={`ov-brief__btn ov-brief__btn--${rec.action}`}
+        onClick={onAction}
+        disabled={disabled}
+      >
+        {rec.actionLabel} →
+      </button>
+      {disabled && (
+        <p className="ov-brief__muted" style={{ marginTop: '0.5rem' }}>
+          {terminal ? 'This incident is closed.' : 'A containment is already proposed.'}
+        </p>
       )}
-      {next.includes('contained') && (
-        <Button
-          variant="danger"
-          block
-          onClick={() => onMove({ to: 'contained' })}
-          disabled={pending}
-        >
-          Contain — confirmed abuse
-        </Button>
-      )}
-      {next.includes('resolved') && (
-        <>
-          <Button
-            variant="secondary"
-            block
-            onClick={() => onMove({ to: 'resolved', verdict: 'confirmed_abuse' })}
-            disabled={pending}
-          >
-            Resolve — confirmed abuse
-          </Button>
-          <Button
-            variant="ghost"
-            block
-            onClick={() => onMove({ to: 'resolved', verdict: 'false_positive' })}
-            disabled={pending}
-          >
-            Resolve — false positive
-          </Button>
-        </>
+      <p className="ov-brief__foot">
+        This is only a recommendation. Nothing happens until you approve it.
+      </p>
+      {(rec.degraded || rec.rehearsal) && (
+        <p className="ov-brief__note">
+          {rec.degraded && 'Built automatically — the live AI was unavailable. '}
+          {rec.rehearsal && 'Simulation — an executed action would block nobody.'}
+        </p>
       )}
     </div>
   );
 }
 
-function Resolution({
-  incident,
-  onMove,
-  pending,
-  error,
+/**
+ * The learned model's own reasoning, at the point of decision instead of a tab away.
+ *
+ * The contributions are exact for the served linear model (coefficient × standardised value), so this
+ * is the real breakdown behind P(abuse), not an after-the-fact rationalisation. When the rules opened
+ * nothing (no evidence) the model is what raised the case, and the copy says so — the one place the
+ * "AI Risk Manager" visibly out-reasons a burst rule.
+ */
+function ModelReasoning({
+  opinion,
+  modelRaised,
 }: {
-  incident: IncidentDetail;
-  onMove: (move: Move) => void;
-  pending: boolean;
-  error: string | null;
+  opinion: NonNullable<IncidentDetail['modelOpinion']>;
+  modelRaised: boolean;
 }): React.JSX.Element {
+  const top = [...opinion.contributions]
+    .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
+    .slice(0, 4);
+  const maxAbs = Math.max(1e-6, ...top.map((c) => Math.abs(c.contribution)));
+  const pct = Math.round(opinion.risk * 100);
+
   return (
-    <Card title="Resolution" subtitle="What you decide here becomes a label the model retrains on.">
-      {incident.label !== null && (
-        <p className="detail-label">
-          Confirmed as{' '}
-          <Badge tone={incident.label === 1 ? 'critical' : 'ok'}>
-            {incident.label === 1 ? 'abuse' : 'false positive'}
-          </Badge>{' '}
-          <span className="detail-note">({incident.labelSource ?? 'analyst'})</span>
-        </p>
-      )}
+    <div className="ov-mr">
+      <h4 className="ov-mr__head">
+        <OvSparkle /> What the AI model weighed
+      </h4>
+      <p className="ov-mr__lead">
+        {modelRaised ? (
+          <>
+            The model raised this <strong>on its own</strong> — no single rule fired. It reads the
+            activity as <strong>{pct}% likely card testing</strong>, driven by:
+          </>
+        ) : (
+          <>
+            The model reads this as <strong>{pct}% likely card testing</strong>, driven by:
+          </>
+        )}
+      </p>
+      <ul className="ov-mr__bars">
+        {top.map((c) => {
+          const positive = c.contribution >= 0;
+          const width = Math.round((Math.abs(c.contribution) / maxAbs) * 100);
+          return (
+            <li key={c.feature} className="ov-mr__row">
+              <span className="ov-mr__feat">{featureLabel(c.feature)}</span>
+              <span className="ov-mr__track">
+                <span
+                  className={`ov-mr__fill ov-mr__fill--${positive ? 'up' : 'down'}`}
+                  style={{ width: `${width}%` }}
+                />
+              </span>
+              <span className={`ov-mr__val ov-mr__val--${positive ? 'up' : 'down'}`}>
+                {positive ? '+' : ''}
+                {c.contribution.toFixed(2)}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="ov-mr__foot">
+        Exact contributions from the served model — {opinion.modelVersion}. Not an approximation.
+      </p>
+    </div>
+  );
+}
 
-      <Actions status={incident.status} onMove={onMove} pending={pending} />
+function OverviewTab({ it }: { it: IncidentDetail }): React.JSX.Element {
+  const client = useQueryClient();
+  const [modalOpen, setModalOpen] = useState(false);
+  const { recommendation, containments } = useActionsData(it.id);
+  const { accept, approve, reject } = useActionMutations(it.id, client, () => setModalOpen(false));
+  const rec = recommendation.data ?? null;
+  const live = (containments.data ?? []).find(
+    (c) => c.status === 'proposed' || c.status === 'active',
+  );
+  const terminal = TERMINAL.has(it.status);
 
-      {error !== null && (
-        <p className="detail-note" role="alert" style={{ color: 'var(--s-critical-ink)' }}>
-          {error}
-        </p>
-      )}
+  const capturedPaise = it.relatedOrders
+    .flatMap((o) => o.attempts)
+    .filter((a) => a.status === 'captured')
+    .reduce((sum, a) => sum + (a.amountPaise ?? 0), 0);
+  const cards = it.distinctCards ?? (it.graph.cards.length > 0 ? it.graph.cards.length : null);
+  const span = formatWindow(it.lastActivityAt - it.firstAttemptAt);
 
-      {incident.history.length > 0 && (
-        <>
-          <h3>History</h3>
-          <ol className="history">
-            {incident.history.map((entry, index) => (
-              <li key={`${entry.at}-${index}`}>
-                <strong>
-                  {STATUS_LABEL[entry.from]} → {STATUS_LABEL[entry.to]}
-                </strong>{' '}
-                · {entry.actor ?? 'system'} · {new Date(entry.at).toLocaleString()}
-                {entry.note !== null && <> — {entry.note}</>}
-              </li>
-            ))}
-          </ol>
-        </>
+  const reasons =
+    rec !== null
+      ? rec.keyReasons.map((c) => c.text)
+      : [...it.evidence]
+          .sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight))
+          .slice(0, 5)
+          .map(phraseFor);
+
+  return (
+    <div className="ov">
+      <Card
+        title={
+          <CardHeaderTitle
+            icon={<Pulse />}
+            text="Incident Overview & Recommendation"
+            badgeTone="blue"
+          />
+        }
+      >
+        <div className="ov-kpi-strip">
+          <div className="ov-kpi-item">
+            <span className="ov-kpi-label">Payment attempts</span>
+            <strong className="ov-kpi-val">{it.attempts}</strong>
+          </div>
+          <div className="ov-kpi-item">
+            <span className="ov-kpi-label">Distinct cards</span>
+            <strong className="ov-kpi-val">{cards !== null ? cards : '—'}</strong>
+          </div>
+          <div className="ov-kpi-item">
+            <span className="ov-kpi-label">Failures</span>
+            <strong className="ov-kpi-val ov-kpi-val--warn">{it.failures}</strong>
+          </div>
+          <div className="ov-kpi-item">
+            <span className="ov-kpi-label">Captured amount</span>
+            <strong
+              className={`ov-kpi-val ${capturedPaise > 0 ? 'ov-kpi-val--bad' : 'ov-kpi-val--ok'}`}
+            >
+              {rupees(capturedPaise)}
+            </strong>
+          </div>
+          <div className="ov-kpi-item">
+            <span className="ov-kpi-label">Time window</span>
+            <strong className="ov-kpi-val" style={{ fontSize: '1.1rem' }}>
+              {span}
+            </strong>
+          </div>
+        </div>
+
+        <div style={{ marginTop: '1.25rem' }}>
+          <h4
+            style={{
+              margin: '0 0 0.5rem',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#64748b',
+            }}
+          >
+            Why this was flagged
+          </h4>
+          {recommendation.isPending ? (
+            <p className="ad-muted">Analysing…</p>
+          ) : (
+            <ul className="ov-brief__reasons">
+              {reasons.map((r, i) => (
+                <li key={i}>{r}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {it.modelOpinion !== null && (
+          <div style={{ marginTop: '1.25rem' }}>
+            <ModelReasoning opinion={it.modelOpinion} modelRaised={it.evidence.length === 0} />
+          </div>
+        )}
+
+        <div
+          style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid #f1f5f9' }}
+        >
+          <BriefActionSection
+            rec={rec}
+            loading={recommendation.isPending}
+            error={recommendation.isError}
+            terminal={terminal}
+            hasLive={live !== undefined}
+            onAction={() => setModalOpen(true)}
+          />
+        </div>
+      </Card>
+
+      <PendingApproval
+        containment={live?.status === 'proposed' ? live : undefined}
+        approve={approve}
+        reject={reject}
+      />
+      {modalOpen && rec !== null && (
+        <TakeActionModal
+          recommendation={rec}
+          hasLiveContainment={live !== undefined}
+          pending={accept.isPending}
+          error={accept.isError ? accept.error.message : null}
+          onConfirm={() => accept.mutate(rec.groundingHash)}
+          onClose={() => setModalOpen(false)}
+        />
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -369,6 +424,7 @@ export function IncidentDetailPage(): React.JSX.Element {
   const { id } = useParams({ from: '/console/incidents/$id' });
   const client = useQueryClient();
 
+  const [tab, setTab] = useState<TabId>('overview');
   const incident = useQuery({ queryKey: ['incident', id], queryFn: () => fetchIncident(id) });
 
   const move = useMutation({
@@ -400,53 +456,121 @@ export function IncidentDetailPage(): React.JSX.Element {
       <Link to="/console/incidents" className="detail-back">
         ← Back to incidents
       </Link>
-
-      <header className="detail-head">
-        <div className="detail-head__text">
-          <span className="detail-eyebrow">{it.entityKind} incident</span>
-          <h1>
-            <code>{it.entityKey.replace(/^v\d+:/, '').slice(0, 22)}</code>
-          </h1>
-          <div className="detail-badges">
-            <Badge tone={SEVERITY_TONE[it.severity]}>{it.severity} severity</Badge>
-            <StatusDot tone={STATUS_TONE[it.status]}>{STATUS_LABEL[it.status]}</StatusDot>
-            <Badge tone={it.source === 'replay' ? 'neutral' : 'info'}>
-              {it.source === 'replay' ? 'replayed' : 'live'}
-            </Badge>
-          </div>
-        </div>
-        <div className="detail-score">
-          <span className="detail-score__label">Risk score</span>
-          <span className="detail-score__value">{it.score.toFixed(2)}</span>
-        </div>
-      </header>
-
-      <DecisionRail incident={it} />
-
-      <div className="detail-grid">
-        <div className="detail-main">
-          <NarrativePanel incidentId={it.id} />
-          <Breakdown incident={it} />
-          <Change incident={it} />
-          <ModelOpinion incident={it} />
-          <RelatedAttempts incident={it} />
-          <ContainmentPanel incidentId={it.id} />
-          <AuditTrail incidentId={it.id} />
-        </div>
-
-        <aside className="detail-side">
-          <Resolution
-            incident={it}
-            onMove={(m) => move.mutate(m)}
-            pending={move.isPending}
-            error={move.isError ? move.error.message : null}
-          />
-          <Summary incident={it} />
-          <p className="detail-thresh">
-            Judged by threshold set <code>{it.thresholdHash}</code>.
-          </p>
-        </aside>
-      </div>
+      <IncidentHeader it={it} />
+      <IncidentBody
+        it={it}
+        tab={tab}
+        setTab={setTab}
+        onMove={(m) => move.mutate(m)}
+        movePending={move.isPending}
+        moveError={move.isError ? move.error.message : null}
+      />
+      <IncidentCopilotWidget incident={it} />
     </div>
+  );
+}
+
+function IncidentHeader({ it }: { it: IncidentDetail }): React.JSX.Element {
+  return (
+    <header className="ov-head">
+      <div className="ov-head__text">
+        <span className="ov-head__eyebrow">
+          {it.entityKind} incident · {incidentRef(it.id)}
+        </span>
+        <div className="ov-head__title">
+          <h1>{it.title}</h1>
+          <Badge tone={SEVERITY_TONE[it.severity]}>{it.severity} severity</Badge>
+          <StatusDot tone={STATUS_TONE[it.status]}>{STATUS_LABEL[it.status]}</StatusDot>
+          <Badge tone={it.source === 'replay' ? 'neutral' : 'info'}>
+            {it.source === 'replay' ? 'Simulation' : 'Live'}
+          </Badge>
+        </div>
+        <p className="ov-head__reason">{reasonLine(it)}</p>
+        <p className="ov-head__meta">
+          <span>
+            Detected{' '}
+            <strong title={new Date(it.detectedAt).toLocaleString()}>
+              {timeAgo(it.detectedAt)}
+            </strong>
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>
+            Last activity{' '}
+            <strong title={new Date(it.lastActivityAt).toLocaleString()}>
+              {timeAgo(it.lastActivityAt)}
+            </strong>
+          </span>
+          <span aria-hidden="true">·</span>
+          <span>
+            Risk Score{' '}
+            <strong style={{ color: '#0b72e7' }}>{Math.round(it.score * 100)}/100</strong> (
+            {BAND_LABEL[it.band] ?? `${it.band} band`})
+          </span>
+        </p>
+      </div>
+      <div className="ov-head__gauge">
+        <RiskGauge score={it.score} level={it.band} size="sm" hideBox={true} />
+      </div>
+    </header>
+  );
+}
+
+function IncidentBody({
+  it,
+  tab,
+  setTab,
+  onMove,
+  movePending,
+  moveError,
+}: {
+  it: IncidentDetail;
+  tab: TabId;
+  setTab: (tab: TabId) => void;
+  onMove: (move: Move) => void;
+  movePending: boolean;
+  moveError: string | null;
+}): React.JSX.Element {
+  const attemptCount = it.relatedOrders.reduce((sum, order) => sum + order.attempts.length, 0);
+  const tabs: TabItem[] = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'evidence', label: 'Evidence & signals' },
+    { id: 'relationships', label: 'Relationships' },
+    { id: 'attempts', label: `Attempts (${attemptCount})` },
+    { id: 'model', label: 'Model assessment' },
+    { id: 'actions', label: 'Actions & audit' },
+    { id: 'timeline', label: 'Timeline' },
+  ];
+  return (
+    <>
+      <Tabs
+        items={tabs}
+        active={tab}
+        onChange={(value) => setTab(value as TabId)}
+        className="ov-tabs"
+      />
+
+      {tab === 'overview' && <OverviewTab it={it} />}
+
+      {tab === 'evidence' && <EvidenceSignalsTab it={it} />}
+
+      {tab === 'relationships' && <RelationshipsTab it={it} />}
+
+      {tab === 'attempts' && <IncidentAttemptsTab incident={it} />}
+
+      {tab === 'model' && (
+        <ModelAssessmentTab incident={it} onViewEvidence={() => setTab('evidence')} />
+      )}
+
+      {tab === 'actions' && (
+        <ActionsAuditTab
+          incident={it}
+          onResolve={(verdict) => onMove({ to: 'resolved', verdict })}
+          resolvePending={movePending}
+          resolveError={moveError}
+        />
+      )}
+
+      {tab === 'timeline' && <IncidentTimelineTab incident={it} />}
+    </>
   );
 }
