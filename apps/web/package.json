@@ -12,10 +12,12 @@
     "test:unit": "vitest run"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "@sentinel/contracts": "workspace:*",
     "@sentinel/ui": "workspace:*",
     "@tanstack/react-query": "^5.102.2",
     "@tanstack/react-router": "^1.170.32",
+    "hugeicons-react": "^0.4.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

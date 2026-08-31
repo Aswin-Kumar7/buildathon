@@ -29,6 +29,37 @@ export function csrfHeaders(): Record<string, string> {
   return csrfToken === null ? {} : { 'x-csrf-token': csrfToken };
 }
 
+/**
+ * POST to the API with the CSRF token, self-healing a stale one.
+ *
+ * The CSRF token lives in memory (never storage), so it can drift out of sync with the session
+ * cookie — a second tab signs in and rotates it, the dev API restarts, or a long-idle tab holds an
+ * old one. The server then rejects the write with 403 "Invalid CSRF token". Rather than surface that
+ * to the analyst mid-action, we refresh the token from `/me` once and retry. If the session is
+ * genuinely gone, the retry fails too and the caller surfaces it honestly.
+ */
+export async function apiMutate(path: string, body?: unknown, method = 'POST'): Promise<Response> {
+  const init: RequestInit =
+    body === undefined
+      ? { method, credentials: 'include', headers: { ...csrfHeaders() } }
+      : {
+          method,
+          credentials: 'include',
+          headers: { 'content-type': 'application/json', ...csrfHeaders() },
+          body: JSON.stringify(body),
+        };
+
+  const first = await fetch(path, init);
+  if (first.status !== 403) return first;
+  // Stale token: refresh from /me and retry once with the current header.
+  await fetchMe().catch(() => undefined);
+  const retryHeaders =
+    body === undefined
+      ? { ...csrfHeaders() }
+      : { 'content-type': 'application/json', ...csrfHeaders() };
+  return fetch(path, { ...init, headers: retryHeaders });
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,

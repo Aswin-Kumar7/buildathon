@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router';
 import { Button } from '@sentinel/ui';
-import { useMeta } from './useMeta.js';
+import { useMeta, type MetaState } from './useMeta.js';
 import { STOREFRONT_URL } from '../links.js';
 import { Icon, type IconName } from '../shell/icons.js';
 import './Landing.css';
@@ -140,26 +140,35 @@ function Hero(): React.JSX.Element {
   );
 }
 
-function Trust(): React.JSX.Element {
-  const metrics = [
-    ['0.94', 'PR-AUC on held-out data'],
-    ['97%', 'of attacks caught (recall)'],
-    ['6.5%', 'false-decline rate'],
-    ['0', 'shoppers auto-blocked'],
-  ];
+function Trust({ state }: { state: MetaState }): React.JSX.Element {
+  const model = state.kind === 'ready' ? state.meta.model : null;
+  const metrics =
+    model === null
+      ? null
+      : [
+          [model.prAuc.toFixed(2), 'PR-AUC on held-out data'],
+          [`${Math.round(model.recall * 100)}%`, 'of attacks caught (recall)'],
+          [`${(model.falseDeclineRate * 100).toFixed(1)}%`, 'false-decline rate'],
+          // A design fact, not a metric: the model never blocks a shopper on its own.
+          ['0', 'shoppers auto-blocked'],
+        ];
   return (
     <section className="lp-trust" id="trust">
       <div className="lp-trust__inner">
-        {metrics.map(([v, l]) => (
-          <div className="lp-metric" key={l}>
-            <strong>{v}</strong>
-            <span>{l}</span>
-          </div>
-        ))}
+        {metrics === null ? (
+          <p className="lp-trust__pending">The deployed model’s live metrics load from the API…</p>
+        ) : (
+          metrics.map(([v, l]) => (
+            <div className="lp-metric" key={l}>
+              <strong>{v}</strong>
+              <span>{l}</span>
+            </div>
+          ))
+        )}
       </div>
       <p className="lp-trust__note">
-        The deployed model’s own numbers, measured honestly — labels declared synthetic, not
-        real-world outcomes.
+        The deployed model’s own held-out numbers, read live from the API — labels declared
+        synthetic, not real-world outcomes.
       </p>
     </section>
   );
@@ -281,7 +290,7 @@ export function Landing(): React.JSX.Element {
     <div className="lp">
       <Nav />
       <Hero />
-      <Trust />
+      <Trust state={state} />
       <Features />
       <HowItWorks />
       <Honesty />

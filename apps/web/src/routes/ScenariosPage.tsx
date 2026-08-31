@@ -20,7 +20,7 @@ async function runScenario(family: string) {
     method: 'POST',
     credentials: 'include',
     headers: { 'content-type': 'application/json', ...csrfHeaders() },
-    body: JSON.stringify({ family }),
+    body: JSON.stringify({ family, fresh: true }),
   });
   if (!response.ok) throw new Error(`api returned ${response.status}`);
   return replayResultSchema.parse(await response.json());

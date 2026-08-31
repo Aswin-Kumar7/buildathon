@@ -24,6 +24,7 @@ const meta = {
   commit: 'abc1234',
   slice: { number: 16, name: 'Redesign' },
   evidenceLayers: [layer('L1', 'Integration'), layer('L2', 'Compliance'), layer('L3', 'Benchmark')],
+  model: { prAuc: 0.94, recall: 0.971, falseDeclineRate: 0.1 },
 };
 
 afterEach(() => vi.unstubAllGlobals());

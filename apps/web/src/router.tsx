@@ -13,14 +13,13 @@ import { LoginPage } from './routes/LoginPage.js';
 import { OverviewPage } from './routes/OverviewPage.js';
 import { HealthPage } from './routes/HealthPage.js';
 import { AttemptsPage } from './routes/AttemptsPage.js';
+import { AttemptDetailPage } from './routes/AttemptDetailPage.js';
 import { ScenariosPage } from './routes/ScenariosPage.js';
 import { FeaturesPage } from './routes/FeaturesPage.js';
 import { IncidentsPage } from './routes/IncidentsPage.js';
 import { IncidentDetailPage } from './routes/IncidentDetailPage.js';
-import { ComparePage } from './routes/ComparePage.js';
 import { PolicyPage } from './routes/PolicyPage.js';
 import { AuditPage } from './routes/AuditPage.js';
-import { MetricsPage } from './routes/MetricsPage.js';
 import { SettingsPage } from './routes/SettingsPage.js';
 import { AppShell } from './shell/AppShell.js';
 
@@ -87,6 +86,12 @@ const attemptsRoute = createRoute({
   component: AttemptsPage,
 });
 
+const attemptDetailRoute = createRoute({
+  getParentRoute: () => consoleRoute,
+  path: '/attempts/$paymentId',
+  component: AttemptDetailPage,
+});
+
 const featuresRoute = createRoute({
   getParentRoute: () => consoleRoute,
   path: '/features',
@@ -105,12 +110,6 @@ const incidentDetailRoute = createRoute({
   component: IncidentDetailPage,
 });
 
-const compareRoute = createRoute({
-  getParentRoute: () => consoleRoute,
-  path: '/compare',
-  component: ComparePage,
-});
-
 const policyRoute = createRoute({
   getParentRoute: () => consoleRoute,
   path: '/policy',
@@ -121,12 +120,6 @@ const auditRoute = createRoute({
   getParentRoute: () => consoleRoute,
   path: '/audit',
   component: AuditPage,
-});
-
-const metricsRoute = createRoute({
-  getParentRoute: () => consoleRoute,
-  path: '/metrics',
-  component: MetricsPage,
 });
 
 const scenariosRoute = createRoute({
@@ -147,13 +140,12 @@ const routeTree = rootRoute.addChildren([
   consoleRoute.addChildren([
     overviewRoute,
     attemptsRoute,
+    attemptDetailRoute,
     featuresRoute,
     incidentsRoute,
     incidentDetailRoute,
-    compareRoute,
     policyRoute,
     auditRoute,
-    metricsRoute,
     scenariosRoute,
     settingsRoute,
     healthRoute,

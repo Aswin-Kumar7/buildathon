@@ -30,7 +30,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--s-2);
-  font-weight: 700;
+  font-weight: 500;
   font-size: var(--s-text-md);
   letter-spacing: var(--s-tracking-tighter);
   color: var(--s-ink);
@@ -75,7 +75,7 @@
 .lp-eyebrow {
   display: inline-block;
   font-size: var(--s-text-sm);
-  font-weight: 600;
+  font-weight: 400;
   color: var(--s-accent-ink);
   background: var(--s-accent-soft);
   border: 1px solid var(--s-accent-border);
@@ -87,7 +87,7 @@
   margin: 0;
   font-size: var(--s-text-3xl);
   line-height: 1.05;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.03em;
 }
 .lp-sub {
@@ -157,7 +157,7 @@
 .lp-preview__title {
   margin-left: var(--s-2);
   font-size: var(--s-text-xs);
-  font-weight: 600;
+  font-weight: 400;
   color: var(--s-ink-3);
 }
 .lp-preview__body {
@@ -185,11 +185,11 @@
   color: var(--s-ink-3);
   text-transform: uppercase;
   letter-spacing: 0.02em;
-  font-weight: 600;
+  font-weight: 400;
 }
 .lp-ptile strong {
   font-size: var(--s-text-lg);
-  font-weight: 700;
+  font-weight: 500;
 }
 .lp-ptile--crit strong {
   color: var(--s-critical-ink);
@@ -211,7 +211,7 @@
 }
 .lp-pchip {
   font-size: 0.625rem;
-  font-weight: 700;
+  font-weight: 500;
   padding: 0.125rem 0.375rem;
   border-radius: var(--s-radius-sm);
   background: var(--s-critical-soft);
@@ -233,7 +233,7 @@
 }
 .lp-pstate {
   font-size: var(--s-text-xs);
-  font-weight: 600;
+  font-weight: 400;
   color: var(--s-ok-ink);
 }
 .lp-pstate--warn {
@@ -263,13 +263,20 @@
 .lp-metric strong {
   display: block;
   font-size: var(--s-text-2xl);
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.02em;
   color: var(--s-ink);
 }
 .lp-metric span {
   font-size: var(--s-text-sm);
   color: var(--s-ink-2);
+}
+.lp-trust__pending {
+  margin: 0;
+  padding: var(--s-4);
+  text-align: center;
+  color: var(--s-ink-3);
+  font-size: var(--s-text-sm);
 }
 .lp-trust__note {
   max-width: var(--lp-max);
@@ -287,7 +294,7 @@
 }
 .lp-kicker {
   font-size: var(--s-text-sm);
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--s-accent-ink);
@@ -295,7 +302,7 @@
 .lp-section-head h2 {
   margin: var(--s-2) 0 0;
   font-size: var(--s-text-2xl);
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.02em;
 }
 
@@ -331,7 +338,7 @@
 .lp-feature h3 {
   margin: 0 0 var(--s-2);
   font-size: var(--s-text-md);
-  font-weight: 600;
+  font-weight: 400;
 }
 .lp-feature p {
   margin: 0;
@@ -373,14 +380,14 @@
   border-radius: 50%;
   background: var(--s-accent);
   color: #fff;
-  font-weight: 700;
+  font-weight: 500;
   font-size: var(--s-text-sm);
   flex-shrink: 0;
 }
 .lp-pipeline h4 {
   margin: 0.125rem 0 0.25rem;
   font-size: var(--s-text-base);
-  font-weight: 600;
+  font-weight: 400;
 }
 .lp-pipeline p {
   margin: 0;
@@ -405,7 +412,7 @@
 .lp-honesty__inner h2 {
   margin: var(--s-2) 0 var(--s-3);
   font-size: var(--s-text-2xl);
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.02em;
   color: var(--s-accent-ink);
 }
@@ -418,7 +425,7 @@
 .lp-honesty__link {
   display: inline-block;
   margin-top: var(--s-4);
-  font-weight: 600;
+  font-weight: 400;
   text-decoration: none;
 }
 .lp-honesty__link:hover {
@@ -441,7 +448,7 @@
 .lp-final__card h2 {
   margin: 0 0 var(--s-2);
   font-size: var(--s-text-2xl);
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.02em;
 }
 .lp-final__card p {
