@@ -1,14 +1,29 @@
-import { useEffect, useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { Badge, Button, Callout, Card, PageHeader } from '@sentinel/ui';
+import { useEffect, useMemo, useState } from 'react';
+import { Clock } from '@phosphor-icons/react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Callout } from '@sentinel/ui';
 import {
   policyResponseSchema,
+  policyVersionListResponseSchema,
+  policyVersionSchema,
   simulationResponseSchema,
   type PolicyResponse,
-  type SimulationResponse,
+  type PolicyVersion,
 } from '@sentinel/contracts';
-import { csrfHeaders } from '../auth/api.js';
-import { actionLabel, rupees } from '../incidents/policy-words.js';
+import { apiMutate } from '../auth/api.js';
+import {
+  buildPolicyYaml,
+  draftFromPolicy,
+  draftProblems,
+  isDirty,
+  nextVersion,
+  type PolicyDraft,
+} from './policy-draft.js';
+import { ActivePolicyCard } from './PolicyActive.js';
+import { EnforcementCard } from './PolicyEnforcement.js';
+import { PolicySettingsCard } from './PolicySettings.js';
+import { PolicyPreviewCard } from './PolicyPreview.js';
+import { HistoryModal } from './PolicyHistory.js';
 import './PolicyPage.css';
 
 async function fetchPolicy(): Promise<PolicyResponse> {
@@ -16,393 +31,183 @@ async function fetchPolicy(): Promise<PolicyResponse> {
   if (!response.ok) throw new Error(`api returned ${response.status}`);
   return policyResponseSchema.parse(await response.json());
 }
-
-const pct = (value: number): string => `${Math.round(value * 100)}%`;
-
-type PolicyDraft = {
-  stepUp: number;
-  contain: number;
-  defaultMinutes: number;
-  maxMinutes: number;
-  dualApprovalAbovePaise: number;
-  maxActiveContainments: number;
-  killSwitch: boolean;
-};
-
-const yaml = (policy: PolicyResponse, draft: PolicyDraft): string => `version: ${policy.version + 1}
-killSwitch: ${draft.killSwitch}
-thresholds:
-  stepUp: ${draft.stepUp}
-  contain: ${draft.contain}
-containment:
-  defaultMinutes: ${draft.defaultMinutes}
-  maxMinutes: ${draft.maxMinutes}
-  maxExtensions: ${policy.containment.maxExtensions}
-approval:
-  dualApprovalAbovePaise: ${draft.dualApprovalAbovePaise}
-  containmentAlwaysNeedsApproval: ${policy.approval.containmentAlwaysNeedsApproval}
-impactCaps:
-  maxActiveContainments: ${draft.maxActiveContainments}
-  maxContainmentsPerHour: ${policy.impactCaps.maxContainmentsPerHour}
-  maxShareOfActiveSessions: ${policy.impactCaps.maxShareOfActiveSessions}
-  shareAppliesAboveSessions: ${policy.impactCaps.shareAppliesAboveSessions}
-allowlist:
-  sessions: []
-  devices: []
-  networks: []
-degradation:
-  maxFeatureAgeMinutes: ${policy.degradation.maxFeatureAgeMinutes}
-  requireConfirmedCounts: ${policy.degradation.requireConfirmedCounts}
-  refuseWhenArbitrationAbstained: ${policy.degradation.refuseWhenArbitrationAbstained}
-costs:
-  chargebackPaise: ${policy.costs.chargebackPaise}
-  blockedShopperPaise: ${policy.costs.blockedShopperPaise}
-  reviewPaise: ${policy.costs.reviewPaise}
-`;
-
-// The builder keeps the policy controls and their safety copy together for a merchant review.
-// eslint-disable-next-line max-lines-per-function
-function Builder({
-  policy,
-  draft,
-  onChange,
-  onSimulate,
-  pending,
-}: {
-  policy: PolicyResponse;
-  draft: PolicyDraft;
-  onChange: (next: PolicyDraft) => void;
-  onSimulate: (source: string) => void;
-  pending: boolean;
-}): React.JSX.Element {
-  const update = (key: keyof PolicyDraft, value: string | boolean): void => {
-    onChange({ ...draft, [key]: typeof value === 'boolean' ? value : Number(value) });
-  };
-
-  return (
-    <Card>
-      <header className="policy-builder__head">
-        <div>
-          <h2>Build a candidate policy</h2>
-          <p>
-            Adjust the controls merchants actually reason about, then preview the impact on recorded
-            incidents. This creates no live policy and takes no action.
-          </p>
-        </div>
-        <Badge tone="info">draft v{policy.version + 1}</Badge>
-      </header>
-      <div className="policy-builder">
-        <label>
-          <span>Step-up score</span>
-          <input
-            type="number"
-            min="0"
-            max="1"
-            step="0.01"
-            value={draft.stepUp}
-            onChange={(e) => update('stepUp', e.target.value)}
-          />
-          <small>Ask for another factor above this attack-support score.</small>
-        </label>
-        <label>
-          <span>Contain score</span>
-          <input
-            type="number"
-            min="0"
-            max="1"
-            step="0.01"
-            value={draft.contain}
-            onChange={(e) => update('contain', e.target.value)}
-          />
-          <small>Propose containment above this score; approval is still required.</small>
-        </label>
-        <label>
-          <span>Default containment (minutes)</span>
-          <input
-            type="number"
-            min="1"
-            value={draft.defaultMinutes}
-            onChange={(e) => update('defaultMinutes', e.target.value)}
-          />
-        </label>
-        <label>
-          <span>Maximum containment (minutes)</span>
-          <input
-            type="number"
-            min="1"
-            value={draft.maxMinutes}
-            onChange={(e) => update('maxMinutes', e.target.value)}
-          />
-        </label>
-        <label>
-          <span>Dual approval above (₹)</span>
-          <input
-            type="number"
-            min="0"
-            value={draft.dualApprovalAbovePaise / 100}
-            onChange={(e) => update('dualApprovalAbovePaise', String(Number(e.target.value) * 100))}
-          />
-          <small>High-impact containment needs two distinct reviewers.</small>
-        </label>
-        <label>
-          <span>Active containment cap</span>
-          <input
-            type="number"
-            min="0"
-            value={draft.maxActiveContainments}
-            onChange={(e) => update('maxActiveContainments', e.target.value)}
-          />
-        </label>
-      </div>
-      <label className="policy-toggle">
-        <input
-          type="checkbox"
-          checked={draft.killSwitch}
-          onChange={(e) => update('killSwitch', e.target.checked)}
-        />
-        <span>
-          <strong>Kill switch</strong>
-          <small>Refuse all customer-impacting actions while testing this candidate.</small>
-        </span>
-      </label>
-      <div className="policy-builder__actions">
-        <Button
-          variant="secondary"
-          onClick={() => onSimulate(yaml(policy, draft))}
-          disabled={pending}
-        >
-          {pending ? 'Simulating…' : 'Preview impact'}
-        </Button>
-        <span className="detail-note">
-          The candidate is validated by the same policy engine used for decisions.
-        </span>
-      </div>
-    </Card>
-  );
+async function fetchVersions(): Promise<PolicyVersion[]> {
+  const response = await fetch('/api/policy/versions', { credentials: 'include' });
+  if (!response.ok) throw new Error(`api returned ${response.status}`);
+  return policyVersionListResponseSchema.parse(await response.json()).versions;
 }
-
-function Current({ policy }: { policy: PolicyResponse }): React.JSX.Element {
-  return (
-    <Card>
-      <header className="incident__head">
-        <h2>
-          Version {policy.version} <code>{policy.hash}</code>
-        </h2>
-        {policy.killSwitch && <Badge tone="critical">kill switch engaged</Badge>}
-      </header>
-
-      <dl className="incident__facts">
-        <div>
-          <dt>Ask for another factor at</dt>
-          <dd>{pct(policy.thresholds.stepUp)}</dd>
-        </div>
-        <div>
-          <dt>Refuse attempts at</dt>
-          <dd>{pct(policy.thresholds.contain)}</dd>
-        </div>
-        <div>
-          <dt>Containment lasts</dt>
-          <dd>{policy.containment.defaultMinutes} min</dd>
-        </div>
-        <div>
-          <dt>Never longer than</dt>
-          <dd>{policy.containment.maxMinutes} min</dd>
-        </div>
-        <div>
-          <dt>Two people needed above</dt>
-          <dd>{rupees(policy.approval.dualApprovalAbovePaise)}</dd>
-        </div>
-        <div>
-          <dt>At most, contained at once</dt>
-          <dd>{policy.impactCaps.maxActiveContainments}</dd>
-        </div>
-        <div>
-          <dt>Features must be fresher than</dt>
-          <dd>{policy.degradation.maxFeatureAgeMinutes} min</dd>
-        </div>
-        <div>
-          <dt>Allowlisted</dt>
-          <dd>
-            {policy.allowlisted.sessions + policy.allowlisted.devices + policy.allowlisted.networks}{' '}
-            entries
-          </dd>
-        </div>
-      </dl>
-
-      <p className="incident__band">
-        Edited in <code>policy.yaml</code> and nowhere else. A policy that can be changed from a
-        console is one whose history lives in a table nobody diffs — this one is reviewed and
-        reverted like any other change, and every decision records the version that produced it.
-      </p>
-    </Card>
-  );
-}
-
-function Results({ result }: { result: SimulationResponse }): React.JSX.Element {
-  if (result.problems.length > 0) {
-    return (
-      <Callout tone="critical" title="That policy is not usable">
-        <ul className="abstentions">
-          {result.problems.map((problem) => (
-            <li key={problem}>{problem}</li>
-          ))}
-        </ul>
-      </Callout>
-    );
+async function postJson(path: string, body?: unknown): Promise<unknown> {
+  const response = await apiMutate(path, body);
+  if (!response.ok) {
+    const detail = (await response.json().catch(() => ({}))) as { message?: unknown };
+    const message = Array.isArray(detail.message)
+      ? detail.message.join('; ')
+      : typeof detail.message === 'string'
+        ? detail.message
+        : `api returned ${response.status}`;
+    throw new Error(message);
   }
-
-  return (
-    <>
-      <dl className="incident__facts">
-        <div>
-          <dt>Incidents considered</dt>
-          <dd>{result.summary.considered}</dd>
-        </div>
-        <div>
-          <dt>Decisions changed</dt>
-          <dd>{result.summary.changed}</dd>
-        </div>
-        <div>
-          <dt>Newly contained</dt>
-          <dd className={result.summary.newlyContained > 0 ? 'is-nervous' : undefined}>
-            {result.summary.newlyContained}
-          </dd>
-        </div>
-        <div>
-          <dt>No longer contained</dt>
-          <dd>{result.summary.newlyReleased}</dd>
-        </div>
-      </dl>
-
-      {/* Called out on its own rather than folded into "changed": more containment is the
-          direction that costs somebody their checkout, and it is what a person should have to
-          look at before shipping an edit. */}
-      {result.summary.newlyContained > 0 && (
-        <Callout tone="warn" title="This would block people it does not block today">
-          <p>
-            {result.summary.newlyContained} of {result.summary.considered} would newly be refused.
-            Each one is a shopper who gets through now and would not.
-          </p>
-        </Callout>
-      )}
-
-      <table className="simulation">
-        <thead>
-          <tr>
-            <th>Entity</th>
-            <th>Now</th>
-            <th>Would be</th>
-          </tr>
-        </thead>
-        <tbody>
-          {result.rows.map((row) => (
-            <tr key={row.incidentId} className={row.changed ? 'is-changed' : undefined}>
-              <td>
-                {row.entityKind} <code>{row.entityKey.replace(/^v\d+:/, '').slice(0, 10)}</code>
-              </td>
-              <td>{actionLabel(row.current.action)}</td>
-              <td>{actionLabel(row.proposed.action)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
-  );
+  return response.json();
 }
 
 // eslint-disable-next-line max-lines-per-function
 export function PolicyPage(): React.JSX.Element {
-  const [draft, setDraft] = useState('');
-  const [structuredDraft, setStructuredDraft] = useState<PolicyDraft | null>(null);
+  const client = useQueryClient();
   const policy = useQuery({ queryKey: ['policy'], queryFn: fetchPolicy });
+  const versions = useQuery({ queryKey: ['policy-versions'], queryFn: fetchVersions });
 
+  const [draft, setDraft] = useState<PolicyDraft | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [saveNote, setSaveNote] = useState<{ tone: 'ok' | 'critical'; text: string } | null>(null);
+
+  // Draft edits are applied through the live value, so a sub-component never has to reason about the
+  // null (not-yet-loaded) state the page already guards before rendering them.
+  const updateDraft = (fn: (draft: PolicyDraft) => PolicyDraft): void =>
+    setDraft((current) => (current === null ? current : fn(current)));
+
+  // Seed the draft from the live policy once it loads, and re-seed only while the merchant has made
+  // no edits — so a background refresh of the active policy never discards work in progress.
+  const live = policy.data;
   useEffect(() => {
-    if (policy.data === undefined || structuredDraft !== null) return;
-    setStructuredDraft({
-      stepUp: policy.data.thresholds.stepUp,
-      contain: policy.data.thresholds.contain,
-      defaultMinutes: policy.data.containment.defaultMinutes,
-      maxMinutes: policy.data.containment.maxMinutes,
-      dualApprovalAbovePaise: policy.data.approval.dualApprovalAbovePaise,
-      maxActiveContainments: policy.data.impactCaps.maxActiveContainments,
-      killSwitch: policy.data.killSwitch,
-    });
-  }, [policy.data, structuredDraft]);
+    if (live === undefined) return;
+    setDraft((current) =>
+      current === null || !isDirty(current, live) ? draftFromPolicy(live) : current,
+    );
+  }, [live]);
+
+  const version = useMemo(
+    () =>
+      live === undefined
+        ? 1
+        : nextVersion(
+            live.version,
+            (versions.data ?? []).map((v) => v.version),
+          ),
+    [live, versions.data],
+  );
+  const allowlistEmpty =
+    live !== undefined &&
+    live.allowlisted.sessions + live.allowlisted.devices + live.allowlisted.networks === 0;
+  const dirty = live !== undefined && draft !== null && isDirty(draft, live);
+  const clientProblems = draft === null ? [] : draftProblems(draft);
 
   const simulate = useMutation({
-    mutationFn: async (source: string) => {
-      const response = await fetch('/api/policy/simulate', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json', ...csrfHeaders() },
-        body: JSON.stringify({ policy: source }),
-      });
-      if (!response.ok) throw new Error(`api returned ${response.status}`);
-      return simulationResponseSchema.parse(await response.json());
+    mutationFn: async (yaml: string) =>
+      simulationResponseSchema.parse(await postJson('/api/policy/simulate', { policy: yaml })),
+  });
+  const save = useMutation({
+    mutationFn: async ({ yaml, submit }: { yaml: string; submit: boolean }) => {
+      const created = policyVersionSchema.parse(
+        ((await postJson('/api/policy/drafts', { source: yaml })) as { version: unknown }).version,
+      );
+      if (submit) await postJson(`/api/policy/versions/${created.id}/submit`);
+      return created;
     },
+    onSuccess: (_v, { submit }) => {
+      setSaveNote({
+        tone: 'ok',
+        text: submit
+          ? 'Draft created and sent for approval. The live policy is unchanged until it is published.'
+          : 'Draft saved. The live policy is unchanged until this draft is approved and published.',
+      });
+      void client.invalidateQueries({ queryKey: ['policy-versions'] });
+    },
+    onError: (error: Error) =>
+      setSaveNote({ tone: 'critical', text: `The live policy was not changed. ${error.message}` }),
   });
 
+  const runPreview = (): void => {
+    if (draft === null || live === undefined || clientProblems.length > 0) return;
+    simulate.mutate(buildPolicyYaml(draft, live, version));
+  };
+  const runSave = (submit: boolean): void => {
+    if (
+      draft === null ||
+      live === undefined ||
+      !dirty ||
+      !allowlistEmpty ||
+      clientProblems.length > 0
+    )
+      return;
+    setSaveNote(null);
+    save.mutate({ yaml: buildPolicyYaml(draft, live, version), submit });
+  };
+
   return (
-    <>
-      <PageHeader
-        eyebrow="Govern"
-        title="Policies"
-        description="Everything the system is allowed to do to a shopper. Five actions, all reversible, all expiring; containment never happens without a person agreeing, and nothing at all happens while the kill switch is engaged."
-      />
+    <div className="pol">
+      <PageBar onHistory={() => setHistoryOpen(true)} />
+
+      <EnforcementCard />
 
       {policy.isError && (
         <Callout tone="critical" title="Could not load the policy">
           <p role="alert">{policy.error.message}</p>
         </Callout>
       )}
-      {policy.isPending && <p role="status">Loading policy…</p>}
-      {policy.data !== undefined && <Current policy={policy.data} />}
+      {policy.isPending && <PolicySkeleton />}
 
-      {policy.data !== undefined && structuredDraft !== null && (
-        <Builder
-          policy={policy.data}
-          draft={structuredDraft}
-          onChange={setStructuredDraft}
-          onSimulate={(source) => {
-            setDraft(source);
-            simulate.mutate(source);
-          }}
-          pending={simulate.isPending}
-        />
+      {live !== undefined && draft !== null && (
+        <>
+          <ActivePolicyCard policy={live} versions={versions.data ?? []} />
+
+          <div className="pol-grid">
+            <PolicySettingsCard
+              draft={draft}
+              onDraft={updateDraft}
+              problems={clientProblems}
+              policy={live}
+              version={version}
+              dirty={dirty}
+              allowlistEmpty={allowlistEmpty}
+              pending={save.isPending}
+              note={saveNote}
+              onSave={runSave}
+            />
+            <PolicyPreviewCard
+              onPreview={runPreview}
+              pending={simulate.isPending}
+              result={simulate.data}
+              error={simulate.isError ? simulate.error.message : null}
+              blocked={clientProblems.length > 0}
+              dirty={dirty}
+            />
+          </div>
+        </>
       )}
 
-      <Card>
-        <h2>Advanced candidate editor</h2>
-        <p>
-          Review or edit the full validated document when you need to change settings beyond the
-          guided controls. Nothing is saved and nothing is acted on — this only answers what it{' '}
-          <em>would</em> have decided against incidents that already happened.
-        </p>
+      {historyOpen && (
+        <HistoryModal
+          versions={versions.data ?? []}
+          loading={versions.isPending}
+          onClose={() => setHistoryOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
 
-        <label className="policy-editor">
-          <span>Candidate policy</span>
-          <textarea
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            rows={12}
-            spellCheck={false}
-            placeholder={
-              'version: 1\nkillSwitch: false\nthresholds:\n  stepUp: 0.55\n  contain: 0.75\n…'
-            }
-          />
-        </label>
+function PageBar({ onHistory }: { onHistory: () => void }): React.JSX.Element {
+  return (
+    <header className="pol-head">
+      <div>
+        <h1>Policies</h1>
+        <p>Control how Sentinel protects your business. Changes are reviewed before you save.</p>
+      </div>
+      <button type="button" className="pol-head__history" onClick={onHistory}>
+        <Clock /> View history
+      </button>
+    </header>
+  );
+}
 
-        <Button
-          variant="ghost"
-          onClick={() => simulate.mutate(draft)}
-          disabled={simulate.isPending || draft.trim() === ''}
-        >
-          {simulate.isPending ? 'Simulating…' : 'Simulate'}
-        </Button>
-
-        {simulate.isError && <p role="alert">{simulate.error.message}</p>}
-        {simulate.data !== undefined && <Results result={simulate.data} />}
-      </Card>
-    </>
+function PolicySkeleton(): React.JSX.Element {
+  return (
+    <div className="pol-skel" aria-hidden="true">
+      <div className="pol-skel__bar" />
+      <div className="pol-grid">
+        <div className="pol-skel__block" />
+        <div className="pol-skel__block pol-skel__block--sm" />
+      </div>
+    </div>
   );
 }

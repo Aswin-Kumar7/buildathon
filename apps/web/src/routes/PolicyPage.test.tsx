@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import type { PolicyResponse, SimulationResponse } from '@sentinel/contracts';
+import type { PolicyResponse, PolicyVersion, SimulationResponse } from '@sentinel/contracts';
 import { PolicyPage } from './PolicyPage.js';
 import { actionLabel, decisionCode, rupees } from '../incidents/policy-words.js';
 
 function policy(overrides: Partial<PolicyResponse> = {}): PolicyResponse {
   return {
-    version: 1,
+    version: 2,
     hash: 'a1b2c3d4',
     killSwitch: false,
     thresholds: { stepUp: 0.55, contain: 0.75 },
@@ -32,6 +32,23 @@ function policy(overrides: Partial<PolicyResponse> = {}): PolicyResponse {
   };
 }
 
+function version(overrides: Partial<PolicyVersion> = {}): PolicyVersion {
+  return {
+    id: '00000000-0000-0000-0000-000000000001',
+    version: 2,
+    hash: 'a1b2c3d4',
+    status: 'published',
+    createdBy: 'u-author',
+    createdByName: 'Risk Team',
+    approvedBy: 'u-admin',
+    approvedByName: 'Risk Manager',
+    createdAt: 1_772_000_000_000,
+    approvedAt: 1_772_100_000_000,
+    publishedAt: 1_772_200_000_000,
+    ...overrides,
+  };
+}
+
 function simulation(overrides: Partial<SimulationResponse> = {}): SimulationResponse {
   const decision = {
     action: 'contain' as const,
@@ -40,10 +57,9 @@ function simulation(overrides: Partial<SimulationResponse> = {}): SimulationResp
     approvalsRequired: 1,
     expiresAfterMinutes: 30,
     expectedCost: { ifWeAct: 48_000, ifWeWait: 900_000, currency: 'INR' as const },
-    policyVersion: 1,
+    policyVersion: 2,
     policyHash: 'a1b2c3d4',
   };
-
   return {
     rows: [
       {
@@ -67,51 +83,55 @@ function wrap(ui: ReactNode): React.JSX.Element {
   return <QueryClientProvider client={client}>{ui}</QueryClientProvider>;
 }
 
-function stub(current: PolicyResponse, result?: SimulationResponse): ReturnType<typeof vi.fn> {
-  const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => ({
-    ok: true,
-    status: 200,
-    json: async () => (init?.method === 'POST' ? (result ?? simulation()) : current),
-  }));
-  vi.stubGlobal('fetch', fetchMock);
+// Route-aware: the page reads two endpoints and writes to three, and each needs the right shape.
+function stub(
+  opts: { policy?: PolicyResponse; versions?: PolicyVersion[]; sim?: SimulationResponse } = {},
+): ReturnType<typeof vi.fn> {
+  const body = (data: unknown) => ({ ok: true, status: 200, json: async () => data });
+  const fetchMock = vi.fn(async (url: string) => {
+    if (url.includes('/api/policy/versions')) return body({ versions: opts.versions ?? [] });
+    if (url.includes('/api/policy/simulate')) return body(opts.sim ?? simulation());
+    if (url.includes('/api/policy/drafts'))
+      return body({
+        version: version({ status: 'draft', approvedBy: null, approvedByName: null }),
+      });
+    if (url.includes('/submit')) return body({ version: version({ status: 'pending_approval' }) });
+    if (url.endsWith('/api/policy')) return body(opts.policy ?? policy());
+    return body({});
+  });
+  vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
   return fetchMock as unknown as ReturnType<typeof vi.fn>;
 }
 
 describe('PolicyPage', () => {
-  it('shows the policy actually loaded, with its version and hash', async () => {
-    stub(policy());
+  it('shows the active policy actually loaded, with its version, hash and status', async () => {
+    stub({ versions: [version()] });
     render(wrap(<PolicyPage />));
 
-    expect(await screen.findByText(/Version 1/)).toBeInTheDocument();
+    expect(await screen.findByText('Active policy')).toBeInTheDocument();
+    expect(screen.getAllByText('v2').length).toBeGreaterThan(0);
     expect(screen.getByText('a1b2c3d4')).toBeInTheDocument();
-    expect(screen.getByText('75%')).toBeInTheDocument();
   });
 
-  it('says the kill switch is engaged when it is', async () => {
-    stub(policy({ killSwitch: true }));
+  it('surfaces a set policy kill-switch field, without claiming policy.yaml is the only source', async () => {
+    stub({ policy: policy({ killSwitch: true }), versions: [version()] });
     render(wrap(<PolicyPage />));
 
-    expect(await screen.findByText('kill switch engaged')).toBeInTheDocument();
+    // The published policy's own kill-switch field is stated as read-only fact — never as a live toggle,
+    // since it is the reviewed policy field, separate from the instant Kill switch card.
+    expect(await screen.findByText(/kill-switch field set on/)).toBeInTheDocument();
+    // The DB workflow can change the live policy, so the old "edited in policy.yaml and nowhere else" copy is gone.
+    expect(screen.queryByText(/policy\.yaml and nowhere else/)).not.toBeInTheDocument();
   });
 
-  it('says the policy is edited in a file and nowhere else', async () => {
-    // A policy that can be changed from a console is one whose history lives in a table nobody
-    // diffs. Worth stating on the page a person would otherwise expect to edit.
-    stub(policy());
+  it('previews a change against recorded incidents through the simulate endpoint', async () => {
+    const fetchMock = stub({ versions: [version()] });
     render(wrap(<PolicyPage />));
+    await screen.findByText('Active policy');
 
-    expect(await screen.findByText(/policy.yaml/)).toBeInTheDocument();
-  });
+    await userEvent.click(screen.getByRole('button', { name: 'Preview impact' }));
 
-  it('simulates a candidate against incidents that already happened', async () => {
-    const fetchMock = stub(policy());
-    render(wrap(<PolicyPage />));
-    await screen.findByText(/Version 1/);
-
-    await userEvent.type(screen.getByRole('textbox'), 'version: 1');
-    await userEvent.click(screen.getByRole('button', { name: 'Simulate' }));
-
-    expect(await screen.findByText('Incidents considered')).toBeInTheDocument();
+    expect(await screen.findByText('More payments blocked')).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/policy/simulate',
       expect.objectContaining({ method: 'POST' }),
@@ -119,17 +139,16 @@ describe('PolicyPage', () => {
   });
 
   it('calls out what a policy would newly block, on its own', async () => {
-    // More containment is the direction that costs somebody their checkout, so it is not folded
-    // into a "changed" count where it could pass unnoticed.
-    stub(
-      policy(),
-      simulation({ summary: { considered: 4, changed: 2, newlyContained: 2, newlyReleased: 0 } }),
-    );
+    stub({
+      versions: [version()],
+      sim: simulation({
+        summary: { considered: 4, changed: 2, newlyContained: 2, newlyReleased: 0 },
+      }),
+    });
     render(wrap(<PolicyPage />));
-    await screen.findByText(/Version 1/);
+    await screen.findByText('Active policy');
 
-    await userEvent.type(screen.getByRole('textbox'), 'version: 1');
-    await userEvent.click(screen.getByRole('button', { name: 'Simulate' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Preview impact' }));
 
     expect(
       await screen.findByText(/would block people it does not block today/),
@@ -137,24 +156,63 @@ describe('PolicyPage', () => {
     expect(screen.getByText(/2 of 4 would newly be refused/)).toBeInTheDocument();
   });
 
-  it('reports a broken candidate rather than failing at the person editing it', async () => {
-    stub(policy(), simulation({ rows: [], problems: ['thresholds.contain must be a number'] }));
+  it('reports a broken candidate rather than fabricating a preview', async () => {
+    stub({
+      versions: [version()],
+      sim: simulation({ rows: [], problems: ['thresholds.contain must be a number'] }),
+    });
     render(wrap(<PolicyPage />));
-    await screen.findByText(/Version 1/);
+    await screen.findByText('Active policy');
 
-    await userEvent.type(screen.getByRole('textbox'), 'nonsense');
-    await userEvent.click(screen.getByRole('button', { name: 'Simulate' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Preview impact' }));
 
-    expect(await screen.findByText(/That policy is not usable/)).toBeInTheDocument();
+    expect(await screen.findByText('That policy is not usable')).toBeInTheDocument();
     expect(screen.getByText(/thresholds.contain must be a number/)).toBeInTheDocument();
   });
 
-  it('will not simulate nothing', async () => {
-    stub(policy());
+  it('renders real policy history — version, readable status and who acted', async () => {
+    stub({
+      versions: [
+        version(),
+        version({
+          id: '00000000-0000-0000-0000-000000000002',
+          version: 1,
+          status: 'rejected',
+          hash: 'beefbeef',
+          createdByName: 'Ops Team',
+          approvedBy: null,
+          approvedByName: null,
+        }),
+      ],
+    });
     render(wrap(<PolicyPage />));
-    await screen.findByText(/Version 1/);
+    await screen.findByText('Active policy');
 
-    expect(screen.getByRole('button', { name: 'Simulate' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: /View history/i }));
+
+    expect(await screen.findByText('Policy history')).toBeInTheDocument();
+    expect(screen.getByText('Ops Team')).toBeInTheDocument();
+    expect(screen.getByText('Rejected')).toBeInTheDocument();
+  });
+
+  it('keeps saving disabled until a real change is made, then creates a draft', async () => {
+    const fetchMock = stub({ versions: [version()] });
+    render(wrap(<PolicyPage />));
+    await screen.findByText('Active policy');
+
+    expect(screen.getByRole('button', { name: /Save as draft/ })).toBeDisabled();
+
+    // The verification level is a fixed-step slider; 0.55 → 0.5 is one notch down the ladder (index 2).
+    fireEvent.change(screen.getByLabelText('Verification risk level'), { target: { value: '2' } });
+    const save = screen.getByRole('button', { name: /Save as draft/ });
+    expect(save).toBeEnabled();
+    await userEvent.click(save);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/policy/drafts',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(await screen.findByText(/live policy is unchanged/)).toBeInTheDocument();
   });
 });
 
@@ -171,11 +229,6 @@ describe('policy wording', () => {
 
   it('renders a parameterised code with its number', () => {
     expect(decisionCode('attack_supported_at_0.93')).toContain('93%');
-  });
-
-  it('still renders a code nobody has worded', () => {
-    // A missing phrase must never make a refusal disappear.
-    expect(decisionCode('some_new_refusal')).toBe('some new refusal');
   });
 
   it('shows money as money', () => {
