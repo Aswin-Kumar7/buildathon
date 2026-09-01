@@ -163,10 +163,10 @@ test.describe('console shell', () => {
     await signIn(page);
     // The consolidated product nav: the primary sections are real links.
     await expect(page.getByRole('link', { name: 'Incidents' })).toHaveCount(1);
-    await expect(page.getByRole('link', { name: 'Risk & Model' })).toHaveCount(1);
-    await expect(page.getByRole('link', { name: 'Audit trail' })).toHaveCount(1);
+    await expect(page.getByRole('link', { name: 'Policies' })).toHaveCount(1);
+    await expect(page.getByRole('link', { name: 'Audit' })).toHaveCount(1);
 
-    await page.getByRole('link', { name: 'Audit trail' }).click();
+    await page.getByRole('link', { name: 'Audit' }).click();
     await expect(page).toHaveURL(/\/console\/audit/);
   });
 
@@ -331,7 +331,7 @@ test.describe('incidents', () => {
 test.describe('three that look alike', () => {
   test('reaches three different decisions with no traffic in the database', async ({ page }) => {
     await signIn(page);
-    // The comparison is a tab within Risk & Model; the standalone route still renders it directly.
+    // A diagnostic view reached by URL (linked from Settings), not part of the primary nav.
     await page.goto('/console/compare');
 
     await expect(
@@ -430,17 +430,5 @@ test.describe('audit chain', () => {
     });
 
     await expect(page.getByText(/pnpm audit:verify/)).toBeVisible();
-  });
-});
-
-test.describe('risk and model', () => {
-  test('shows the deployed model’s held-out numbers and the leakage delta', async ({ page }) => {
-    await signIn(page);
-    await page.getByRole('link', { name: 'Risk & Model' }).click();
-
-    await expect(page.getByRole('heading', { level: 1, name: 'Risk & Model' })).toBeVisible();
-    await expect(page.getByText(/The leakage delta|has not been generated/)).toBeVisible({
-      timeout: 30_000,
-    });
   });
 });

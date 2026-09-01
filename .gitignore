@@ -71,3 +71,5 @@ __pycache__/
 *.pyc
 .pytest_cache/
 ml/models/transaction_risk/artifacts/metrics.synthetic.json
+
+scratch/

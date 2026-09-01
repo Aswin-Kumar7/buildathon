@@ -92,7 +92,6 @@ for (const dependency of runtimeClosure('@sentinel/api', byName)) {
  */
 const RUNTIME_FILES = [
   'policy.yaml',
-  'ml/models/transaction_risk/artifacts/metrics.json',
   'ml/models/incident/artifacts/model.json',
   'ml/models/incident/artifacts/registry.json',
   'ml/models/incident/artifacts/metrics.json',
