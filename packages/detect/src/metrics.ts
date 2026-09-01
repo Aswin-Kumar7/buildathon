@@ -16,7 +16,7 @@
  */
 
 import { writeFileSync } from 'node:fs';
-import { generate, SCENARIOS } from '@sentinel/corpus';
+import { generate, SCENARIOS, type ScenarioOverrides } from '@sentinel/corpus';
 import { computeFeatures, type EntityKind, type Observation } from './features.js';
 import { computeTraffic } from './traffic.js';
 import { arbitrate, type Decision } from './hypothesis.js';
@@ -28,8 +28,8 @@ const KINDS: EntityKind[] = ['session', 'device', 'network'];
 
 type Family = Parameters<typeof generate>[0];
 
-function load(family: Family): Observation[] {
-  const scenario = generate(family);
+function load(family: Family, overrides?: ScenarioOverrides): Observation[] {
+  const scenario = generate(family, undefined, overrides);
   const checkouts = new Map(scenario.checkouts.map((c) => [c.razorpayOrderId, c]));
 
   return scenario.events.flatMap((event): Observation[] => {
@@ -84,8 +84,12 @@ export interface FamilyMetrics {
   escalated: boolean;
 }
 
-export function measure(family: Family, classification: string): FamilyMetrics {
-  const observations = load(family);
+export function measure(
+  family: Family,
+  classification: string,
+  overrides?: ScenarioOverrides,
+): FamilyMetrics {
+  const observations = load(family, overrides);
   const asOf = Math.max(...observations.map((o) => o.at)) + 1000;
   const context = computeTraffic(observations, asOf, WINDOW);
 
@@ -139,6 +143,35 @@ export function measure(family: Family, classification: string): FamilyMetrics {
 const share = (part: number, whole: number): string =>
   whole === 0 ? '—' : `${Math.round((part / whole) * 100)}%`;
 
+/**
+ * A deliberate walk off the edge of what the detector can do.
+ *
+ * `attack_carding` is the honest family to stress: it has no small-amount tell, so card spread is the
+ * only thing separating it from a biller reusing a handful of cards. Re-run it drawing every order
+ * from a fixed pool of N cards — wide enumeration at N=64, dunning's shape at N=4 — and containment
+ * collapses as the pool narrows into that shape. Reported because a detector that only ever shows its
+ * wins is hiding its operating boundary; this is where ours is.
+ */
+const DRIFT_POOLS = [64, 32, 16, 8, 4] as const;
+
+function driftSlice(): { pool: number; contain: string; recognised: string; verdict: string }[] {
+  return DRIFT_POOLS.map((pool) => {
+    const m = measure('attack_carding', 'attack', { cardPoolSize: pool });
+    const recognisedShare = m.best['attack'] ?? 0;
+    return {
+      pool,
+      contain: share(m.decisions.contain, m.entities),
+      recognised: share(recognisedShare, m.entities),
+      verdict:
+        m.decisions.contain > 0
+          ? 'contained'
+          : recognisedShare > m.entities / 2
+            ? 'recognised, not contained'
+            : 'lost in the noise',
+    };
+  });
+}
+
 export function report(all: readonly FamilyMetrics[]): string {
   const attacks = all.filter((m) => m.classification === 'attack');
   const benign = all.filter((m) => m.classification !== 'attack');
@@ -173,6 +206,10 @@ export function report(all: readonly FamilyMetrics[]): string {
           .join(', ') +
         ' |',
     )
+    .join('\n');
+
+  const driftRows = driftSlice()
+    .map((d) => `| ${d.pool} | ${d.contain} | ${d.recognised} | ${d.verdict} |`)
     .join('\n');
 
   return `# Metrics
@@ -216,6 +253,31 @@ ${hypotheses}
 - **Attacks not recognised at all:** ${attacks.filter((m) => m.falseNegative).length}
 - **Abstention rate:** ${share(abstentions, entities)} — the detector declining to decide, which
   routes to a person rather than to an action
+
+## Where it degrades — a card-pool sweep
+
+The one axis a card-testing detector lives or dies on is card spread. Here the same carding run is
+re-run drawing every order from a fixed pool of N cards instead of a fresh card each time — a wide
+enumeration at N=64, narrowing toward the handful of cards a subscription biller reuses in dunning.
+Containment holds while the spread is wide and collapses as the pool shrinks into dunning's shape.
+That collapse is the honest boundary of what this one signal can separate, printed rather than hidden.
+
+| Cards in pool | Contained | Recognised as attack | Verdict |
+|---|---|---|---|
+${driftRows}
+
+## Known blind spots
+
+- **A truly distributed attack opens no rule-based incident.** \`attack_distributed\` above is
+  *recognised* as an attack on its entities, but no single session, device or network trips a card-
+  spread threshold, so the deterministic rule tier alone would surface nothing to act on. The product
+  catches it only through the model-only pass — the calibrated classifier raising a review case where
+  the shop-wide approval has collapsed — which this rule-only harness does not exercise. In a healthy-
+  or merely busy-approval shop the same spread is deliberately left alone, so the model can never turn
+  a legitimate sale into an alert.
+- **The learned model is not measured on this page.** These numbers are the deterministic rule and
+  arbitration tier only. The model's held-out precision, recall and calibration live in
+  \`ml/models/incident\` and are reported there; the two tiers are combined in the live path, never here.
 
 ## What this does not measure
 
