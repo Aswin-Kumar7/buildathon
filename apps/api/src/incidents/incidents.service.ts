@@ -17,7 +17,6 @@ import {
   computeTraffic,
   DEFAULT_CHANGE_OPTIONS,
   clusterIncidents,
-  describesSameActivity,
   detectChange,
   dropDuplicateViews,
   evaluateRules,
@@ -25,11 +24,11 @@ import {
   incidentFeatures,
   incidentTitle,
   INCIDENT_FEATURE_NAMES,
-  modelFlagsMissedEntity,
-  openIncident,
+  incidentKey,
   severityOf,
   timeToDetect,
   thresholdHash,
+  THRESHOLDS,
   type Score,
   type ChangeResult,
   type EntityKind,
@@ -78,24 +77,35 @@ const CANDIDATES = 40;
 const MAX_SCORED_PER_PASS = 100;
 
 /**
- * How many model-only cases one pass may raise. A distributed attack is many thin entities the rules
- * missed; without a bound the model would open a row per session and drown the queue it is trying to
- * surface. Capped to the highest-risk few — enough to make the coordinated pattern unmistakable, not
- * one alert per address — and the same top entities re-selected each pass (risk, then key) update in
- * place rather than accumulating.
+ * The shop-wide fraud-spike gate: when the rules open nothing but the shop *as a whole* is
+ * unmistakably card testing, one aggregate incident is raised on the merchant. This is the only thing
+ * that catches a genuinely distributed attack — sprayed so thin across sessions and addresses that no
+ * single entity trips a per-entity threshold, and no single entity is dense enough for the model to
+ * score with confidence either.
+ *
+ * Two things must always hold, and then one of two signals:
+ *
+ * - `MIN_ATTEMPTS`: enough volume to be real, not a two-transaction blip.
+ * - `INFRA_MAX`: not a gateway outage — an outage spreads failures across everyone too, but they are
+ *   gateway-blamed, not card declines.
+ *
+ * and then EITHER a shop-wide approval collapse OR a card-testing cohort:
+ *
+ * - approval collapse — `APPROVAL_FLOOR` + `CARD_SPREAD` + `MIN_FAILING_SESSIONS`: captures collapsed
+ *   to near nothing across many distinct cards and many sessions. Cheap and sufficient when the window
+ *   holds little else, but a legitimate surge sharing the same thirty-minute window inflates the
+ *   shop-wide approval rate and hides the collapse — which is exactly the case the cohort exists for.
+ * - card-testing cohort — `MIN_TESTING_SESSIONS`: enough sessions that only ever failed, across two or
+ *   more distinct cards, and not gateway-blamed. A surge keeps approving its own shoppers, so they
+ *   never join this cohort and cannot dilute it; a lone declined shopper walks one card, not two; an
+ *   outage is gateway-blamed. This is what keeps a distributed attack visible next to a flash sale.
  */
-const MODEL_FLAG_MAX_PER_PASS = 6;
-
-/**
- * The model may only raise a case the rules missed when the shop itself is attack-shaped — captures
- * far below what any honest hour reaches. Approval is the one signal that separates a distributed
- * attack (near-zero) from the things that also spread failures across everyone: a flash sale and a
- * gateway wobble both look "everywhere at once", and both keep approving real shoppers. Without this
- * gate the model's small-sample false positives on a legitimate sale surface as review noise; with it,
- * a healthy or busy shop is never second-guessed, and the per-entity benign veto still handles the
- * low-approval-but-innocent cases (a biller's dunning, an outage) that clear it.
- */
-const MODEL_FLAG_APPROVAL_CEILING = 0.4;
+const SHOP_APPROVAL_FLOOR = 0.1;
+const SHOP_CARD_SPREAD = 15;
+const SHOP_MIN_FAILING_SESSIONS = 5;
+const SHOP_INFRA_MAX = 0.3;
+const SHOP_MIN_ATTEMPTS = 15;
+const SHOP_MIN_TESTING_SESSIONS = 5;
 
 type Row = typeof incidents.$inferSelect;
 type Source = 'razorpay' | 'replay' | 'all';
@@ -227,27 +237,25 @@ export class IncidentsService {
       else updated += 1;
     }
 
-    // The model on its own — the pass that lets it raise a case the rules never opened. This is the
-    // one place the learned model catches what a single-entity burst rule structurally cannot: a
-    // distributed attack spread so thin across sessions and addresses that no key trips a threshold.
-    // It runs for replay as well as live, so a simulated distributed attack is caught in the demo the
-    // same way it would be in production — the whole point of having the model. Duplicate views of one
-    // burst are still collapsed below (dropDuplicateViews / describesSameActivity / hasSameActivity),
-    // and a confident benign explanation still vetoes it, so enabling replay adds cases the model
-    // genuinely found, never a second row for activity a rule already opened.
-    const flaggedResult = await this.raiseModelFlagged({
-      vectors,
+    // Shop-level fraud spike — the one detector that catches a genuinely distributed attack. When it
+    // is sprayed thin across many sessions and addresses, no single entity trips a per-entity rule and
+    // none is dense enough for the model to score with confidence, so both the rule tier and a
+    // per-entity model pass go silent. The shop-wide aggregate does not: many distinct cards, captures
+    // collapsed to near zero, failures spread across many sessions. This raises one incident on the
+    // merchant when the rules found nothing and that aggregate is unmistakable — deterministic, so it
+    // is reliable rather than dependent on a thin per-entity score, and gated (see SHOP_*) so a sale,
+    // a biller's dunning or an outage never trip it.
+    const spike = await this.raiseShopSpike({
       traffic,
-      handled,
       ruleIncidents,
-      scored,
       change,
       hash,
-      provenance,
+      source,
       asOf,
+      observations,
     });
-    opened += flaggedResult.opened;
-    updated += flaggedResult.updated;
+    opened += spike.opened;
+    updated += spike.updated;
 
     return {
       evaluated,
@@ -263,108 +271,91 @@ export class IncidentsService {
   }
 
   /**
-   * The learned second opinion, only when it is warranted and within the per-pass cap.
-   *
-   * Extracted so the decision loop stays legible: the model is advisory, so the conditions under
-   * which it does *not* run belong in one place rather than tangled into the arbitration branch.
+   * Whether the shop as a whole looks like card testing. Enough volume and not a gateway outage
+   * always, and then either the shop-wide approval collapsed (cheap, but a legitimate surge sharing
+   * the window hides it) or a cohort of sessions only ever failed across many fresh cards
+   * (dilution-proof — a surge keeps approving, so it never joins the cohort). The ordinary shapes each
+   * fail a clause: a sale keeps approving (no collapse) and its shoppers succeed (no cohort), dunning
+   * reuses a handful of cards (fails CARD_SPREAD and the two-card cohort test), an outage is
+   * gateway-blamed (fails INFRA_MAX and is dropped from the cohort).
    */
+  private static shopUnderCardTesting(t: TrafficContext): boolean {
+    const enoughVolume = t.attempts >= SHOP_MIN_ATTEMPTS;
+    const notOutage = t.infrastructureFailureShare <= SHOP_INFRA_MAX;
+    const approvalCollapse =
+      t.approvalRate <= SHOP_APPROVAL_FLOOR &&
+      t.distinctCards >= SHOP_CARD_SPREAD &&
+      t.failingSessions >= SHOP_MIN_FAILING_SESSIONS;
+    const enumerationCohort = t.cardTestingSessions >= SHOP_MIN_TESTING_SESSIONS;
+    return enoughVolume && notOutage && (approvalCollapse || enumerationCohort);
+  }
+
   /**
-   * The model-only pass: raise a review case on each entity the rules opened nothing for that the
-   * model is confident enough to call an attack on its own — the distributed and low-and-slow
-   * attacks a single-entity burst gate structurally cannot see. Deduplicated against the rule tier's
-   * incidents by same-activity, so one machine seen through a coarser key is never a second case.
+   * The shop-wide fraud-spike pass: one aggregate incident when the rules opened nothing yet the
+   * merchant as a whole is unmistakably under card testing. This is what makes a distributed attack —
+   * sprayed too thin for any per-entity signal — reliably visible, without ever second-guessing a
+   * legitimate shop. Keyed on a synthetic `network:shop` entity anchored at the window's earliest
+   * attempt, so re-evaluation updates the one incident rather than opening a new one each pass.
    */
-  private async raiseModelFlagged(ctx: {
-    vectors: Map<string, FeatureVector>;
+  private async raiseShopSpike(ctx: {
     traffic: TrafficContext;
-    handled: Set<string>;
     ruleIncidents: readonly ComputedIncident[];
-    scored: number;
     change: ChangeResult | null;
     hash: string;
-    provenance: Map<string, EventSource>;
+    source: Source;
     asOf: number;
+    observations: Observation[];
   }): Promise<{ opened: number; updated: number }> {
-    const { vectors, traffic, handled, ruleIncidents, change, hash, provenance, asOf } = ctx;
-    let scored = ctx.scored;
-    let opened = 0;
-    let updated = 0;
+    const { traffic, ruleIncidents, change, hash, source, asOf, observations } = ctx;
+    // Only when the rules found nothing this pass: a dense attack they already caught is not a
+    // shop-wide miss, and a second aggregate case over it would double-count.
+    if (ruleIncidents.length > 0) return { opened: 0, updated: 0 };
+    if (!IncidentsService.shopUnderCardTesting(traffic)) return { opened: 0, updated: 0 };
 
-    // Only where the shop as a whole is failing far more than any honest hour does. A healthy or
-    // merely busy shop keeps approving shoppers, and there the model does not get to raise a case on
-    // its own — the restraint that keeps a legitimate sale from ever being second-guessed.
-    if (traffic.approvalRate > MODEL_FLAG_APPROVAL_CEILING) return { opened, updated };
-
-    const flagged = new Map<string, { incident: ComputedIncident; opinion: ModelOpinion }>();
-    for (const [entityId, vector] of vectors) {
-      if (handled.has(entityId) || scored >= MAX_SCORED_PER_PASS) continue;
-      const opinion = this.scoreWhenWarranted(vector, traffic, scored);
-      if (opinion !== null) scored += 1;
-      if (opinion === null || !modelFlagsMissedEntity(IncidentsService.verdictOf(opinion)))
-        continue;
-      // No rule fired, so the rule score is an honest zero — but the incident the model raised is not
-      // a zero-risk one. Its risk *is* the model's P(abuse), carried as the score so severity, band
-      // and the queue read the model's confidence instead of an empty rule sum. The evidence stays
-      // empty on purpose: the "why" here is the model, shown as such, not a rule that did not fire.
-      const score = IncidentsService.modelRiskScore(opinion.risk);
-      flagged.set(entityId, {
-        incident: {
-          ...openIncident({ outcomes: [], vector, at: asOf }),
-          score,
-          severity: severityOf(score),
-        },
-        opinion,
-      });
-    }
-
-    // The first wave only, so a distributed attack surfaces as an unmistakable cluster rather than one
-    // row per address. Ordered by when the entity first appeared, not by risk (which is uniformly high
-    // across a card-testing run): the earliest few are a stable set as the run grows, so each pass
-    // re-selects and updates them in place instead of accreting a new row every tick.
-    const deduped = dropDuplicateViews([...flagged.values()].map((entry) => entry.incident));
-    const capped = [...deduped]
-      .sort((a, b) => a.firstAttemptAt - b.firstAttemptAt || a.entityKey.localeCompare(b.entityKey))
-      .slice(0, MODEL_FLAG_MAX_PER_PASS);
-    for (const kept of capped) {
-      // One machine is one session, one device and one network. If the rule tier already opened a
-      // case on any view of this activity, the model flagging another view of the *same* machine is
-      // the same incident seen through a coarser key, not a new one.
-      if (ruleIncidents.some((rule) => describesSameActivity(rule, kept))) continue;
-      const entityId = `${kept.entityKind}:${kept.entityKey}`;
-      const entry = flagged.get(entityId);
-      const vector = vectors.get(entityId);
-      if (entry === undefined || vector === undefined) continue;
-      const source = provenance.get(kept.entityKey) ?? 'razorpay';
-      // A replay or a live burst may be evaluated more than once. The rule tier deduplicates
-      // the current pass, but a previous pass may already have persisted the same activity under
-      // another correlation key. Do not let the model-only pass create a second queue row for it.
-      if (await this.hasSameActivity(kept, source)) continue;
-      const base = arbitrate(vector, traffic);
-      // The model may raise a case the rules missed — but not over a confident benign explanation.
-      // A binary risk score cannot tell a busy-but-innocent entity from an attack; the arbitration
-      // can, and where it positively identified an outage, dunning or an ordinary hour, that wins.
-      if (arbitrationExplainsBenign(base.best)) continue;
-      const decided: StoredArbitration = {
-        ...base,
-        decision: 'review',
-        reasons: [...base.reasons, 'model_flagged_attack_no_rule'],
-        modelInfluence: 'flagged',
-      };
-      const wrote = await this.upsert(
-        kept,
-        change,
-        hash,
-        source,
-        decided,
-        entry.opinion,
-        IncidentsService.featuresObject(vector, traffic),
-        countsOf(vector),
-      );
-      if (wrote === 'opened') opened += 1;
-      else updated += 1;
-    }
-
-    return { opened, updated };
+    const firstAttemptAt =
+      observations.length > 0 ? Math.min(...observations.map((o) => o.at)) : asOf;
+    // The score is the collapse in approval among the sessions that failed — near-zero captures there
+    // is near-certain enumeration. Deliberately NOT the shop-wide approval rate: a legitimate surge
+    // in the same window would soften that and read a real spike as low severity. A point estimate,
+    // so the band is `high` and severity reads off it directly.
+    const score = IncidentsService.modelRiskScore(1 - traffic.failingSessionApprovalRate);
+    const incident: ComputedIncident = {
+      key: incidentKey('network', 'shop', firstAttemptAt),
+      entityKind: 'network',
+      entityKey: 'shop',
+      status: 'open',
+      severity: severityOf(score),
+      score,
+      firstAttemptAt,
+      detectedAt: asOf,
+      lastActivityAt: asOf,
+      expiresAt: asOf + THRESHOLDS.incidentIdleMs,
+      observations: 1,
+      attempts: traffic.attempts,
+      change: change ?? null,
+    };
+    const src: EventSource = source === 'replay' ? 'replay' : 'razorpay';
+    // A previous pass may already have persisted this same shop-wide activity — do not open a second.
+    if (await this.hasSameActivity(incident, src)) return { opened: 0, updated: 0 };
+    // Network kind + an attack hypothesis titles it "Distributed card testing"; sent to review because
+    // a ring with no single entity has nothing to contain — a person decides.
+    const decided: StoredArbitration = {
+      best: 'attack',
+      runnerUp: 'insufficient_evidence',
+      margin: 1,
+      fits: [],
+      decision: 'review',
+      abstained: false,
+      reasons: ['shop_wide_card_testing'],
+      modelInfluence: 'flagged',
+    };
+    const counts: IncidentCounts = {
+      attempts: traffic.attempts,
+      failures: traffic.failures,
+      distinctCards: traffic.distinctCards,
+    };
+    const wrote = await this.upsert(incident, change, hash, src, decided, null, null, counts);
+    return wrote === 'opened' ? { opened: 1, updated: 0 } : { opened: 0, updated: 1 };
   }
 
   private async hasSameActivity(incident: ComputedIncident, source: EventSource): Promise<boolean> {

@@ -75,9 +75,16 @@ describe('the families are actually different', () => {
     }
   });
 
-  it('labels only the three attack families as attacks', () => {
+  it('labels only the attack families as attacks', () => {
     const attacks = SCENARIO_FAMILIES.filter((f) => all[f]!.labels.classification === 'attack');
-    expect(attacks.sort()).toEqual(['attack_distributed', 'attack_loud', 'attack_low_amplitude']);
+    expect(attacks.sort()).toEqual([
+      'attack_carding',
+      'attack_distributed',
+      'attack_loud',
+      'attack_low_amplitude',
+      'attack_partial',
+      'attack_proxy',
+    ]);
   });
 
   it('keeps an outage and a retry storm out of the attack class', () => {

@@ -81,10 +81,12 @@ That collapse is the honest boundary of what this one signal can separate, print
 - **A truly distributed attack opens no rule-based incident.** `attack_distributed` above is
   *recognised* as an attack on its entities, but no single session, device or network trips a card-
   spread threshold, so the deterministic rule tier alone would surface nothing to act on. The product
-  catches it only through the model-only pass — the calibrated classifier raising a review case where
-  the shop-wide approval has collapsed — which this rule-only harness does not exercise. In a healthy-
-  or merely busy-approval shop the same spread is deliberately left alone, so the model can never turn
-  a legitimate sale into an alert.
+  catches it through a shop-wide fraud-spike pass — a deterministic aggregate that raises one review
+  case on the merchant when a cohort of sessions only ever failed across two or more fresh cards, or
+  when shop-wide approval has collapsed — which this rule-only harness does not exercise. Because that
+  cohort counts only sessions that never approve, a legitimate sale sharing the same window cannot
+  dilute it, and a healthy- or merely busy-approval shop with no such cohort is deliberately left
+  alone, so a sale is never turned into an alert.
 - **The learned model is not measured on this page.** These numbers are the deterministic rule and
   arbitration tier only. The model's held-out precision, recall and calibration live in
   `ml/models/incident` and are reported there; the two tiers are combined in the live path, never here.

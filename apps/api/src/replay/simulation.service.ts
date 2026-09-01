@@ -357,9 +357,7 @@ export class SimulationService {
     return Number(row?.n ?? 0);
   }
 
-  private async recentPayments(
-    since: Date,
-  ): Promise<
+  private async recentPayments(since: Date): Promise<
     {
       paymentId: string | null;
       status: string | null;

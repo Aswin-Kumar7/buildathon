@@ -47,6 +47,26 @@ export interface TrafficContext {
   topSessionFailureShare: number;
 
   /**
+   * Sessions that only ever failed, across at least two distinct cards, and not gateway-blamed.
+   *
+   * The enumeration fingerprint, counted directly rather than inferred from a shop-wide rate. A
+   * legitimate surge keeps approving real shoppers, so its sessions never enter this cohort and
+   * cannot dilute it — which is what lets a distributed attack stay visible even when it shares a
+   * thirty-minute window with a flash sale. The `>= 2 cards` clause is what separates it from a
+   * shopper retrying one declined card, and dropping gateway-blamed sessions keeps an outage out.
+   */
+  cardTestingSessions: number;
+
+  /**
+   * Approval rate among the sessions that failed at least once.
+   *
+   * The severity companion to `cardTestingSessions`, and dilution-proof for the same reason: a
+   * surge that keeps approving never joins the failing population, so leftover benign captures
+   * cannot soften the score of a real spike the way they soften the shop-wide `approvalRate`.
+   */
+  failingSessionApprovalRate: number;
+
+  /**
    * Distinct cards seen across the window, exactly.
    *
    * Not sketched. This one number can move a decision between "contain" and "leave alone", so
@@ -75,9 +95,50 @@ const EMPTY: Omit<TrafficContext, 'asOf' | 'windowMs'> = {
   failingSessions: 0,
   activeSessions: 0,
   topSessionFailureShare: 0,
+  cardTestingSessions: 0,
+  failingSessionApprovalRate: 0,
   distinctCards: 0,
   distinctFailingIssuers: 0,
 };
+
+/** Per-session tallies the shop-wide signals are derived from, gathered in one pass over the window. */
+interface SessionAgg {
+  attempts: number;
+  captures: number;
+  failures: number;
+  gatewayFailures: number;
+  cards: Set<string>;
+}
+
+function aggregateBySession(observations: readonly Observation[]): Map<string, SessionAgg> {
+  const bySession = new Map<string, SessionAgg>();
+  for (const o of observations) {
+    if (o.sessionPseudonym === null) continue;
+    let agg = bySession.get(o.sessionPseudonym);
+    if (agg === undefined) {
+      agg = { attempts: 0, captures: 0, failures: 0, gatewayFailures: 0, cards: new Set() };
+      bySession.set(o.sessionPseudonym, agg);
+    }
+    agg.attempts += 1;
+    if (o.outcome === 'captured') agg.captures += 1;
+    if (o.outcome === 'failed') {
+      agg.failures += 1;
+      if (o.errorSource === 'gateway') agg.gatewayFailures += 1;
+    }
+    if (o.cardId !== null) agg.cards.add(o.cardId);
+  }
+  return bySession;
+}
+
+/**
+ * The enumeration fingerprint: a session that only ever failed, across two or more distinct cards,
+ * and not gateway-blamed. A lone declined shopper walks one card (fails the card test); an outage is
+ * gateway-blamed (dropped here); a legitimate surge captures (so it never reaches this at all).
+ */
+function isCardTesting(s: SessionAgg): boolean {
+  const gatewayDominated = s.failures > 0 && s.gatewayFailures / s.failures > 0.5;
+  return s.attempts >= 2 && s.captures === 0 && s.cards.size >= 2 && !gatewayDominated;
+}
 
 export function computeTraffic(
   all: readonly Observation[],
@@ -95,19 +156,26 @@ export function computeTraffic(
   const captures = observations.filter((o) => o.outcome === 'captured');
   const infrastructure = failures.filter((o) => o.errorSource === 'gateway');
 
-  const failuresBySession = new Map<string, number>();
-  for (const failure of failures) {
-    if (failure.sessionPseudonym === null) continue;
-    failuresBySession.set(
-      failure.sessionPseudonym,
-      (failuresBySession.get(failure.sessionPseudonym) ?? 0) + 1,
-    );
-  }
+  // One aggregate per session, so the session-cohort signals below are all read off the same pass:
+  // breadth of failure (how many failed at all), the enumeration cohort (sessions that only ever
+  // failed across many cards), and the approval rate among the sessions that failed.
+  const bySession = aggregateBySession(observations);
 
-  const worst = Math.max(0, ...failuresBySession.values());
-  const activeSessions = new Set(
-    observations.map((o) => o.sessionPseudonym).filter((s): s is string => s !== null),
-  ).size;
+  let worst = 0;
+  let failingSessions = 0;
+  let cardTestingSessions = 0;
+  let failingAttempts = 0;
+  let failingCaptures = 0;
+  for (const s of bySession.values()) {
+    if (s.failures > worst) worst = s.failures;
+    if (s.failures > 0) {
+      failingSessions += 1;
+      failingAttempts += s.attempts;
+      failingCaptures += s.captures;
+    }
+    if (isCardTesting(s)) cardTestingSessions += 1;
+  }
+  const activeSessions = bySession.size;
 
   return {
     asOf,
@@ -118,9 +186,11 @@ export function computeTraffic(
     approvalRate: captures.length / observations.length,
     infrastructureFailureShare: failures.length === 0 ? 0 : infrastructure.length / failures.length,
 
-    failingSessions: failuresBySession.size,
+    failingSessions,
     activeSessions,
     topSessionFailureShare: failures.length === 0 ? 0 : worst / failures.length,
+    cardTestingSessions,
+    failingSessionApprovalRate: failingAttempts === 0 ? 0 : failingCaptures / failingAttempts,
 
     distinctCards: new Set(observations.map((o) => o.cardId).filter((c): c is string => c !== null))
       .size,

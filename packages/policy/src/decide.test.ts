@@ -51,6 +51,8 @@ function traffic(overrides: Partial<TrafficContext> = {}): TrafficContext {
     failingSessions: 2,
     activeSessions: 40,
     topSessionFailureShare: 0.9,
+    cardTestingSessions: 0,
+    failingSessionApprovalRate: 0,
     distinctCards: 45,
     distinctFailingIssuers: 0,
     ...overrides,
