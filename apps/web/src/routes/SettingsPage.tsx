@@ -18,7 +18,7 @@ import { NOTIFY_PREFS_KEY } from '../shell/NotificationBell.js';
 import { Toggle } from './policy-ui.js';
 import './SettingsPage.css';
 import { CustomSelectPill } from '../components/CustomSelectPill.js';
-import { User, Cpu, Bell, Shield, ArrowSquareOut, CaretDown } from '@phosphor-icons/react';
+import { User, Cpu, Bell, Shield, ArrowSquareOut } from '@phosphor-icons/react';
 
 async function getJson<T>(path: string, parse: (value: unknown) => T): Promise<T> {
   const response = await fetch(path, { credentials: 'include' });
@@ -120,13 +120,13 @@ function Fact({
   );
 }
 
+type ProfileDraft = { displayName: string; role: 'analyst' | 'admin' };
+
 function AccountSection(): React.JSX.Element {
   const { user } = useSession();
   const client = useQueryClient();
   const logout = useLogout();
-  const [draft, setDraft] = useState<{ displayName: string; role: 'analyst' | 'admin' } | null>(
-    null,
-  );
+  const [draft, setDraft] = useState<ProfileDraft | null>(null);
 
   useEffect(() => {
     if (user !== null && draft === null)
@@ -162,39 +162,7 @@ function AccountSection(): React.JSX.Element {
         </div>
       </header>
 
-      <div className="set-profile">
-        <label>
-          <span>Full name</span>
-          <input
-            type="text"
-            value={draft.displayName}
-            onChange={(event) => setDraft({ ...draft, displayName: event.target.value })}
-            maxLength={80}
-          />
-        </label>
-        <label>
-          <span>Email</span>
-          <input
-            type="email"
-            value={user.email}
-            disabled
-            title="Your email is your sign-in and can't be changed here."
-          />
-        </label>
-        <label>
-          <span>Access level</span>
-          <CustomSelectPill
-            value={draft.role}
-            options={[
-              { value: 'analyst', label: 'Analyst' },
-              { value: 'admin', label: 'Admin' },
-            ]}
-            onChange={(val) => setDraft({ ...draft, role: val as 'analyst' | 'admin' })}
-            ariaLabel="Access level"
-            variant="field"
-          />
-        </label>
-      </div>
+      <ProfileFields draft={draft} setDraft={setDraft} email={user.email} />
 
       <p className="set-note">
         An <strong>analyst</strong> reviews incidents and proposes actions. An{' '}
@@ -230,9 +198,57 @@ function AccountSection(): React.JSX.Element {
   );
 }
 
+function ProfileFields({
+  draft,
+  setDraft,
+  email,
+}: {
+  draft: ProfileDraft;
+  setDraft: React.Dispatch<React.SetStateAction<ProfileDraft | null>>;
+  email: string;
+}): React.JSX.Element {
+  return (
+    <div className="set-profile">
+      <label>
+        <span>Full name</span>
+        <input
+          type="text"
+          value={draft.displayName}
+          onChange={(event) => setDraft({ ...draft, displayName: event.target.value })}
+          maxLength={80}
+        />
+      </label>
+      <label>
+        <span>Email</span>
+        <input
+          type="email"
+          value={email}
+          disabled
+          title="Your email is your sign-in and can't be changed here."
+        />
+      </label>
+      <label>
+        <span>Access level</span>
+        <CustomSelectPill
+          value={draft.role}
+          options={[
+            { value: 'analyst', label: 'Analyst' },
+            { value: 'admin', label: 'Admin' },
+          ]}
+          onChange={(val) => setDraft({ ...draft, role: val as 'analyst' | 'admin' })}
+          ariaLabel="Access level"
+          variant="field"
+        />
+      </label>
+    </div>
+  );
+}
+
+type PasswordForm = { current: string; next: string; confirm: string };
+
 function ChangePassword(): React.JSX.Element {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ current: '', next: '', confirm: '' });
+  const [form, setForm] = useState<PasswordForm>({ current: '', next: '', confirm: '' });
   const change = useMutation({
     mutationFn: () =>
       postMutation('/api/auth/password', {
@@ -264,6 +280,45 @@ function ChangePassword(): React.JSX.Element {
         if (valid) change.mutate();
       }}
     >
+      <PasswordFields form={form} setForm={setForm} />
+      {form.confirm !== '' && form.next !== form.confirm && (
+        <p className="set-note set-note--bad">The new passwords don't match.</p>
+      )}
+      {change.isError && (
+        <p className="set-note set-note--bad" role="alert">
+          {change.error.message}
+        </p>
+      )}
+      <div className="set-formfoot">
+        <button
+          type="button"
+          className="set-btn set-btn--ghost"
+          onClick={() => setOpen(false)}
+          disabled={change.isPending}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="set-btn set-btn--primary"
+          disabled={!valid || change.isPending}
+        >
+          {change.isPending ? 'Saving…' : 'Update password'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function PasswordFields({
+  form,
+  setForm,
+}: {
+  form: PasswordForm;
+  setForm: React.Dispatch<React.SetStateAction<PasswordForm>>;
+}): React.JSX.Element {
+  return (
+    <>
       <label>
         <span>Current password</span>
         <input
@@ -292,32 +347,7 @@ function ChangePassword(): React.JSX.Element {
           autoComplete="new-password"
         />
       </label>
-      {form.confirm !== '' && form.next !== form.confirm && (
-        <p className="set-note set-note--bad">The new passwords don't match.</p>
-      )}
-      {change.isError && (
-        <p className="set-note set-note--bad" role="alert">
-          {change.error.message}
-        </p>
-      )}
-      <div className="set-formfoot">
-        <button
-          type="button"
-          className="set-btn set-btn--ghost"
-          onClick={() => setOpen(false)}
-          disabled={change.isPending}
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="set-btn set-btn--primary"
-          disabled={!valid || change.isPending}
-        >
-          {change.isPending ? 'Saving…' : 'Update password'}
-        </button>
-      </div>
-    </form>
+    </>
   );
 }
 

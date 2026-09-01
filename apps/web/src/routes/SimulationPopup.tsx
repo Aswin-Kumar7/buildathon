@@ -116,18 +116,7 @@ export function SimulationPopup({
         aria-label="Run a simulation"
         onClick={(event) => event.stopPropagation()}
       >
-        <header className="simpop-head">
-          <div>
-            <h3>Run a simulation</h3>
-            <p>
-              Choose a scenario. Sentinel runs it through the same live detector — the outcome is
-              not scripted.
-            </p>
-          </div>
-          <button type="button" className="simpop-x" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        </header>
+        <SimPopHeader onClose={onClose} />
 
         {scenarios.isError && (
           <p className="simpop-note" role="alert">
@@ -163,6 +152,23 @@ export function SimulationPopup({
         </div>
       </div>
     </div>
+  );
+}
+
+function SimPopHeader({ onClose }: { onClose: () => void }): React.JSX.Element {
+  return (
+    <header className="simpop-head">
+      <div>
+        <h3>Run a simulation</h3>
+        <p>
+          Choose a scenario. Sentinel runs it through the same live detector — the outcome is not
+          scripted.
+        </p>
+      </div>
+      <button type="button" className="simpop-x" onClick={onClose} aria-label="Close">
+        ✕
+      </button>
+    </header>
   );
 }
 

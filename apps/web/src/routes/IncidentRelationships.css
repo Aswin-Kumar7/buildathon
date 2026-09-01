@@ -185,7 +185,9 @@
   text-align: left;
   cursor: pointer;
   color: var(--s-ink);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 .rg-node:hover {
   transform: translateY(-2px);
@@ -334,7 +336,9 @@
   background: var(--s-surface);
   box-shadow: var(--s-shadow-md);
   text-align: center;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   z-index: 1;
 }
 .rg-incident:hover {

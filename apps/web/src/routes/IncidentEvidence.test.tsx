@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import type { IncidentDetail } from '@sentinel/contracts';
 import { EvidenceSignalsTab } from './IncidentEvidence.js';
 

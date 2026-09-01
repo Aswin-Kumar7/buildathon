@@ -25,7 +25,7 @@ afterEach(() => {
 describe('LoginPage', () => {
   it('explains why an identity is needed at all', () => {
     render(wrap(<LoginPage />));
-    expect(screen.getByText(/every approval is recorded/i)).toBeInTheDocument();
+    expect(screen.getByText(/immutable audit logs/i)).toBeInTheDocument();
   });
 
   it('rejects a malformed email before contacting the api', async () => {
@@ -33,9 +33,9 @@ describe('LoginPage', () => {
     vi.stubGlobal('fetch', fetchSpy);
 
     render(wrap(<LoginPage />));
-    await userEvent.type(screen.getByLabelText('Email'), 'not-an-email');
+    await userEvent.type(screen.getByLabelText('Work Email'), 'not-an-email');
     await userEvent.type(screen.getByLabelText('Password'), 'whatever');
-    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(await screen.findByText('Enter a valid email address')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -44,8 +44,8 @@ describe('LoginPage', () => {
   it('requires a password', async () => {
     vi.stubGlobal('fetch', vi.fn());
     render(wrap(<LoginPage />));
-    await userEvent.type(screen.getByLabelText('Email'), 'analyst@sentinel.local');
-    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await userEvent.type(screen.getByLabelText('Work Email'), 'analyst@sentinel.local');
+    await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
     expect(await screen.findByText('Password is required')).toBeInTheDocument();
   });
 
@@ -60,9 +60,9 @@ describe('LoginPage', () => {
     );
 
     render(wrap(<LoginPage />));
-    await userEvent.type(screen.getByLabelText('Email'), 'analyst@sentinel.local');
+    await userEvent.type(screen.getByLabelText('Work Email'), 'analyst@sentinel.local');
     await userEvent.type(screen.getByLabelText('Password'), 'wrong');
-    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Email or password is incorrect');
   });
@@ -85,9 +85,9 @@ describe('LoginPage', () => {
     );
 
     render(wrap(<LoginPage />));
-    await userEvent.type(screen.getByLabelText('Email'), 'analyst@sentinel.local');
+    await userEvent.type(screen.getByLabelText('Work Email'), 'analyst@sentinel.local');
     await userEvent.type(screen.getByLabelText('Password'), 'sentinel-demo');
-    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: '/console' }));
   });

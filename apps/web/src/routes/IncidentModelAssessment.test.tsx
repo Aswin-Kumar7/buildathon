@@ -101,7 +101,7 @@ describe('ModelAssessmentTab', () => {
         />,
       ),
     );
-    expect(screen.getByText('High risk')).toBeInTheDocument();
+    expect(screen.getByText('High Risk')).toBeInTheDocument();
     // The model's own read is surfaced as a clearly-labelled secondary stat.
     expect(screen.getByText('Estimated abuse risk')).toBeInTheDocument();
     expect(screen.getAllByText('91%').length).toBeGreaterThan(0);

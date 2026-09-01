@@ -105,7 +105,9 @@
   font-weight: 500;
   font-size: 0.9375rem;
   letter-spacing: -0.01em;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .shell__navscroll a svg {
@@ -298,7 +300,9 @@
   color: #64748b;
   cursor: pointer;
   box-shadow: none;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .shell__header-refresh-icon-btn:hover {

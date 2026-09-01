@@ -58,7 +58,9 @@
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  box-shadow: 0px 4px 18px rgba(13, 21, 38, 0.04), 0px 1px 3px rgba(13, 21, 38, 0.02);
+  box-shadow:
+    0px 4px 18px rgba(13, 21, 38, 0.04),
+    0px 1px 3px rgba(13, 21, 38, 0.02);
   padding: 1.15rem 1.35rem;
 }
 .pol-grid {
@@ -220,7 +222,10 @@
   background: var(--s-surface);
   color: var(--s-ink-2);
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
 }
 .pol-settings__act:hover:not(:disabled) {
   border-color: var(--s-accent);
@@ -245,10 +250,14 @@
   animation: pol-spin 0.7s linear infinite;
 }
 @keyframes pol-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pol-spin { animation: none; }
+  .pol-spin {
+    animation: none;
+  }
 }
 .pol-settings__foot {
   margin: var(--s-4) 0 0;
@@ -554,9 +563,18 @@
   border-radius: 8px;
   flex: none;
 }
-.pol-metric__ico--crit { background: var(--pol-danger-soft); color: var(--pol-danger); }
-.pol-metric__ico--warn { background: var(--pol-warn-soft); color: var(--pol-warn); }
-.pol-metric__ico--ok { background: var(--pol-ok-soft); color: var(--pol-ok); }
+.pol-metric__ico--crit {
+  background: var(--pol-danger-soft);
+  color: var(--pol-danger);
+}
+.pol-metric__ico--warn {
+  background: var(--pol-warn-soft);
+  color: var(--pol-warn);
+}
+.pol-metric__ico--ok {
+  background: var(--pol-ok-soft);
+  color: var(--pol-ok);
+}
 .pol-metric__label {
   flex: 1;
   min-width: 0;
@@ -869,13 +887,22 @@
 .pol-skel__bar,
 .pol-skel__block {
   border-radius: 14px;
-  background: linear-gradient(90deg, var(--s-surface-2) 25%, var(--s-surface-3) 37%, var(--s-surface-2) 63%);
+  background: linear-gradient(
+    90deg,
+    var(--s-surface-2) 25%,
+    var(--s-surface-3) 37%,
+    var(--s-surface-2) 63%
+  );
   background-size: 400% 100%;
   animation: pol-shimmer 1.4s ease infinite;
 }
 @keyframes pol-shimmer {
-  0% { background-position: 100% 0; }
-  100% { background-position: 0 0; }
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .pol-skel__bar,

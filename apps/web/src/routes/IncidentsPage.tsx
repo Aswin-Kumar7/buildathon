@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import {
   incidentListResponseSchema,
@@ -77,14 +77,13 @@ interface Filters {
 }
 const DEFAULTS: Filters = { source: 'all', tab: 'all', risk: 'all', search: '', sort: 'latest' };
 
-export function IncidentsPage(): React.JSX.Element {
-  const client = useQueryClient();
-  const navigate = useNavigate();
-  const [f, setF] = useState<Filters>(DEFAULTS);
-  const [page, setPage] = useState(1);
-  const [popupOpen, setPopupOpen] = useState(false);
-  const dock = useSimDock();
-
+/** Live simulation status + incidents for the chosen source, with the polling cadences the page runs on. */
+function useIncidentsData(source: Source): {
+  sim: UseQueryResult<SimulationStatus>;
+  simRunning: boolean;
+  incidents: UseQueryResult<IncidentListResponse>;
+  all: IncidentSummary[];
+} {
   const sim = useQuery({
     queryKey: ['simulation-status'],
     queryFn: fetchSimStatus,
@@ -93,11 +92,23 @@ export function IncidentsPage(): React.JSX.Element {
   const simRunning = sim.data?.running ?? false;
 
   const incidents = useQuery({
-    queryKey: ['incidents', f.source],
-    queryFn: () => fetchIncidents(f.source),
+    queryKey: ['incidents', source],
+    queryFn: () => fetchIncidents(source),
     refetchInterval: simRunning ? 4000 : 20_000,
   });
   const all = useMemo(() => incidents.data?.incidents ?? [], [incidents.data]);
+  return { sim, simRunning, incidents, all };
+}
+
+export function IncidentsPage(): React.JSX.Element {
+  const client = useQueryClient();
+  const navigate = useNavigate();
+  const [f, setF] = useState<Filters>(DEFAULTS);
+  const [page, setPage] = useState(1);
+  const [popupOpen, setPopupOpen] = useState(false);
+  const dock = useSimDock();
+
+  const { sim, simRunning, incidents, all } = useIncidentsData(f.source);
 
   const set = (patch: Partial<Filters>): void => {
     setF((prev) => ({ ...prev, ...patch }));

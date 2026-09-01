@@ -1,13 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
 import { Shield, Pulse, WarningCircle, FileCode } from '@phosphor-icons/react';
 import { Card } from '@sentinel/ui';
 import { RiskGauge } from '../components/RiskGauge.js';
-import {
-  modelRegistryResponseSchema,
-  type IncidentDetail,
-  type ModelOpinion,
-  type ModelRegistry,
-} from '@sentinel/contracts';
+import type { IncidentDetail, ModelOpinion } from '@sentinel/contracts';
 import './IncidentModelAssessment.css';
 
 /* ------------------------------------------------------------------------------------------------
@@ -63,13 +57,6 @@ const INFLUENCE_SENTENCE: Record<string, string> = {
   none: 'It did not move the rule-based decision.',
 };
 
-async function fetchRegistry(): Promise<ModelRegistry | null> {
-  const response = await fetch('/api/model/registry', { credentials: 'include' });
-  if (!response.ok) return null;
-  const parsed = modelRegistryResponseSchema.parse(await response.json());
-  return parsed.available ? parsed.registry : null;
-}
-
 function Gauge({ risk, band }: { risk: number; band?: string }): React.JSX.Element {
   return <RiskGauge score={risk} level={band} size="sm" hideBox={true} />;
 }
@@ -98,7 +85,6 @@ function classPhrase(opinion: ModelOpinion): string {
 
 function RiskScoreCard({ incident }: { incident: IncidentDetail }): React.JSX.Element {
   const opinion = incident.modelOpinion;
-  const band = INCIDENT_BAND[incident.band];
   const influence = incident.arbitration?.modelInfluence ?? 'none';
   const inf = INFLUENCE_LABEL[influence] ?? { text: 'Did not move the decision', tone: 'neutral' };
   return (
@@ -201,48 +187,6 @@ function TopFactorsCard({
           );
         })}
       </ol>
-    </Card>
-  );
-}
-
-function Meta({ label, value }: { label: string; value: string }): React.JSX.Element {
-  return (
-    <div className="ma-meta__item">
-      <span className="ma-meta__label">{label}</span>
-      <strong className="ma-meta__value">{value}</strong>
-    </div>
-  );
-}
-
-function ModelInfoCard({
-  opinion,
-  registry,
-}: {
-  opinion: ModelOpinion;
-  registry: ModelRegistry | null;
-}): React.JSX.Element {
-  const snap = registry?.metricsSnapshot;
-  return (
-    <Card title="Model information">
-      <div className="ma-meta">
-        <Meta label="Model version" value={opinion.modelVersion} />
-        {registry !== null && (
-          <Meta label="Feature definition" value={registry.featureDefinitionVersion} />
-        )}
-        {registry !== null && (
-          <Meta label="Runtime" value={registry.onnxExported ? 'ONNX' : 'In-process'} />
-        )}
-        {snap !== undefined && <Meta label="Held-out PR-AUC" value={snap.prAuc.toFixed(3)} />}
-        {snap !== undefined && (
-          <Meta
-            label="Precision / Recall"
-            value={`${Math.round(snap.precision * 100)}% / ${Math.round(snap.recall * 100)}%`}
-          />
-        )}
-        {registry !== null && registry.trainingDataHash && (
-          <Meta label="Training data (hash)" value={registry.trainingDataHash.slice(0, 10)} />
-        )}
-      </div>
     </Card>
   );
 }

@@ -7,8 +7,12 @@
   background: #ffffff;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0px 4px 18px rgba(13, 21, 38, 0.04), 0px 1px 3px rgba(13, 21, 38, 0.02);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow:
+    0px 4px 18px rgba(13, 21, 38, 0.04),
+    0px 1px 3px rgba(13, 21, 38, 0.02);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .rg-gauge-card--nobox {

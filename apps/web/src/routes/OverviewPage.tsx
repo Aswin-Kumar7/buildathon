@@ -1,17 +1,14 @@
-import { useState, type ReactNode } from 'react';
-import { keepPreviousData, useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { useState } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { EmptyState, Loading } from '@sentinel/ui';
 import {
   overviewResponseSchema,
-  systemHealthResponseSchema,
   type IncidentSummary,
   type OverviewResponse,
-  type SystemHealthResponse,
 } from '@sentinel/contracts';
 import './OverviewPage.css';
 import './AttemptsPage.css'; // import to share kpi card layout
-import { RiskGauge } from '../components/RiskGauge.js';
 import { CustomSelectPill } from '../components/CustomSelectPill.js';
 import {
   CreditCard,
@@ -22,8 +19,6 @@ import {
   Users,
   Flag,
   ArrowRight,
-  CaretDown,
-  ArrowsClockwise,
   ShieldCheck,
 } from '@phosphor-icons/react';
 
@@ -36,21 +31,11 @@ const WINDOW_OPTIONS: { id: WindowKey; label: string }[] = [
   { id: '30d', label: 'This Month' },
 ];
 
-const RANGE_NOUN: Record<WindowKey, string> = {
-  '24h': 'today',
-  '7d': 'this week',
-  '30d': 'this month',
-};
 /** What the previous window is called, so a delta reads honestly for the range it compares. */
 const PRIOR_NOUN: Record<WindowKey, string> = {
   '24h': 'yesterday',
   '7d': 'last week',
   '30d': 'last month',
-};
-const RISK_SUBTITLE: Record<'low' | 'medium' | 'high', string> = {
-  low: 'Low risk',
-  medium: 'Elevated activity',
-  high: 'High risk',
 };
 
 async function getJson<T>(path: string, parse: (value: unknown) => T): Promise<T> {
@@ -63,8 +48,6 @@ const fetchOverview = (source: Source, range: WindowKey): Promise<OverviewRespon
   getJson(`/api/overview?window=${range}&source=${source}`, (value) =>
     overviewResponseSchema.parse(value),
   );
-const fetchSystem = (): Promise<SystemHealthResponse> =>
-  getJson('/api/system/health', (value) => systemHealthResponseSchema.parse(value));
 
 function timeAgo(ms: number): string {
   const seconds = Math.max(0, Math.round((Date.now() - ms) / 1000));
@@ -92,21 +75,6 @@ function AttemptsDelta({
       {up ? <>&uarr;</> : <>&darr;</>} {magnitude}% vs {PRIOR_NOUN[range]}
     </span>
   );
-}
-
-/** The system-health pill, reflecting the real shedding state — never a hardcoded "healthy". */
-function healthPill(system: UseQueryResult<SystemHealthResponse>): { label: string; ok: boolean } {
-  if (system.isPending) return { label: 'Checking system…', ok: true };
-  if (system.isError || system.data === undefined) {
-    return { label: 'System status unavailable', ok: false };
-  }
-  const shedding = system.data.health.shedding;
-  return shedding.length === 0
-    ? { label: 'System healthy', ok: true }
-    : {
-        label: `Degraded — shedding ${shedding.length} tier${shedding.length === 1 ? '' : 's'}`,
-        ok: false,
-      };
 }
 
 /** Evenly-spaced real timestamps from the trend, for the x-axis — never fixed placeholder ticks. */
@@ -399,6 +367,37 @@ function OverviewHeader(): React.JSX.Element {
   );
 }
 
+function StatCard({
+  variant,
+  color,
+  bg,
+  icon,
+  label,
+  value,
+  children,
+}: {
+  variant: string;
+  color: string;
+  bg: string;
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <article className={`ap-kpi ${variant}`}>
+      <span className="ap-kpi__icon" aria-hidden="true" style={{ color, backgroundColor: bg }}>
+        {icon}
+      </span>
+      <div className="ap-kpi__body">
+        <span className="ap-kpi__label">{label}</span>
+        <strong className="ap-kpi__value">{value}</strong>
+        {children}
+      </div>
+    </article>
+  );
+}
+
 function OverviewStats({
   data,
   range,
@@ -408,88 +407,68 @@ function OverviewStats({
 }): React.JSX.Element {
   return (
     <div className="ap-kpis">
-      <article className="ap-kpi ap-kpi--total">
-        <span
-          className="ap-kpi__icon"
-          aria-hidden="true"
-          style={{ color: '#0b72e7', backgroundColor: 'rgba(11, 114, 231, 0.1)' }}
-        >
-          <CreditCard />
-        </span>
-        <div className="ap-kpi__body">
-          <span className="ap-kpi__label">Attempts Today</span>
-          <strong className="ap-kpi__value">{data.attemptsToday.toLocaleString('en-IN')}</strong>
-          <div className="ap-kpi__subtext">
-            <AttemptsDelta pct={data.attemptsDeltaPct} range={range} />
-          </div>
+      <StatCard
+        variant="ap-kpi--total"
+        color="#0b72e7"
+        bg="rgba(11, 114, 231, 0.1)"
+        icon={<CreditCard />}
+        label="Attempts Today"
+        value={data.attemptsToday.toLocaleString('en-IN')}
+      >
+        <div className="ap-kpi__subtext">
+          <AttemptsDelta pct={data.attemptsDeltaPct} range={range} />
         </div>
-      </article>
+      </StatCard>
 
-      <article className="ap-kpi ap-kpi--failed">
-        <span
-          className="ap-kpi__icon"
-          aria-hidden="true"
-          style={{ color: '#dc2626', backgroundColor: 'rgba(220, 38, 38, 0.1)' }}
-        >
-          <Shield />
+      <StatCard
+        variant="ap-kpi--failed"
+        color="#dc2626"
+        bg="rgba(220, 38, 38, 0.1)"
+        icon={<Shield />}
+        label="Incidents Needing Review"
+        value={data.activeIncidents}
+      >
+        <span className="ap-kpi__subtext ap-kpi__subtext--slate">
+          {data.underReview} already in review
         </span>
-        <div className="ap-kpi__body">
-          <span className="ap-kpi__label">Incidents Needing Review</span>
-          <strong className="ap-kpi__value">{data.activeIncidents}</strong>
-          <span className="ap-kpi__subtext ap-kpi__subtext--slate">
-            {data.underReview} already in review
-          </span>
-        </div>
-      </article>
+      </StatCard>
 
-      <article className="ap-kpi ap-kpi--authorized">
-        <span
-          className="ap-kpi__icon"
-          aria-hidden="true"
-          style={{ color: '#0b72e7', backgroundColor: 'rgba(11, 114, 231, 0.1)' }}
-        >
-          <LockKey />
+      <StatCard
+        variant="ap-kpi--authorized"
+        color="#0b72e7"
+        bg="rgba(11, 114, 231, 0.1)"
+        icon={<LockKey />}
+        label="Active Containments"
+        value={data.contained}
+      >
+        <span className="ap-kpi__subtext ap-kpi__subtext--slate">
+          {data.contained === 0 ? 'None enforced right now' : 'Currently enforced'}
         </span>
-        <div className="ap-kpi__body">
-          <span className="ap-kpi__label">Active Containments</span>
-          <strong className="ap-kpi__value">{data.contained}</strong>
-          <span className="ap-kpi__subtext ap-kpi__subtext--slate">
-            {data.contained === 0 ? 'None enforced right now' : 'Currently enforced'}
-          </span>
-        </div>
-      </article>
+      </StatCard>
 
-      <article className="ap-kpi ap-kpi--captured">
-        <span
-          className="ap-kpi__icon"
-          aria-hidden="true"
-          style={{ color: '#16a34a', backgroundColor: 'rgba(22, 163, 74, 0.1)' }}
-        >
-          <TrendUp />
+      <StatCard
+        variant="ap-kpi--captured"
+        color="#16a34a"
+        bg="rgba(22, 163, 74, 0.1)"
+        icon={<TrendUp />}
+        label="Total Incidents"
+        value={data.totalIncidents}
+      >
+        <span className="ap-kpi__subtext ap-kpi__subtext--blue">
+          Resolved: {data.resolvedToday}
         </span>
-        <div className="ap-kpi__body">
-          <span className="ap-kpi__label">Total Incidents</span>
-          <strong className="ap-kpi__value">{data.totalIncidents}</strong>
-          <span className="ap-kpi__subtext ap-kpi__subtext--blue">
-            Resolved: {data.resolvedToday}
-          </span>
-        </div>
-      </article>
+      </StatCard>
 
-      <article className="ap-kpi ap-kpi--safe">
-        <span
-          className="ap-kpi__icon"
-          aria-hidden="true"
-          style={{ color: '#0E5700', backgroundColor: 'rgba(14, 87, 0, 0.1)' }}
-        >
-          <ShieldCheck />
-        </span>
-        <div className="ap-kpi__body">
-          <span className="ap-kpi__label">Events Analyzed</span>
-          <strong className="ap-kpi__value">{data.eventsAnalyzed.toLocaleString('en-IN')}</strong>
-          <span className="ap-kpi__subtext ap-kpi__subtext--blue">Real-time protection</span>
-        </div>
-      </article>
+      <StatCard
+        variant="ap-kpi--safe"
+        color="#0E5700"
+        bg="rgba(14, 87, 0, 0.1)"
+        icon={<ShieldCheck />}
+        label="Events Analyzed"
+        value={data.eventsAnalyzed.toLocaleString('en-IN')}
+      >
+        <span className="ap-kpi__subtext ap-kpi__subtext--blue">Real-time protection</span>
+      </StatCard>
     </div>
   );
 }
@@ -503,12 +482,6 @@ export function OverviewPage(): React.JSX.Element {
     queryFn: () => fetchOverview(source, range),
     refetchInterval: 8_000,
     placeholderData: keepPreviousData,
-  });
-
-  const system = useQuery({
-    queryKey: ['system-health', 'overview'],
-    queryFn: fetchSystem,
-    refetchInterval: 15_000,
   });
 
   if (overview.isPending) {

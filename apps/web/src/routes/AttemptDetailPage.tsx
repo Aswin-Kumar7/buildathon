@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Pulse, WarningCircle, Shield } from '@phosphor-icons/react';
-import { CreditCard, Laptop, FileCode, ArrowLeft } from '@phosphor-icons/react';
+import { CreditCard, Laptop, ArrowLeft } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
-import { Badge, Card, ErrorState, Loading, StatusDot } from '@sentinel/ui';
+import { Badge, Card, ErrorState, Loading } from '@sentinel/ui';
 import {
   attemptDetailResponseSchema,
   type AttemptDetail,
@@ -559,9 +559,98 @@ function Context({ context }: { context: SensorContext | null }): React.JSX.Elem
   );
 }
 
+type DetailTab = 'overview' | 'activity' | 'signals';
+
+function HeroBanner({ payment }: { payment: AttemptDetailPayment }): React.JSX.Element {
+  return (
+    <header className="ad-hero-banner">
+      <div className="ad-hero__content">
+        <div className="ad-hero__left">
+          <div className="ad-hero__top">
+            <span className={`ad-chip ad-chip--lg ad-chip--${STATUS_TONE[payment.status]}`}>
+              {STATUS_LABEL[payment.status]}
+            </span>
+            <code className="ad-hero__id">{payment.paymentId}</code>
+          </div>
+          <div className="ad-hero__amount-row">
+            <h1 className="ad-hero__amount">{rupees(payment.amountPaise)}</h1>
+            <span className="ad-hero__currency">{payment.currency ?? 'INR'}</span>
+          </div>
+          <div className="ad-hero__meta">
+            <MethodFactCell payment={payment} />
+            <span className="ad-hero__sep">•</span>
+            <span>{dateTime(payment.firstSeenAt)}</span>
+            <span className="ad-hero__sep">•</span>
+            <Badge tone={payment.source === 'replay' ? 'neutral' : 'info'}>
+              {payment.source === 'replay' ? 'Simulation' : 'Live'}
+            </Badge>
+            <Badge tone="warn" dot>
+              Test mode
+            </Badge>
+          </div>
+        </div>
+
+        {payment.failure !== null && (
+          <div className="ad-hero__failure-highlight">
+            <div className="ad-hero__failure-title">
+              <span className="ad-hero__failure-dot" />
+              <strong>
+                Payment Failed:{' '}
+                {payment.failure.description ?? payment.failure.reason ?? 'Declined'}
+              </strong>
+            </div>
+            <p className="ad-hero__failure-sub">
+              Declined by {payment.failure.source ?? 'bank'}
+              {payment.failure.step ? ` during ${payment.failure.step}` : ''}
+              {payment.failure.code ? ` · ${payment.failure.code}` : ''}
+            </p>
+          </div>
+        )}
+      </div>
+    </header>
+  );
+}
+
+function TabNav({
+  activeTab,
+  onTab,
+}: {
+  activeTab: DetailTab;
+  onTab: (tab: DetailTab) => void;
+}): React.JSX.Element {
+  return (
+    <nav className="ad-nav-tabs" aria-label="Payment Detail Tabs">
+      <button
+        type="button"
+        className={`ad-tab-btn ${activeTab === 'overview' ? 'is-active' : ''}`}
+        onClick={() => onTab('overview')}
+      >
+        <CreditCard />
+        <span>Payment Overview</span>
+      </button>
+      <button
+        type="button"
+        className={`ad-tab-btn ${activeTab === 'activity' ? 'is-active' : ''}`}
+        onClick={() => onTab('activity')}
+      >
+        <Laptop />
+        <span>Device Pulse</span>
+      </button>
+      <button
+        type="button"
+        className={`ad-tab-btn ${activeTab === 'signals' ? 'is-active' : ''}`}
+        onClick={() => onTab('signals')}
+      >
+        <Pulse />
+        <span>Risk Signals & Context</span>
+      </button>
+    </nav>
+  );
+}
+
 export function AttemptDetailPage(): React.JSX.Element {
   const { paymentId } = useParams({ from: '/console/attempts/$paymentId' });
-  const [activeTab, setActiveTab] = useState<'overview' | 'activity' | 'signals'>('overview');
+  const [activeTab, setActiveTab] = useState<DetailTab>('overview');
 
   const attempt = useQuery({
     queryKey: ['attempt', paymentId],
@@ -575,7 +664,6 @@ export function AttemptDetailPage(): React.JSX.Element {
 
   const it = attempt.data;
   const { payment } = it;
-  const deviceAttemptsCount = it.recentFromDevice ? it.recentFromDevice.length : 0;
 
   return (
     <div className="ad-page">
@@ -586,79 +674,9 @@ export function AttemptDetailPage(): React.JSX.Element {
         </Link>
       </nav>
 
-      <header className="ad-hero-banner">
-        <div className="ad-hero__content">
-          <div className="ad-hero__left">
-            <div className="ad-hero__top">
-              <span className={`ad-chip ad-chip--lg ad-chip--${STATUS_TONE[payment.status]}`}>
-                {STATUS_LABEL[payment.status]}
-              </span>
-              <code className="ad-hero__id">{payment.paymentId}</code>
-            </div>
-            <div className="ad-hero__amount-row">
-              <h1 className="ad-hero__amount">{rupees(payment.amountPaise)}</h1>
-              <span className="ad-hero__currency">{payment.currency ?? 'INR'}</span>
-            </div>
-            <div className="ad-hero__meta">
-              <MethodFactCell payment={payment} />
-              <span className="ad-hero__sep">•</span>
-              <span>{dateTime(payment.firstSeenAt)}</span>
-              <span className="ad-hero__sep">•</span>
-              <Badge tone={payment.source === 'replay' ? 'neutral' : 'info'}>
-                {payment.source === 'replay' ? 'Simulation' : 'Live'}
-              </Badge>
-              <Badge tone="warn" dot>
-                Test mode
-              </Badge>
-            </div>
-          </div>
+      <HeroBanner payment={payment} />
 
-          {payment.failure !== null && (
-            <div className="ad-hero__failure-highlight">
-              <div className="ad-hero__failure-title">
-                <span className="ad-hero__failure-dot" />
-                <strong>
-                  Payment Failed:{' '}
-                  {payment.failure.description ?? payment.failure.reason ?? 'Declined'}
-                </strong>
-              </div>
-              <p className="ad-hero__failure-sub">
-                Declined by {payment.failure.source ?? 'bank'}
-                {payment.failure.step ? ` during ${payment.failure.step}` : ''}
-                {payment.failure.code ? ` · ${payment.failure.code}` : ''}
-              </p>
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* Enterprise Segmented Navigation Tabs */}
-      <nav className="ad-nav-tabs" aria-label="Payment Detail Tabs">
-        <button
-          type="button"
-          className={`ad-tab-btn ${activeTab === 'overview' ? 'is-active' : ''}`}
-          onClick={() => setActiveTab('overview')}
-        >
-          <CreditCard />
-          <span>Payment Overview</span>
-        </button>
-        <button
-          type="button"
-          className={`ad-tab-btn ${activeTab === 'activity' ? 'is-active' : ''}`}
-          onClick={() => setActiveTab('activity')}
-        >
-          <Laptop />
-          <span>Device Pulse</span>
-        </button>
-        <button
-          type="button"
-          className={`ad-tab-btn ${activeTab === 'signals' ? 'is-active' : ''}`}
-          onClick={() => setActiveTab('signals')}
-        >
-          <Pulse />
-          <span>Risk Signals & Context</span>
-        </button>
-      </nav>
+      <TabNav activeTab={activeTab} onTab={setActiveTab} />
 
       {/* Tab Panel 1: Overview */}
       <div className={`ad-tab-panel ${activeTab === 'overview' ? 'is-active' : ''}`}>

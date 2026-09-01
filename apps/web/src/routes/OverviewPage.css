@@ -12,12 +12,18 @@
   background: #ffffff;
   border: none;
   border-radius: 12px;
-  box-shadow: 0px 4px 18px rgba(13, 21, 38, 0.04), 0px 1px 3px rgba(13, 21, 38, 0.02);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow:
+    0px 4px 18px rgba(13, 21, 38, 0.04),
+    0px 1px 3px rgba(13, 21, 38, 0.02);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .ov-card:hover {
-  box-shadow: 0px 6px 24px rgba(13, 21, 38, 0.06), 0px 2px 6px rgba(13, 21, 38, 0.03);
+  box-shadow:
+    0px 6px 24px rgba(13, 21, 38, 0.06),
+    0px 2px 6px rgba(13, 21, 38, 0.03);
 }
 
 /* Header Hero */
@@ -160,8 +166,12 @@
   border-radius: 12px;
   background: #ffffff;
   border: none;
-  box-shadow: 0px 4px 18px rgba(13, 21, 38, 0.04), 0px 1px 3px rgba(13, 21, 38, 0.02);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow:
+    0px 4px 18px rgba(13, 21, 38, 0.04),
+    0px 1px 3px rgba(13, 21, 38, 0.02);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .ov-stat-card:hover {
@@ -251,8 +261,6 @@
 .ov-delta--down {
   color: #dc2626;
 }
-
-
 
 /* Panel Common Styles */
 .ov-panel {

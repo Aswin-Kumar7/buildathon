@@ -33,6 +33,12 @@ async function fetchEntries(): Promise<AuditEntry[]> {
   return auditListResponseSchema.parse(await response.json()).entries;
 }
 
+async function fetchVerify(): Promise<AuditVerifyResponse> {
+  const response = await apiMutate('/api/audit/verify');
+  if (!response.ok) throw new Error(`api returned ${response.status}`);
+  return auditVerifyResponseSchema.parse(await response.json());
+}
+
 interface Filters {
   search: string;
   type: string;
@@ -81,11 +87,7 @@ export function AuditPage(): React.JSX.Element {
   // the head are technical detail, tucked behind a toggle so the record reads as a plain history.
   const verify = useQuery({
     queryKey: ['audit-verify'],
-    queryFn: async (): Promise<AuditVerifyResponse> => {
-      const response = await apiMutate('/api/audit/verify');
-      if (!response.ok) throw new Error(`api returned ${response.status}`);
-      return auditVerifyResponseSchema.parse(await response.json());
-    },
+    queryFn: fetchVerify,
     refetchInterval: 60_000,
   });
 
@@ -113,17 +115,7 @@ export function AuditPage(): React.JSX.Element {
 
   return (
     <div className="aud">
-      <header className="aud-head">
-        <div className="aud-head__title">
-          <h1>Audit trail</h1>
-          <TamperBadge pending={verify.isPending} error={verify.isError} result={verify.data} />
-        </div>
-        <p>
-          Every decision and every hand that touched one, kept as a tamper-evident record — if a
-          past entry were changed, this check would catch it. You can also verify from the command
-          line: <code>pnpm audit:verify</code>.
-        </p>
-      </header>
+      <AuditHeader pending={verify.isPending} error={verify.isError} result={verify.data} />
 
       <section className="aud-card">
         <Toolbar
@@ -164,6 +156,30 @@ export function AuditPage(): React.JSX.Element {
         />
       )}
     </div>
+  );
+}
+
+function AuditHeader({
+  pending,
+  error,
+  result,
+}: {
+  pending: boolean;
+  error: boolean;
+  result: AuditVerifyResponse | undefined;
+}): React.JSX.Element {
+  return (
+    <header className="aud-head">
+      <div className="aud-head__title">
+        <h1>Audit trail</h1>
+        <TamperBadge pending={pending} error={error} result={result} />
+      </div>
+      <p>
+        Every decision and every hand that touched one, kept as a tamper-evident record — if a past
+        entry were changed, this check would catch it. You can also verify from the command line:{' '}
+        <code>pnpm audit:verify</code>.
+      </p>
+    </header>
   );
 }
 
@@ -284,6 +300,65 @@ function Toolbar({
   );
 }
 
+function AuditRows({
+  rows,
+  selectedSeq,
+  onSelect,
+  showTechnical,
+}: {
+  rows: AuditEntry[];
+  selectedSeq: number | null;
+  onSelect: (seq: number) => void;
+  showTechnical: boolean;
+}): React.JSX.Element {
+  return (
+    <div className="aud-table__wrap">
+      <table className="aud-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>When</th>
+            <th>What</th>
+            <th>By</th>
+            {showTechnical && <th>Hash</th>}
+            <th className="aud-table__view">View</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((entry) => (
+            <tr
+              key={entry.seq}
+              className={`aud-row${entry.seq === selectedSeq ? ' is-selected' : ''}`}
+              onClick={() => onSelect(entry.seq)}
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') onSelect(entry.seq);
+              }}
+            >
+              <td className="aud-seq">{entry.seq}</td>
+              <td className="aud-when">{fmtDateTime(entry.at)}</td>
+              <td>
+                <span className={`aud-badge aud-badge--${kindTone(entry.kind)}`}>
+                  {kindLabel(entry.kind)}
+                </span>
+              </td>
+              <td className="aud-by">{entry.actor ?? 'system'}</td>
+              {showTechnical && (
+                <td>
+                  <code className="aud-hash">{entry.hash.slice(0, 12)}…</code>
+                </td>
+              )}
+              <td className="aud-table__view">
+                <ChevronIcon />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function AuditTable({
   rows,
   selectedSeq,
@@ -331,50 +406,12 @@ function AuditTable({
     );
 
   return (
-    <div className="aud-table__wrap">
-      <table className="aud-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>When</th>
-            <th>What</th>
-            <th>By</th>
-            {showTechnical && <th>Hash</th>}
-            <th className="aud-table__view">View</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((entry) => (
-            <tr
-              key={entry.seq}
-              className={`aud-row${entry.seq === selectedSeq ? ' is-selected' : ''}`}
-              onClick={() => onSelect(entry.seq)}
-              tabIndex={0}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') onSelect(entry.seq);
-              }}
-            >
-              <td className="aud-seq">{entry.seq}</td>
-              <td className="aud-when">{fmtDateTime(entry.at)}</td>
-              <td>
-                <span className={`aud-badge aud-badge--${kindTone(entry.kind)}`}>
-                  {kindLabel(entry.kind)}
-                </span>
-              </td>
-              <td className="aud-by">{entry.actor ?? 'system'}</td>
-              {showTechnical && (
-                <td>
-                  <code className="aud-hash">{entry.hash.slice(0, 12)}…</code>
-                </td>
-              )}
-              <td className="aud-table__view">
-                <ChevronIcon />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <AuditRows
+      rows={rows}
+      selectedSeq={selectedSeq}
+      onSelect={onSelect}
+      showTechnical={showTechnical}
+    />
   );
 }
 

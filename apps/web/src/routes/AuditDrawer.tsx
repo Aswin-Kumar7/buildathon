@@ -43,12 +43,6 @@ export function AuditDrawer({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const payload = asRecord(entry.payload);
-  const from = typeof payload['from'] === 'string' ? payload['from'] : null;
-  const to = typeof payload['to'] === 'string' ? payload['to'] : null;
-  const note = typeof payload['note'] === 'string' ? payload['note'] : null;
-  const relatedIncident = entry.subjectType === 'incident' ? entry.subjectId : null;
-
   return (
     <aside className="auddr" role="dialog" aria-modal="false" aria-label="Audit event details">
       <header className="auddr__head">
@@ -65,62 +59,81 @@ export function AuditDrawer({
         <span className="auddr__num">Event #{entry.seq}</span>
       </div>
 
-      <div className="auddr__body">
-        <Section label="When">
-          <span className="auddr__val">{fmtDateTime(entry.at)}</span>
-        </Section>
-        <Section label="Performed by">
-          <span className="auddr__val">{entry.actor ?? 'system'}</span>
-        </Section>
-
-        {from !== null && to !== null && (
-          <Section label="Change">
-            <div className="auddr__change">
-              <span>{statusLabel(from)}</span>
-              <ArrowIcon />
-              <strong>{statusLabel(to)}</strong>
-            </div>
-          </Section>
-        )}
-
-        {note !== null && (
-          <Section label="Reason">
-            <p className="auddr__reason">{note}</p>
-          </Section>
-        )}
-
-        {relatedIncident !== null && (
-          <Section label="Related incident">
-            <Link
-              to="/console/incidents/$id"
-              params={{ id: relatedIncident }}
-              className="auddr__link"
-              onClick={onClose}
-            >
-              {incidentRef(relatedIncident)} <ExternalIcon />
-            </Link>
-          </Section>
-        )}
-
-        <HashField label="Audit hash" value={entry.hash} />
-        <HashField label="Previous hash" value={entry.prevHash} />
-        {nextHash !== null ? (
-          <HashField label="Next hash" value={nextHash} />
-        ) : (
-          <Section label="Next hash">
-            <span className="auddr__muted">This is the latest entry — the head of the chain.</span>
-          </Section>
-        )}
-
-        <Metadata entry={entry} shown={{ from, to, note }} />
-
-        <p className="auddr__immutable">
-          <InfoIcon /> This record is immutable and part of the cryptographic audit chain. Changing
-          it would break the link the next entry recorded, and the verifier would report exactly
-          where.
-        </p>
-      </div>
+      <DrawerBody entry={entry} nextHash={nextHash} onClose={onClose} />
     </aside>
+  );
+}
+
+function DrawerBody({
+  entry,
+  nextHash,
+  onClose,
+}: {
+  entry: AuditEntry;
+  nextHash: string | null;
+  onClose: () => void;
+}): React.JSX.Element {
+  const payload = asRecord(entry.payload);
+  const from = typeof payload['from'] === 'string' ? payload['from'] : null;
+  const to = typeof payload['to'] === 'string' ? payload['to'] : null;
+  const note = typeof payload['note'] === 'string' ? payload['note'] : null;
+  const relatedIncident = entry.subjectType === 'incident' ? entry.subjectId : null;
+
+  return (
+    <div className="auddr__body">
+      <Section label="When">
+        <span className="auddr__val">{fmtDateTime(entry.at)}</span>
+      </Section>
+      <Section label="Performed by">
+        <span className="auddr__val">{entry.actor ?? 'system'}</span>
+      </Section>
+
+      {from !== null && to !== null && (
+        <Section label="Change">
+          <div className="auddr__change">
+            <span>{statusLabel(from)}</span>
+            <ArrowIcon />
+            <strong>{statusLabel(to)}</strong>
+          </div>
+        </Section>
+      )}
+
+      {note !== null && (
+        <Section label="Reason">
+          <p className="auddr__reason">{note}</p>
+        </Section>
+      )}
+
+      {relatedIncident !== null && (
+        <Section label="Related incident">
+          <Link
+            to="/console/incidents/$id"
+            params={{ id: relatedIncident }}
+            className="auddr__link"
+            onClick={onClose}
+          >
+            {incidentRef(relatedIncident)} <ExternalIcon />
+          </Link>
+        </Section>
+      )}
+
+      <HashField label="Audit hash" value={entry.hash} />
+      <HashField label="Previous hash" value={entry.prevHash} />
+      {nextHash !== null ? (
+        <HashField label="Next hash" value={nextHash} />
+      ) : (
+        <Section label="Next hash">
+          <span className="auddr__muted">This is the latest entry — the head of the chain.</span>
+        </Section>
+      )}
+
+      <Metadata entry={entry} shown={{ from, to, note }} />
+
+      <p className="auddr__immutable">
+        <InfoIcon /> This record is immutable and part of the cryptographic audit chain. Changing it
+        would break the link the next entry recorded, and the verifier would report exactly where.
+      </p>
+    </div>
   );
 }
 

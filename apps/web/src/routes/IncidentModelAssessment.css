@@ -160,10 +160,10 @@
   border-radius: var(--s-radius-full);
 }
 .ma-bar__fill--up {
-  background: #D72424;
+  background: #d72424;
 }
 .ma-bar__fill--down {
-  background: #0E5700;
+  background: #0e5700;
 }
 .ma-bar__val {
   text-align: right;

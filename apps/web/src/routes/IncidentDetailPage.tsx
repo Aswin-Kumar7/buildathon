@@ -1,11 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Pulse, WarningCircle, Shield } from '@phosphor-icons/react';
+import { Pulse } from '@phosphor-icons/react';
 import { useState } from 'react';
 import { Link, useParams } from '@tanstack/react-router';
 import { Badge, Card, ErrorState, Loading, StatusDot, Tabs, type TabItem } from '@sentinel/ui';
 import {
   incidentDetailResponseSchema,
-  type EvidenceDto,
   type IncidentDetail,
   type IncidentStatusDto,
   type RiskRecommendation,
@@ -60,11 +59,6 @@ const BAND_LABEL: Record<string, string> = {
   medium: 'Medium risk',
   low: 'Low risk',
 };
-const MODEL_BAND_LABEL: Record<string, string> = {
-  observe: 'Keep watching',
-  review: 'Send for review',
-  contain_eligible: 'Blocking is an option',
-};
 const HYPOTHESIS_LABEL: Record<IncidentDetail['primaryHypothesis'], string> = {
   attack: 'Coordinated abuse pattern',
   outage: 'Gateway or service outage',
@@ -72,14 +66,6 @@ const HYPOTHESIS_LABEL: Record<IncidentDetail['primaryHypothesis'], string> = {
   healthy_traffic: 'Healthy traffic pattern',
   insufficient_evidence: 'Insufficient evidence',
 };
-const INFLUENCE_LABEL: Record<string, string> = {
-  none: 'No change to the rules',
-  corroborated: 'Corroborated the rules',
-  escalated: 'Escalated the case',
-  deescalated: 'De-escalated the case',
-  flagged: 'Flagged on its own',
-};
-
 const incidentRef = (id: string): string => `INC-${id.replace(/-/g, '').slice(0, 4).toUpperCase()}`;
 
 function timeAgo(ms: number): string {
@@ -98,13 +84,6 @@ function formatWindow(ms: number): string {
   if (minutes < 60) return `${minutes} min ${seconds} sec`;
   return `${Math.floor(minutes / 60)} hr ${minutes % 60} min`;
 }
-
-const clockTime = (ms: number): string =>
-  new Date(ms).toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
 
 type Move = { to: IncidentStatusDto; verdict?: Verdict };
 
@@ -127,21 +106,6 @@ const rupees = (paise: number): string =>
     currency: 'INR',
     maximumFractionDigits: 0,
   }).format(paise / 100);
-
-function Fact({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <div className="ad-fact">
-      <dt>{label}</dt>
-      <dd>{children}</dd>
-    </div>
-  );
-}
 
 function CardHeaderTitle({
   icon,
@@ -291,6 +255,88 @@ function ModelReasoning({
   );
 }
 
+function OverviewKpiStrip({ it }: { it: IncidentDetail }): React.JSX.Element {
+  const capturedPaise = it.relatedOrders
+    .flatMap((o) => o.attempts)
+    .filter((a) => a.status === 'captured')
+    .reduce((sum, a) => sum + (a.amountPaise ?? 0), 0);
+  const cards = it.distinctCards ?? (it.graph.cards.length > 0 ? it.graph.cards.length : null);
+  const span = formatWindow(it.lastActivityAt - it.firstAttemptAt);
+  return (
+    <div className="ov-kpi-strip">
+      <div className="ov-kpi-item">
+        <span className="ov-kpi-label">Payment attempts</span>
+        <strong className="ov-kpi-val">{it.attempts}</strong>
+      </div>
+      <div className="ov-kpi-item">
+        <span className="ov-kpi-label">Distinct cards</span>
+        <strong className="ov-kpi-val">{cards !== null ? cards : '—'}</strong>
+      </div>
+      <div className="ov-kpi-item">
+        <span className="ov-kpi-label">Failures</span>
+        <strong className="ov-kpi-val ov-kpi-val--warn">{it.failures}</strong>
+      </div>
+      <div className="ov-kpi-item">
+        <span className="ov-kpi-label">Captured amount</span>
+        <strong
+          className={`ov-kpi-val ${capturedPaise > 0 ? 'ov-kpi-val--bad' : 'ov-kpi-val--ok'}`}
+        >
+          {rupees(capturedPaise)}
+        </strong>
+      </div>
+      <div className="ov-kpi-item">
+        <span className="ov-kpi-label">Time window</span>
+        <strong className="ov-kpi-val" style={{ fontSize: '1.1rem' }}>
+          {span}
+        </strong>
+      </div>
+    </div>
+  );
+}
+
+function WhyFlaggedSection({
+  it,
+  rec,
+  pending,
+}: {
+  it: IncidentDetail;
+  rec: RiskRecommendation | null;
+  pending: boolean;
+}): React.JSX.Element {
+  const reasons =
+    rec !== null
+      ? rec.keyReasons.map((c) => c.text)
+      : [...it.evidence]
+          .sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight))
+          .slice(0, 5)
+          .map(phraseFor);
+  return (
+    <div style={{ marginTop: '1.25rem' }}>
+      <h4
+        style={{
+          margin: '0 0 0.5rem',
+          fontSize: '0.78rem',
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.04em',
+          color: '#64748b',
+        }}
+      >
+        Why this was flagged
+      </h4>
+      {pending ? (
+        <p className="ad-muted">Analysing…</p>
+      ) : (
+        <ul className="ov-brief__reasons">
+          {reasons.map((r, i) => (
+            <li key={i}>{r}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function OverviewTab({ it }: { it: IncidentDetail }): React.JSX.Element {
   const client = useQueryClient();
   const [modalOpen, setModalOpen] = useState(false);
@@ -301,21 +347,6 @@ function OverviewTab({ it }: { it: IncidentDetail }): React.JSX.Element {
     (c) => c.status === 'proposed' || c.status === 'active',
   );
   const terminal = TERMINAL.has(it.status);
-
-  const capturedPaise = it.relatedOrders
-    .flatMap((o) => o.attempts)
-    .filter((a) => a.status === 'captured')
-    .reduce((sum, a) => sum + (a.amountPaise ?? 0), 0);
-  const cards = it.distinctCards ?? (it.graph.cards.length > 0 ? it.graph.cards.length : null);
-  const span = formatWindow(it.lastActivityAt - it.firstAttemptAt);
-
-  const reasons =
-    rec !== null
-      ? rec.keyReasons.map((c) => c.text)
-      : [...it.evidence]
-          .sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight))
-          .slice(0, 5)
-          .map(phraseFor);
 
   return (
     <div className="ov">
@@ -328,58 +359,9 @@ function OverviewTab({ it }: { it: IncidentDetail }): React.JSX.Element {
           />
         }
       >
-        <div className="ov-kpi-strip">
-          <div className="ov-kpi-item">
-            <span className="ov-kpi-label">Payment attempts</span>
-            <strong className="ov-kpi-val">{it.attempts}</strong>
-          </div>
-          <div className="ov-kpi-item">
-            <span className="ov-kpi-label">Distinct cards</span>
-            <strong className="ov-kpi-val">{cards !== null ? cards : '—'}</strong>
-          </div>
-          <div className="ov-kpi-item">
-            <span className="ov-kpi-label">Failures</span>
-            <strong className="ov-kpi-val ov-kpi-val--warn">{it.failures}</strong>
-          </div>
-          <div className="ov-kpi-item">
-            <span className="ov-kpi-label">Captured amount</span>
-            <strong
-              className={`ov-kpi-val ${capturedPaise > 0 ? 'ov-kpi-val--bad' : 'ov-kpi-val--ok'}`}
-            >
-              {rupees(capturedPaise)}
-            </strong>
-          </div>
-          <div className="ov-kpi-item">
-            <span className="ov-kpi-label">Time window</span>
-            <strong className="ov-kpi-val" style={{ fontSize: '1.1rem' }}>
-              {span}
-            </strong>
-          </div>
-        </div>
+        <OverviewKpiStrip it={it} />
 
-        <div style={{ marginTop: '1.25rem' }}>
-          <h4
-            style={{
-              margin: '0 0 0.5rem',
-              fontSize: '0.78rem',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#64748b',
-            }}
-          >
-            Why this was flagged
-          </h4>
-          {recommendation.isPending ? (
-            <p className="ad-muted">Analysing…</p>
-          ) : (
-            <ul className="ov-brief__reasons">
-              {reasons.map((r, i) => (
-                <li key={i}>{r}</li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <WhyFlaggedSection it={it} rec={rec} pending={recommendation.isPending} />
 
         {it.modelOpinion !== null && (
           <div style={{ marginTop: '1.25rem' }}>

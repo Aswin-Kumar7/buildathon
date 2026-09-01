@@ -45,6 +45,78 @@ function whyText(it: IncidentDetail): string {
 
 type BehaviourRow = { signal: string; observed: string; context: string };
 
+function SignalIcon({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <svg
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      width={18}
+      height={18}
+    >
+      {children}
+    </svg>
+  );
+}
+
+function CardsIcon(): React.JSX.Element {
+  return (
+    <SignalIcon>
+      <rect x={3} y={6} width={18} height={12} rx={2} />
+      <path d="M3 10h18M7 14h.01" />
+    </SignalIcon>
+  );
+}
+
+function AttemptsIcon(): React.JSX.Element {
+  return (
+    <SignalIcon>
+      <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm0-18v8l4 4" />
+    </SignalIcon>
+  );
+}
+
+function FailedIcon(): React.JSX.Element {
+  return (
+    <SignalIcon>
+      <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-3-11l6 6m0-6l-6 6" />
+    </SignalIcon>
+  );
+}
+
+function CapturedIcon(): React.JSX.Element {
+  return (
+    <SignalIcon>
+      <path d="M5 13l4 4L19 7" />
+    </SignalIcon>
+  );
+}
+
+function SessionsIcon(): React.JSX.Element {
+  return (
+    <SignalIcon>
+      <path d="M21 12c0-4.97-4.03-9-9-9s-9 4.03-9 9 4.03 9 9 9 9-4.03 9-9zM3 12h18M12 3v18M12 3c3.31 0 6 4.03 6 9s-2.69 9-6 9-6-4.03-6-9 2.69-9 6-9z" />
+    </SignalIcon>
+  );
+}
+
+function RateIcon(): React.JSX.Element {
+  return (
+    <SignalIcon>
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+    </SignalIcon>
+  );
+}
+
+function CadenceIcon(): React.JSX.Element {
+  return (
+    <SignalIcon>
+      <path d="M4 6h16M4 12h16m-7 6h7" />
+    </SignalIcon>
+  );
+}
+
 function behaviourRows(it: IncidentDetail): (BehaviourRow & { icon: React.JSX.Element })[] {
   const rows: (BehaviourRow & { icon: React.JSX.Element })[] = [];
   const cards = it.distinctCards ?? (it.graph.cards.length > 0 ? it.graph.cards.length : null);
@@ -53,19 +125,7 @@ function behaviourRows(it: IncidentDetail): (BehaviourRow & { icon: React.JSX.El
       signal: 'Different cards',
       observed: `${cards}`,
       context: `linked to this ${it.entityKind}`,
-      icon: (
-        <svg
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          width={18}
-          height={18}
-        >
-          <rect x={3} y={6} width={18} height={12} rx={2} />
-          <path d="M3 10h18M7 14h.01" />
-        </svg>
-      ),
+      icon: <CardsIcon />,
     });
   }
   if (it.attempts > 0) {
@@ -73,35 +133,13 @@ function behaviourRows(it: IncidentDetail): (BehaviourRow & { icon: React.JSX.El
       signal: 'Attempts',
       observed: `${it.attempts}`,
       context: `over ${formatWindow(it.lastActivityAt - it.firstAttemptAt)}`,
-      icon: (
-        <svg
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          width={18}
-          height={18}
-        >
-          <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm0-18v8l4 4" />
-        </svg>
-      ),
+      icon: <AttemptsIcon />,
     });
     rows.push({
       signal: 'Failed attempts',
       observed: `${it.failures}`,
       context: `${Math.round((it.failures / it.attempts) * 100)}% of attempts`,
-      icon: (
-        <svg
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          width={18}
-          height={18}
-        >
-          <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-3-11l6 6m0-6l-6 6" />
-        </svg>
-      ),
+      icon: <FailedIcon />,
     });
   }
   if (it.relatedOrders.length > 0) {
@@ -112,18 +150,7 @@ function behaviourRows(it: IncidentDetail): (BehaviourRow & { icon: React.JSX.El
       signal: 'Captured',
       observed: `${captured}`,
       context: captured > 0 ? 'a payment got through' : 'nothing got through',
-      icon: (
-        <svg
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          width={18}
-          height={18}
-        >
-          <path d="M5 13l4 4L19 7" />
-        </svg>
-      ),
+      icon: <CapturedIcon />,
     });
   }
   if (it.entityKind === 'network' && it.graph.sessions.length > 0) {
@@ -131,18 +158,7 @@ function behaviourRows(it: IncidentDetail): (BehaviourRow & { icon: React.JSX.El
       signal: 'Sessions involved',
       observed: `${it.graph.sessions.length}`,
       context: 'checkout sessions on this network',
-      icon: (
-        <svg
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          width={18}
-          height={18}
-        >
-          <path d="M21 12c0-4.97-4.03-9-9-9s-9 4.03-9 9 4.03 9 9 9 9-4.03 9-9zM3 12h18M12 3v18M12 3c3.31 0 6 4.03 6 9s-2.69 9-6 9-6-4.03-6-9 2.69-9 6-9z" />
-        </svg>
-      ),
+      icon: <SessionsIcon />,
     });
   }
   const velocity = it.evidence.find((e) => e.code === 'attempt_rate_above_threshold');
@@ -151,18 +167,7 @@ function behaviourRows(it: IncidentDetail): (BehaviourRow & { icon: React.JSX.El
       signal: 'Peak attempt rate',
       observed: evidenceObserved(velocity),
       context: `fires past ${evidenceThreshold(velocity)}`,
-      icon: (
-        <svg
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          width={18}
-          height={18}
-        >
-          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-        </svg>
-      ),
+      icon: <RateIcon />,
     });
   }
   const cadence = it.evidence.find((e) => e.code === 'inter_arrival_variation_low');
@@ -171,18 +176,7 @@ function behaviourRows(it: IncidentDetail): (BehaviourRow & { icon: React.JSX.El
       signal: 'Timing regularity',
       observed: cadence.observed.toFixed(2),
       context: 'lower is more machine-like',
-      icon: (
-        <svg
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          width={18}
-          height={18}
-        >
-          <path d="M4 6h16M4 12h16m-7 6h7" />
-        </svg>
-      ),
+      icon: <CadenceIcon />,
     });
   }
   return rows;

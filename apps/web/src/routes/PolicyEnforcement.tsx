@@ -124,32 +124,12 @@ function Controls({ stopped }: { stopped: boolean }): React.JSX.Element {
           </button>
         </div>
       ) : confirming ? (
-        <div className="pol-enf__confirm">
-          <p>
-            <strong>Engage the kill switch now?</strong> This releases every active block
-            immediately and stops all new blocks and checks until you turn protection back on.
-            Shoppers currently blocked will be able to pay.
-          </p>
-          {reasonInput}
-          <div className="pol-enf__row pol-enf__row--end">
-            <button
-              type="button"
-              className="pol-enf__btn pol-enf__btn--ghost"
-              onClick={() => setConfirming(false)}
-              disabled={pause.isPending}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="pol-enf__btn pol-enf__btn--pause"
-              onClick={() => pause.mutate()}
-              disabled={pause.isPending}
-            >
-              {pause.isPending ? 'Stopping…' : 'Stop & release all blocks'}
-            </button>
-          </div>
-        </div>
+        <ConfirmStop
+          reasonInput={reasonInput}
+          pending={pause.isPending}
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => pause.mutate()}
+        />
       ) : (
         <div className="pol-enf__row">
           <button
@@ -164,6 +144,47 @@ function Controls({ stopped }: { stopped: boolean }): React.JSX.Element {
           </Link>
         </div>
       )}
+    </div>
+  );
+}
+
+function ConfirmStop({
+  reasonInput,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  reasonInput: React.ReactNode;
+  pending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}): React.JSX.Element {
+  return (
+    <div className="pol-enf__confirm">
+      <p>
+        <strong>Engage the kill switch now?</strong> This releases every active block immediately
+        and stops all new blocks and checks until you turn protection back on. Shoppers currently
+        blocked will be able to pay.
+      </p>
+      {reasonInput}
+      <div className="pol-enf__row pol-enf__row--end">
+        <button
+          type="button"
+          className="pol-enf__btn pol-enf__btn--ghost"
+          onClick={onCancel}
+          disabled={pending}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="pol-enf__btn pol-enf__btn--pause"
+          onClick={onConfirm}
+          disabled={pending}
+        >
+          {pending ? 'Stopping…' : 'Stop & release all blocks'}
+        </button>
+      </div>
     </div>
   );
 }

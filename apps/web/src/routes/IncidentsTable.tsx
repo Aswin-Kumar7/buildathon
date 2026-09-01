@@ -61,7 +61,7 @@ const RECOMMENDATION: Record<
   none: { label: 'Watch', tone: 'monitor' },
 };
 
-function BucketIcon({ bucket }: { bucket?: Bucket }): React.JSX.Element {
+function BucketIcon(): React.JSX.Element {
   return <WarningCircle />;
 }
 
@@ -90,7 +90,7 @@ function IncidentRow({
     <tr className="inct-row" onClick={() => onOpen(incident.id)}>
       <td className="inct-inc">
         <span className={`inct-ico inct-ico--${bucket}`}>
-          <BucketIcon bucket={bucket} />
+          <BucketIcon />
         </span>
         <span className="inct-inc__text">
           <strong>{incident.title}</strong>
@@ -149,6 +149,59 @@ function IncidentRow({
 
 const HEADERS = ['Incident', 'Risk', 'Status', 'Source', 'First detected', 'Attempts', ''];
 
+function TableFooter({
+  total,
+  current,
+  pageCount,
+  onPage,
+}: {
+  total: number;
+  current: number;
+  pageCount: number;
+  onPage: (page: number) => void;
+}): React.JSX.Element {
+  return (
+    <div className="inct-foot">
+      <span className="inct-summary">
+        Showing <strong>{(current - 1) * PAGE_SIZE + 1}</strong> to{' '}
+        <strong>{Math.min(current * PAGE_SIZE, total)}</strong> of <strong>{total}</strong>{' '}
+        incidents
+      </span>
+      <nav className="inct-pager" aria-label="Pagination">
+        <button
+          type="button"
+          className="inct-pager__btn"
+          disabled={current <= 1}
+          onClick={() => onPage(current - 1)}
+          aria-label="Previous page"
+        >
+          Prev
+        </button>
+        {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
+          <button
+            key={p}
+            type="button"
+            className={`inct-pager__num${p === current ? ' is-active' : ''}`}
+            aria-current={p === current ? 'page' : undefined}
+            onClick={() => onPage(p)}
+          >
+            {p}
+          </button>
+        ))}
+        <button
+          type="button"
+          className="inct-pager__btn"
+          disabled={current >= pageCount}
+          onClick={() => onPage(current + 1)}
+          aria-label="Next page"
+        >
+          Next
+        </button>
+      </nav>
+    </div>
+  );
+}
+
 export function IncidentsTable({
   incidents,
   loading,
@@ -200,44 +253,12 @@ export function IncidentsTable({
         <p className="inct-empty">No incidents match these filters.</p>
       )}
       {incidents.length > 0 && (
-        <div className="inct-foot">
-          <span className="inct-summary">
-            Showing <strong>{(current - 1) * PAGE_SIZE + 1}</strong> to{' '}
-            <strong>{Math.min(current * PAGE_SIZE, incidents.length)}</strong> of{' '}
-            <strong>{incidents.length}</strong> incidents
-          </span>
-          <nav className="inct-pager" aria-label="Pagination">
-            <button
-              type="button"
-              className="inct-pager__btn"
-              disabled={current <= 1}
-              onClick={() => onPage(current - 1)}
-              aria-label="Previous page"
-            >
-              Prev
-            </button>
-            {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
-              <button
-                key={p}
-                type="button"
-                className={`inct-pager__num${p === current ? ' is-active' : ''}`}
-                aria-current={p === current ? 'page' : undefined}
-                onClick={() => onPage(p)}
-              >
-                {p}
-              </button>
-            ))}
-            <button
-              type="button"
-              className="inct-pager__btn"
-              disabled={current >= pageCount}
-              onClick={() => onPage(current + 1)}
-              aria-label="Next page"
-            >
-              Next
-            </button>
-          </nav>
-        </div>
+        <TableFooter
+          total={incidents.length}
+          current={current}
+          pageCount={pageCount}
+          onPage={onPage}
+        />
       )}
     </section>
   );

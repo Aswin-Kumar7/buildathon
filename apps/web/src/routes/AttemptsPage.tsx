@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, type UseQueryResult } from '@tanstack/react-query';
 import { Link } from '@tanstack/react-router';
 import { EmptyState, ErrorState, Loading } from '@sentinel/ui';
 import {
@@ -282,6 +282,61 @@ function Kpis({ kpis }: { kpis: AttemptRowsResponse['kpis'] }): React.JSX.Elemen
   );
 }
 
+function DateRangePopover({
+  customStart,
+  customEnd,
+  onPreset,
+  onCustomStart,
+  onCustomEnd,
+  onApplyCustom,
+}: {
+  customStart: string;
+  customEnd: string;
+  onPreset: (days: number | null) => void;
+  onCustomStart: (value: string) => void;
+  onCustomEnd: (value: string) => void;
+  onApplyCustom: () => void;
+}): React.JSX.Element {
+  return (
+    <div className="ap-date-popover">
+      <div className="ap-date-presets">
+        <button type="button" onClick={() => onPreset(null)}>
+          All Time
+        </button>
+        <button type="button" onClick={() => onPreset(7)}>
+          Last 7 Days
+        </button>
+        <button type="button" onClick={() => onPreset(30)}>
+          Last 30 Days
+        </button>
+        <button type="button" onClick={() => onPreset(90)}>
+          Last 90 Days
+        </button>
+      </div>
+      <div className="ap-date-custom">
+        <span className="ap-date-custom__title">Custom Range</span>
+        <div className="ap-date-custom__inputs">
+          <label>
+            <span>From</span>
+            <input
+              type="date"
+              value={customStart}
+              onChange={(e) => onCustomStart(e.target.value)}
+            />
+          </label>
+          <label>
+            <span>To</span>
+            <input type="date" value={customEnd} onChange={(e) => onCustomEnd(e.target.value)} />
+          </label>
+        </div>
+        <button type="button" className="ap-date-apply-btn" onClick={onApplyCustom}>
+          Apply Range
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function DateRangePicker({
   startDate,
   endDate,
@@ -334,46 +389,14 @@ function DateRangePicker({
       </button>
 
       {open && (
-        <div className="ap-date-popover">
-          <div className="ap-date-presets">
-            <button type="button" onClick={() => applyPreset(null)}>
-              All Time
-            </button>
-            <button type="button" onClick={() => applyPreset(7)}>
-              Last 7 Days
-            </button>
-            <button type="button" onClick={() => applyPreset(30)}>
-              Last 30 Days
-            </button>
-            <button type="button" onClick={() => applyPreset(90)}>
-              Last 90 Days
-            </button>
-          </div>
-          <div className="ap-date-custom">
-            <span className="ap-date-custom__title">Custom Range</span>
-            <div className="ap-date-custom__inputs">
-              <label>
-                <span>From</span>
-                <input
-                  type="date"
-                  value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
-                />
-              </label>
-              <label>
-                <span>To</span>
-                <input
-                  type="date"
-                  value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
-                />
-              </label>
-            </div>
-            <button type="button" className="ap-date-apply-btn" onClick={applyCustom}>
-              Apply Range
-            </button>
-          </div>
-        </div>
+        <DateRangePopover
+          customStart={customStart}
+          customEnd={customEnd}
+          onPreset={applyPreset}
+          onCustomStart={setCustomStart}
+          onCustomEnd={setCustomEnd}
+          onApplyCustom={applyCustom}
+        />
       )}
     </div>
   );
@@ -559,6 +582,94 @@ function Filters(props: FilterProps): React.JSX.Element {
   );
 }
 
+function ResultsTable({ rows }: { rows: AttemptRow[] }): React.JSX.Element {
+  return (
+    <div className="ap-table-wrap">
+      <table className="ap-table">
+        <thead>
+          <tr>
+            <th>Order ID</th>
+            <th>Payment ID</th>
+            <th>Amount</th>
+            <th>Payment Method</th>
+            <th>Status</th>
+            <th>Incident</th>
+            <th>
+              <div className="ap-th-sort">
+                <span>Time</span>
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="7 15 12 20 17 15" />
+                  <polyline points="7 9 12 4 17 9" />
+                </svg>
+              </div>
+            </th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <Row key={row.paymentId} row={row} />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ResultsFooter({
+  total,
+  page,
+  pageCount,
+  pageSize,
+  startNum,
+  endNum,
+  onPage,
+  onPageSizeChange,
+}: {
+  total: number;
+  page: number;
+  pageCount: number;
+  pageSize: number;
+  startNum: number;
+  endNum: number;
+  onPage: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+}): React.JSX.Element {
+  return (
+    <div className="ap-panel__foot">
+      <span className="ap-panel__summary">
+        Showing <strong>{startNum}</strong> to <strong>{endNum}</strong> of{' '}
+        <strong>{total.toLocaleString('en-IN')}</strong> total attempts
+      </span>
+      <div className="ap-foot-controls">
+        <div className="ap-rows-per-page">
+          <span>Rows per page</span>
+          <CustomSelectPill
+            value={String(pageSize)}
+            options={[
+              { value: '10', label: '10' },
+              { value: '25', label: '25' },
+              { value: '50', label: '50' },
+            ]}
+            onChange={(val) => onPageSizeChange(Number(val))}
+            ariaLabel="Rows per page"
+          />
+        </div>
+        <Pager page={page} pageCount={pageCount} onPage={onPage} />
+      </div>
+    </div>
+  );
+}
+
 function Results({
   data,
   rows,
@@ -601,71 +712,112 @@ function Results({
           description="Nothing on this page matches that Order or Payment ID or selected filters."
         />
       ) : (
-        <div className="ap-table-wrap">
-          <table className="ap-table">
-            <thead>
-              <tr>
-                <th>Order ID</th>
-                <th>Payment ID</th>
-                <th>Amount</th>
-                <th>Payment Method</th>
-                <th>Status</th>
-                <th>Incident</th>
-                <th>
-                  <div className="ap-th-sort">
-                    <span>Time</span>
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="7 15 12 20 17 15" />
-                      <polyline points="7 9 12 4 17 9" />
-                    </svg>
-                  </div>
-                </th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <Row key={row.paymentId} row={row} />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ResultsTable rows={rows} />
       )}
 
       {data.total > 0 && !searching && (
-        <div className="ap-panel__foot">
-          <span className="ap-panel__summary">
-            Showing <strong>{startNum}</strong> to <strong>{endNum}</strong> of{' '}
-            <strong>{data.total.toLocaleString('en-IN')}</strong> total attempts
-          </span>
-          <div className="ap-foot-controls">
-            <div className="ap-rows-per-page">
-              <span>Rows per page</span>
-              <CustomSelectPill
-                value={String(pageSize)}
-                options={[
-                  { value: '10', label: '10' },
-                  { value: '25', label: '25' },
-                  { value: '50', label: '50' },
-                ]}
-                onChange={(val) => onPageSizeChange(Number(val))}
-                ariaLabel="Rows per page"
-              />
-            </div>
-            <Pager page={data.page} pageCount={pageCount} onPage={onPage} />
-          </div>
-        </div>
+        <ResultsFooter
+          total={data.total}
+          page={data.page}
+          pageCount={pageCount}
+          pageSize={pageSize}
+          startNum={startNum}
+          endNum={endNum}
+          onPage={onPage}
+          onPageSizeChange={onPageSizeChange}
+        />
       )}
     </section>
+  );
+}
+
+function matchesSearchTerm(row: AttemptRow, term: string): boolean {
+  return (
+    term === '' ||
+    row.paymentId.toLowerCase().includes(term) ||
+    row.orderId.toLowerCase().includes(term)
+  );
+}
+
+function matchesDateRange(row: AttemptRow, startDate: string, endDate: string): boolean {
+  if (!startDate || !endDate) return true;
+  const rowTime = Date.parse(row.at);
+  const startTime = Date.parse(`${startDate}T00:00:00Z`);
+  const endTime = Date.parse(`${endDate}T23:59:59Z`);
+  return rowTime >= startTime && rowTime <= endTime;
+}
+
+function matchesMethodFilter(row: AttemptRow, method: string): boolean {
+  return (
+    method === 'all' || (row.method !== null && row.method.toLowerCase() === method.toLowerCase())
+  );
+}
+
+function matchesRiskLevel(row: AttemptRow, riskLevel: string): boolean {
+  if (riskLevel === 'all') return true;
+  if (riskLevel === 'high' || riskLevel === 'medium' || riskLevel === 'critical') {
+    return row.incidentId !== null;
+  }
+  if (riskLevel === 'low') return row.incidentId === null;
+  return true;
+}
+
+interface RowFilters {
+  term: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  method: string;
+  riskLevel: string;
+}
+
+function rowMatchesFilters(row: AttemptRow, filters: RowFilters): boolean {
+  return (
+    matchesSearchTerm(row, filters.term) &&
+    matchesDateRange(row, filters.startDate, filters.endDate) &&
+    (filters.status === 'all' || row.status === filters.status) &&
+    matchesMethodFilter(row, filters.method) &&
+    matchesRiskLevel(row, filters.riskLevel)
+  );
+}
+
+function AttemptsBody({
+  attempts,
+  rows,
+  searching,
+  pageSize,
+  onPage,
+  onPageSizeChange,
+  filterProps,
+}: {
+  attempts: UseQueryResult<AttemptRowsResponse, Error>;
+  rows: AttemptRow[];
+  searching: boolean;
+  pageSize: number;
+  onPage: (page: number) => void;
+  onPageSizeChange: (size: number) => void;
+  filterProps: FilterProps;
+}): React.JSX.Element {
+  const data = attempts.data;
+  return attempts.isPending ? (
+    <Loading label="Resolving attempts..." />
+  ) : attempts.isError ? (
+    <ErrorState message={attempts.error.message} />
+  ) : data === undefined ? (
+    <ErrorState message="Attempts are unavailable" />
+  ) : (
+    <>
+      <Kpis kpis={data.kpis} />
+      <Results
+        data={data}
+        rows={rows}
+        searching={searching}
+        pageSize={pageSize}
+        onPage={onPage}
+        onPageSizeChange={onPageSizeChange}
+        filterProps={filterProps}
+      />
+    </>
   );
 }
 
@@ -710,36 +862,9 @@ export function AttemptsPage(): React.JSX.Element {
   const rows =
     data === undefined
       ? []
-      : data.rows.filter((row) => {
-          const matchesSearch =
-            term === '' ||
-            row.paymentId.toLowerCase().includes(term) ||
-            row.orderId.toLowerCase().includes(term);
-
-          let matchesDate = true;
-          if (startDate && endDate) {
-            const rowTime = Date.parse(row.at);
-            const startTime = Date.parse(`${startDate}T00:00:00Z`);
-            const endTime = Date.parse(`${endDate}T23:59:59Z`);
-            matchesDate = rowTime >= startTime && rowTime <= endTime;
-          }
-
-          const matchesStatus = status === 'all' || row.status === status;
-          const matchesMethod =
-            method === 'all' ||
-            (row.method !== null && row.method.toLowerCase() === method.toLowerCase());
-
-          let matchesRisk = true;
-          if (riskLevel !== 'all') {
-            if (riskLevel === 'high' || riskLevel === 'medium' || riskLevel === 'critical') {
-              matchesRisk = row.incidentId !== null;
-            } else if (riskLevel === 'low') {
-              matchesRisk = row.incidentId === null;
-            }
-          }
-
-          return matchesSearch && matchesDate && matchesStatus && matchesMethod && matchesRisk;
-        });
+      : data.rows.filter((row) =>
+          rowMatchesFilters(row, { term, startDate, endDate, status, method, riskLevel }),
+        );
 
   return (
     <div className="ap-page">
@@ -750,38 +875,27 @@ export function AttemptsPage(): React.JSX.Element {
         </div>
       </header>
 
-      {attempts.isPending ? (
-        <Loading label="Resolving attempts..." />
-      ) : attempts.isError ? (
-        <ErrorState message={attempts.error.message} />
-      ) : data === undefined ? (
-        <ErrorState message="Attempts are unavailable" />
-      ) : (
-        <>
-          <Kpis kpis={data.kpis} />
-          <Results
-            data={data}
-            rows={rows}
-            searching={term !== '' || startDate !== ''}
-            pageSize={pageSize}
-            onPage={setPage}
-            onPageSizeChange={handlePageSizeChange}
-            filterProps={{
-              status,
-              method,
-              riskLevel,
-              startDate,
-              endDate,
-              search,
-              setSearch,
-              onStatus: onFilter(setStatus),
-              onMethod: onFilter(setMethod),
-              onRiskLevel: onFilter(setRiskLevel),
-              onDateRangeChange: handleDateRangeChange,
-            }}
-          />
-        </>
-      )}
+      <AttemptsBody
+        attempts={attempts}
+        rows={rows}
+        searching={term !== '' || startDate !== ''}
+        pageSize={pageSize}
+        onPage={setPage}
+        onPageSizeChange={handlePageSizeChange}
+        filterProps={{
+          status,
+          method,
+          riskLevel,
+          startDate,
+          endDate,
+          search,
+          setSearch,
+          onStatus: onFilter(setStatus),
+          onMethod: onFilter(setMethod),
+          onRiskLevel: onFilter(setRiskLevel),
+          onDateRangeChange: handleDateRangeChange,
+        }}
+      />
     </div>
   );
 }

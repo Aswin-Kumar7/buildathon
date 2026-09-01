@@ -156,6 +156,33 @@ export function PolicySettingsCard({
         </Callout>
       )}
 
+      <RiskLadders draft={draft} set={set} />
+
+      <ApprovalSetting draft={draft} set={set} />
+
+      <Advanced draft={draft} set={set} />
+
+      <p className="pol-settings__foot">
+        {dirty && !allowlistEmpty
+          ? 'This policy has allowlist entries that can’t be edited from here, so it can’t be saved from the console.'
+          : dirty
+            ? `Next draft would be version ${version}.`
+            : 'Change a setting to stage a draft.'}
+      </p>
+    </section>
+  );
+}
+
+/** The three primary risk-response sliders: when to verify, when to block, and for how long. */
+function RiskLadders({
+  draft,
+  set,
+}: {
+  draft: PolicyDraft;
+  set: (key: keyof PolicyDraft, value: number | boolean) => void;
+}): React.JSX.Element {
+  return (
+    <>
       <Setting
         icon={<Checks />}
         title="Ask for verification when"
@@ -197,19 +224,7 @@ export function PolicySettingsCard({
           format={(m) => `${m} minutes`}
         />
       </Setting>
-
-      <ApprovalSetting draft={draft} set={set} />
-
-      <Advanced draft={draft} set={set} />
-
-      <p className="pol-settings__foot">
-        {dirty && !allowlistEmpty
-          ? 'This policy has allowlist entries that can’t be edited from here, so it can’t be saved from the console.'
-          : dirty
-            ? `Next draft would be version ${version}.`
-            : 'Change a setting to stage a draft.'}
-      </p>
-    </section>
+    </>
   );
 }
 

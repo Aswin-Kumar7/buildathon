@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card } from '@sentinel/ui';
 import type { IncidentDetail, IncidentGraph } from '@sentinel/contracts';
 import './IncidentRelationships.css';
-import { WarningCircle, Laptop, CreditCard, Globe, Clock, Desktop } from '@phosphor-icons/react';
+import { WarningCircle, Laptop, CreditCard, Globe, Clock } from '@phosphor-icons/react';
 
 /* ------------------------------------------------------------------------------------------------
  * Relationships tab
@@ -102,25 +102,6 @@ function contextNode(it: IncidentDetail): ContextNode | null {
   if (it.entityKind !== 'device' && devices > 0)
     return ctxNode('device', 'Device', devices, 'device fingerprint');
   return null;
-}
-
-function summaryMetrics(it: IncidentDetail): { value: number; label: string }[] {
-  const out: { value: number; label: string }[] = [];
-  const cards = cardCount(it);
-  if (cards > 0) out.push({ value: cards, label: 'Different cards' });
-  const devices = it.entityKind === 'device' ? 1 : distinctSensor(it, (s) => s.deviceFingerprint);
-  if (devices > 0) out.push({ value: devices, label: devices === 1 ? 'Device' : 'Devices' });
-  const sessions =
-    it.entityKind === 'network'
-      ? it.graph.sessions.length
-      : it.entityKind === 'session'
-        ? 1
-        : distinctSensor(it, (s) => s.sessionFingerprint);
-  if (sessions > 0) out.push({ value: sessions, label: sessions === 1 ? 'Session' : 'Sessions' });
-  const networks = it.entityKind === 'network' ? 1 : distinctSensor(it, (s) => s.ipFingerprint);
-  if (networks > 0) out.push({ value: networks, label: networks === 1 ? 'Network' : 'Networks' });
-  if (it.attempts > 0) out.push({ value: it.attempts, label: 'Payment attempts' });
-  return out;
 }
 
 type Insight = { icon: NodeKind; title: string; text: string };
