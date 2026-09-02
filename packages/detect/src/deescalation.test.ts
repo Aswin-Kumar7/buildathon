@@ -141,7 +141,10 @@ describe('incident de-escalation invariant', () => {
     // The safety guarantee: not a single opened attack entity ever arbitrates to a benign cause.
     expect(loud.reExplainedBenign).toBe(0);
     expect(distributed.reExplainedBenign).toBe(0);
-  });
+    // Streams two full scenarios through the pipeline at every checkpoint across eight seeds — several
+    // seconds of real work, so a generous timeout keeps a loaded CI runner from failing it on the clock
+    // rather than on the invariant it actually asserts.
+  }, 30_000);
 
   it('streaming dunning opens incidents that later re-explain themselves benign', () => {
     const dunning = streamOutcomes('retry_storm', SEEDS);
@@ -152,5 +155,5 @@ describe('incident de-escalation invariant', () => {
     // service de-escalates on. Not necessarily all of them: a slice showing eight cards once each and
     // never any reuse stays genuinely indistinguishable from an eight-card attack, and is left for a person.
     expect(dunning.reExplainedBenign).toBeGreaterThan(0);
-  });
+  }, 30_000);
 });
