@@ -105,6 +105,26 @@ for (const file of RUNTIME_FILES) {
   }
 }
 
+/**
+ * The other direction: a file the runtime stage copies that does not exist. Everything copied out of
+ * the build stage that is not itself a build output — anything not under a `dist/` — is a committed
+ * repo file, and when one is named that no longer exists (a model or asset dropped, its COPY line
+ * left behind), the image cannot build. Nothing before a real `docker build` notices, because every
+ * check above validates that required files ARE copied, never that copied files exist. A dropped
+ * benchmark model's `metrics.json` broke a deploy exactly here.
+ */
+for (const image of IMAGES) {
+  const contents = readFileSync(image, 'utf8');
+  for (const [, src] of contents.matchAll(/^COPY --from=build \/repo\/(\S+)\s+\S+/gm)) {
+    if (src.split('/').includes('dist')) continue; // a build output, absent until `pnpm build` runs
+    if (!existsSync(src)) {
+      problems.push(
+        `${image} — copies ${src} out of the build stage, but no such file exists in the repo; docker build would fail on it`,
+      );
+    }
+  }
+}
+
 if (problems.length > 0) {
   console.error('check:docker failed — an image would not build, or would not run\n');
   for (const problem of problems) console.error(`  ${problem}`);
