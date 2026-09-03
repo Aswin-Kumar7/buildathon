@@ -1,14 +1,9 @@
 import { useState } from 'react';
-import { TrendUp, X, Checks, SignOut, LockKey } from '@phosphor-icons/react';
-import { Button, Callout } from '@sentinel/ui';
+import { TrendUp, X, Checks, SignOut, Lock, Play } from '@phosphor-icons/react';
+import { Callout } from '@sentinel/ui';
 import type { SimulationResponse, SimulationRow } from '@sentinel/contracts';
 import { actionLabel, decisionCode, rupees } from '../incidents/policy-words.js';
 
-/**
- * The impact preview. Every number here comes straight from POST /api/policy/simulate run against
- * incidents that already happened — nothing is computed in the browser. Costs are the engine's own
- * per-decision estimates, shown on both sides and never averaged, and labelled as estimates.
- */
 export function PolicyPreviewCard({
   onPreview,
   pending,
@@ -25,24 +20,37 @@ export function PolicyPreviewCard({
   dirty: boolean;
 }): React.JSX.Element {
   return (
-    <section className="pol-card pol-preview">
-      <header className="pol-preview__head">
-        <h2>Preview impact</h2>
-        <p>See how these settings could affect recent payment activity.</p>
+    <section className="pol-prev-card">
+      <header className="pol-prev-card__head">
+        <h2 className="pol-prev-card__title">Preview impact</h2>
+        <p className="pol-prev-card__desc">
+          See how these settings could affect recent payment activity.
+        </p>
       </header>
 
-      <div className="pol-preview__scope">
-        <TrendUp /> Based on incidents Sentinel has already recorded.
+      <div className="pol-prev-card__body">
+        <div className="pol-prev-card__info-banner">
+          <TrendUp size={16} className="pol-prev-card__banner-icon" />
+          <span className="pol-prev-card__banner-text">
+            Based on incidents Sentinel has already recorded.
+          </span>
+        </div>
+
+        <PreviewBody pending={pending} result={result} error={error} dirty={dirty} />
+
+        <button
+          type="button"
+          className="pol-prev-card__btn-run"
+          onClick={onPreview}
+          disabled={pending || blocked}
+        >
+          <Play size={13} /> {pending ? 'Simulating…' : 'Preview impact'}
+        </button>
+
+        <div className="pol-prev-card__lock-note">
+          <Lock size={13} /> No changes are saved until you create a draft.
+        </div>
       </div>
-
-      <PreviewBody pending={pending} result={result} error={error} dirty={dirty} />
-
-      <Button className="pol-preview__cta" onClick={onPreview} disabled={pending || blocked}>
-        {pending ? 'Previewing…' : 'Preview impact'}
-      </Button>
-      <p className="pol-preview__foot">
-        <LockKey /> No changes are saved until you create a draft.
-      </p>
     </section>
   );
 }
@@ -76,15 +84,16 @@ function PreviewBody({
       </Callout>
     );
   }
-  if (pending)
+  if (pending) {
     return (
-      <p className="pol-preview__hint" role="status">
+      <p className="pol-prev-card__prompt" role="status">
         Previewing against recorded incidents…
       </p>
     );
+  }
   if (result === undefined) {
     return (
-      <p className="pol-preview__hint">
+      <p className="pol-prev-card__prompt">
         {dirty
           ? 'Preview to see how your changes would have affected recent activity.'
           : 'Change a setting, then preview its impact here.'}
@@ -103,7 +112,7 @@ function Results({ result }: { result: SimulationResponse }): React.JSX.Element 
   const costWait = changed.reduce((sum, row) => sum + row.proposed.expectedCost.ifWeWait, 0);
 
   return (
-    <>
+    <div className="pol-prev-card__results-container">
       <ul className="pol-impact">
         <Metric
           icon={<X />}
@@ -162,7 +171,7 @@ function Results({ result }: { result: SimulationResponse }): React.JSX.Element 
       )}
 
       {changed.length > 0 && <ChangedDetail rows={changed} />}
-    </>
+    </div>
   );
 }
 

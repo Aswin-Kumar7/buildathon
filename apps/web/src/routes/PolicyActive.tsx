@@ -1,17 +1,6 @@
-import { Badge } from '@sentinel/ui';
 import type { PolicyResponse, PolicyVersion } from '@sentinel/contracts';
-import { STATUS_LABEL, STATUS_TONE } from './policy-draft.js';
 import { fmtDateTime } from './policy-ui.js';
 
-/**
- * The active policy — the exact document the engine is deciding on, matched to its governance record
- * by hash. This card is read-only: it is a statement of what is live, not a place to change it.
- *
- * There is no kill-switch toggle here. Stopping Sentinel is the Kill switch card above (an instant,
- * block-releasing emergency stop); the reviewed policy's own killSwitch field is surfaced only when
- * it is actually set, so a rare true value is never hidden — but it is never presented as a live
- * control, because changing it means publishing a new policy, and it does not release live blocks.
- */
 export function ActivePolicyCard({
   policy,
   versions,
@@ -20,47 +9,46 @@ export function ActivePolicyCard({
   versions: PolicyVersion[];
 }): React.JSX.Element {
   const record = versions.find((version) => version.hash === policy.hash) ?? null;
+  const isFromFile = record === null;
 
   return (
-    <section className="pol-card pol-active">
-      <header className="pol-active__head">
-        <h2>Active policy</h2>
-        {record !== null ? (
-          <Badge tone={STATUS_TONE[record.status]}>{STATUS_LABEL[record.status]}</Badge>
-        ) : (
-          <Badge tone="neutral">From file</Badge>
-        )}
+    <section className="pol-active-card">
+      <header className="pol-active-card__head">
+        <h2 className="pol-active-card__title">Active policy</h2>
+        <span className="pol-active-card__badge">{isFromFile ? 'From file' : record.status}</span>
       </header>
-      <dl className="pol-active__facts">
-        <Fact term="Version" value={`v${policy.version}`} />
-        <Fact term="Published on" value={fmtDateTime(record?.publishedAt ?? null)} />
-        <Fact term="Approved by" value={record?.approvedByName ?? record?.createdByName ?? '—'} />
-        <Fact term="Policy hash" value={<code>{policy.hash}</code>} mono />
-      </dl>
+
+      <div className="pol-active-card__rows">
+        <div className="pol-active-card__row">
+          <span className="pol-active-card__label">Version</span>
+          <span className="pol-active-card__value pol-active-card__value--bold">
+            v{policy.version}
+          </span>
+        </div>
+        <div className="pol-active-card__row">
+          <span className="pol-active-card__label">Published on</span>
+          <span className="pol-active-card__value">
+            {record?.publishedAt ? fmtDateTime(record.publishedAt) : '—'}
+          </span>
+        </div>
+        <div className="pol-active-card__row">
+          <span className="pol-active-card__label">Approved by</span>
+          <span className="pol-active-card__value">
+            {record?.approvedByName ?? record?.createdByName ?? '—'}
+          </span>
+        </div>
+        <div className="pol-active-card__row">
+          <span className="pol-active-card__label">Policy hash</span>
+          <span className="pol-active-card__hash">{policy.hash}</span>
+        </div>
+      </div>
+
       {policy.killSwitch && (
-        <p className="pol-active__note" role="status">
+        <p className="pol-active-card__note" role="status">
           This published policy has its kill-switch field set on, so under it Sentinel takes no
-          action. Changing that means publishing a new policy — it is separate from the instant Kill
-          switch above.
+          action. Changing that means publishing a new policy.
         </p>
       )}
     </section>
-  );
-}
-
-function Fact({
-  term,
-  value,
-  mono,
-}: {
-  term: string;
-  value: React.ReactNode;
-  mono?: boolean;
-}): React.JSX.Element {
-  return (
-    <div className="pol-fact">
-      <dt>{term}</dt>
-      <dd className={mono ? 'pol-fact__mono' : undefined}>{value}</dd>
-    </div>
   );
 }

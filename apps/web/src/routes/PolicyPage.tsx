@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Clock } from '@phosphor-icons/react';
+import { ClockCounterClockwise } from '@phosphor-icons/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Callout } from '@sentinel/ui';
 import {
@@ -31,11 +31,13 @@ async function fetchPolicy(): Promise<PolicyResponse> {
   if (!response.ok) throw new Error(`api returned ${response.status}`);
   return policyResponseSchema.parse(await response.json());
 }
+
 async function fetchVersions(): Promise<PolicyVersion[]> {
   const response = await fetch('/api/policy/versions', { credentials: 'include' });
   if (!response.ok) throw new Error(`api returned ${response.status}`);
   return policyVersionListResponseSchema.parse(await response.json()).versions;
 }
+
 async function postJson(path: string, body?: unknown): Promise<unknown> {
   const response = await apiMutate(path, body);
   if (!response.ok) {
@@ -50,7 +52,6 @@ async function postJson(path: string, body?: unknown): Promise<unknown> {
   return response.json();
 }
 
-// eslint-disable-next-line max-lines-per-function
 export function PolicyPage(): React.JSX.Element {
   const client = useQueryClient();
   const policy = useQuery({ queryKey: ['policy'], queryFn: fetchPolicy });
@@ -60,13 +61,9 @@ export function PolicyPage(): React.JSX.Element {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [saveNote, setSaveNote] = useState<{ tone: 'ok' | 'critical'; text: string } | null>(null);
 
-  // Draft edits are applied through the live value, so a sub-component never has to reason about the
-  // null (not-yet-loaded) state the page already guards before rendering them.
   const updateDraft = (fn: (draft: PolicyDraft) => PolicyDraft): void =>
     setDraft((current) => (current === null ? current : fn(current)));
 
-  // Seed the draft from the live policy once it loads, and re-seed only while the merchant has made
-  // no edits — so a background refresh of the active policy never discards work in progress.
   const live = policy.data;
   useEffect(() => {
     if (live === undefined) return;
@@ -134,7 +131,7 @@ export function PolicyPage(): React.JSX.Element {
   };
 
   return (
-    <div className="pol">
+    <div className="pol-page">
       <PageBar onHistory={() => setHistoryOpen(true)} />
 
       <EnforcementCard />
@@ -144,13 +141,13 @@ export function PolicyPage(): React.JSX.Element {
           <p role="alert">{policy.error.message}</p>
         </Callout>
       )}
+
       {policy.isPending && <PolicySkeleton />}
 
       {live !== undefined && draft !== null && (
-        <>
-          <ActivePolicyCard policy={live} versions={versions.data ?? []} />
-
-          <div className="pol-grid">
+        <div className="pol-grid">
+          {/* Column 1: Policy Settings */}
+          <div className="pol-grid__col-left">
             <PolicySettingsCard
               draft={draft}
               onDraft={updateDraft}
@@ -163,16 +160,21 @@ export function PolicyPage(): React.JSX.Element {
               note={saveNote}
               onSave={runSave}
             />
+          </div>
+
+          {/* Column 2: Active Policy & Preview Impact */}
+          <div className="pol-grid__col-right">
+            <ActivePolicyCard policy={live} versions={versions.data ?? []} />
             <PolicyPreviewCard
               onPreview={runPreview}
               pending={simulate.isPending}
               result={simulate.data}
-              error={simulate.isError ? simulate.error.message : null}
+              error={simulate.error ? simulate.error.message : null}
               blocked={clientProblems.length > 0}
               dirty={dirty}
             />
           </div>
-        </>
+        </div>
       )}
 
       {historyOpen && (
@@ -189,12 +191,18 @@ export function PolicyPage(): React.JSX.Element {
 function PageBar({ onHistory }: { onHistory: () => void }): React.JSX.Element {
   return (
     <header className="pol-head">
-      <div>
-        <h1>Policies</h1>
+      <div className="pol-head__left">
+        <div className="pol-head__title-row">
+          <h1>Policies</h1>
+          <span className="pol-head__status-pill">
+            <span className="pol-head__status-dot" />
+            Sentinel active
+          </span>
+        </div>
         <p>Control how Sentinel protects your business. Changes are reviewed before you save.</p>
       </div>
-      <button type="button" className="pol-head__history" onClick={onHistory}>
-        <Clock /> View history
+      <button type="button" className="pol-head__history-btn" onClick={onHistory}>
+        <ClockCounterClockwise size={14} /> View history
       </button>
     </header>
   );

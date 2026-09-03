@@ -1,20 +1,23 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import {
   FloppyDisk,
   PaperPlaneRight,
   DownloadSimple,
-  Checks,
-  X,
-  Clock,
-  Check,
-  ArrowRight,
+  Gauge,
+  SealCheck,
+  HandPalm,
+  ClockCountdown,
+  UserCheck,
+  CurrencyInr,
+  SlidersHorizontal,
+  Info,
+  CaretRight,
+  CaretDown,
 } from '@phosphor-icons/react';
-import { Callout } from '@sentinel/ui';
 import type { PolicyResponse } from '@sentinel/contracts';
 import {
   blockOptions,
   buildPolicyYaml,
-  draftFromPolicy,
   durationOptions,
   pct,
   scoreOptions,
@@ -25,7 +28,6 @@ import { Toggle } from './policy-ui.js';
 type DraftSetter = (updater: (draft: PolicyDraft) => PolicyDraft) => void;
 type SaveNote = { tone: 'ok' | 'critical'; text: string } | null;
 
-/** The safeguards behind the collapsible row — every one a real, backend-enforced ceiling. */
 interface Safeguard {
   key: keyof PolicyDraft;
   kind: 'number' | 'percent' | 'bool';
@@ -33,6 +35,7 @@ interface Safeguard {
   hint: string;
   suffix?: string;
 }
+
 const SAFEGUARDS: Safeguard[] = [
   {
     key: 'maxActiveContainments',
@@ -93,6 +96,46 @@ const SAFEGUARDS: Safeguard[] = [
   },
 ];
 
+function LadderSlider({
+  options,
+  value,
+  onChange,
+  ariaLabel,
+  format,
+  rangeLabel,
+}: {
+  options: number[];
+  value: number;
+  onChange: (next: number) => void;
+  ariaLabel: string;
+  format: (value: number) => string;
+  rangeLabel: string;
+}): React.JSX.Element {
+  const safe = options.length > 0 ? options : [value];
+  const idx = Math.max(0, safe.indexOf(value));
+  return (
+    <div className="pol-settings-row__control">
+      <div className="pol-settings-slider-header">
+        <span className="pol-settings-slider-val">{format(value)}</span>
+        <span className="pol-settings-slider-range">{rangeLabel}</span>
+      </div>
+      <div className="pol-settings-slider-track-wrap">
+        <input
+          type="range"
+          min={0}
+          max={safe.length - 1}
+          step={1}
+          value={idx}
+          onChange={(event) => onChange(safe[Number(event.target.value)] ?? value)}
+          className="pol-settings-slider-input"
+          aria-label={ariaLabel}
+          aria-valuetext={format(value)}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function PolicySettingsCard({
   draft,
   onDraft,
@@ -116,402 +159,265 @@ export function PolicySettingsCard({
   note: SaveNote;
   onSave: (submit: boolean) => void;
 }): React.JSX.Element {
-  const set = (key: keyof PolicyDraft, value: number | boolean): void =>
-    onDraft((current) => ({ ...current, [key]: value }));
+  const [safeguardsOpen, setSafeguardsOpen] = useState(false);
+
+  const downloadYaml = (): void => {
+    const yaml = buildPolicyYaml(draft, policy, version);
+    const blob = new Blob([yaml], { type: 'application/x-yaml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sentinel-policy-v${version}.yaml`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
-    <section className="pol-card pol-settings">
-      <header className="pol-settings__head">
-        <div className="pol-settings__intro">
-          <h2>Policy settings</h2>
-          <p>
-            Drag to adjust how Sentinel handles risky activity. Changes are staged as a draft and
-            reviewed before they go live.
+    <section className="pol-settings-card">
+      {/* Header with Title and Action Icons */}
+      <div className="pol-settings-card__head">
+        <div className="pol-settings-card__head-info">
+          <h2 className="pol-settings-card__title">Policy settings</h2>
+          <p className="pol-settings-card__desc">
+            Adjust how Sentinel handles risky activity. Changes are staged as a draft and reviewed
+            before they go live.
           </p>
         </div>
-        <SettingsActions
-          policy={policy}
-          dirty={dirty}
-          allowlistEmpty={allowlistEmpty}
-          pending={pending}
-          onSave={onSave}
-        />
-      </header>
+        <div className="pol-settings-card__actions">
+          <button
+            type="button"
+            className="pol-settings-card__icon-btn"
+            title="Save draft"
+            aria-label="Save as draft"
+            onClick={() => onSave(false)}
+            disabled={!dirty || pending || problems.length > 0}
+          >
+            <FloppyDisk size={15} />
+          </button>
+          <button
+            type="button"
+            className="pol-settings-card__icon-btn"
+            title="Submit for approval"
+            aria-label="Submit for approval"
+            onClick={() => onSave(true)}
+            disabled={!dirty || pending || problems.length > 0}
+          >
+            <PaperPlaneRight size={15} />
+          </button>
+          <button
+            type="button"
+            className="pol-settings-card__icon-btn"
+            title="Export policy YAML"
+            aria-label="Export policy YAML"
+            onClick={downloadYaml}
+          >
+            <DownloadSimple size={15} />
+          </button>
+        </div>
+      </div>
 
       {note !== null && (
-        <Callout
-          tone={note.tone === 'ok' ? 'ok' : 'critical'}
-          title={note.tone === 'ok' ? 'Done' : 'Not saved'}
-        >
-          <p role="status">{note.text}</p>
-        </Callout>
-      )}
-      {problems.length > 0 && (
-        <Callout tone="warn" title="Check these before saving">
-          <ul className="pol-problems">
-            {problems.map((problem) => (
-              <li key={problem}>{problem}</li>
-            ))}
-          </ul>
-        </Callout>
+        <div className={`pol-settings-card__note pol-settings-card__note--${note.tone}`}>
+          {note.text}
+        </div>
       )}
 
-      <RiskLadders draft={draft} set={set} />
+      {/* Section 1: RISK THRESHOLDS */}
+      <div className="pol-settings-card__section-head">
+        <Gauge size={14} />
+        <span>Risk thresholds</span>
+      </div>
 
-      <ApprovalSetting draft={draft} set={set} />
-
-      <Advanced draft={draft} set={set} />
-
-      <p className="pol-settings__foot">
-        {dirty && !allowlistEmpty
-          ? 'This policy has allowlist entries that can’t be edited from here, so it can’t be saved from the console.'
-          : dirty
-            ? `Next draft would be version ${version}.`
-            : 'Change a setting to stage a draft.'}
-      </p>
-    </section>
-  );
-}
-
-/** The three primary risk-response sliders: when to verify, when to block, and for how long. */
-function RiskLadders({
-  draft,
-  set,
-}: {
-  draft: PolicyDraft;
-  set: (key: keyof PolicyDraft, value: number | boolean) => void;
-}): React.JSX.Element {
-  return (
-    <>
-      <Setting
-        icon={<Checks />}
-        title="Ask for verification when"
-        desc="Customers verify when activity looks suspicious but not clearly fraudulent."
-      >
+      {/* Slider 1: Ask for verification when */}
+      <div className="pol-settings-row">
+        <div className="pol-settings-row__info">
+          <span className="pol-settings-row__icon-plate">
+            <SealCheck size={15} />
+          </span>
+          <div className="pol-settings-row__text">
+            <span className="pol-settings-row__label">Ask for verification when</span>
+            <span className="pol-settings-row__sub">
+              Customers verify when activity looks suspicious but not clearly fraudulent.
+            </span>
+          </div>
+        </div>
         <LadderSlider
           options={scoreOptions(draft.stepUp, 0)}
           value={draft.stepUp}
-          onChange={(v) => set('stepUp', v)}
+          onChange={(val) => onDraft((d) => ({ ...d, stepUp: val }))}
           ariaLabel="Verification risk level"
-          format={(v) => `${pct(v)} risk score`}
+          format={(v) => `${pct(v)}`}
+          rangeLabel="40% – 70%"
         />
-      </Setting>
+      </div>
 
-      <Setting
-        icon={<X />}
-        title="Block suspicious activity when"
-        desc="Pulse with strong signs of abuse is blocked temporarily."
-      >
+      {/* Slider 2: Block suspicious activity when */}
+      <div className="pol-settings-row">
+        <div className="pol-settings-row__info">
+          <span className="pol-settings-row__icon-plate">
+            <HandPalm size={15} />
+          </span>
+          <div className="pol-settings-row__text">
+            <span className="pol-settings-row__label">Block suspicious activity when</span>
+            <span className="pol-settings-row__sub">
+              A shopper with strong signs of abuse is blocked temporarily.
+            </span>
+          </div>
+        </div>
         <LadderSlider
           options={blockOptions(draft.contain, draft.stepUp)}
           value={draft.contain}
-          onChange={(v) => set('contain', v)}
-          ariaLabel="Block risk level"
-          format={(v) => `${pct(v)} risk score`}
+          onChange={(val) => onDraft((d) => ({ ...d, contain: val }))}
+          ariaLabel="Containment risk level"
+          format={(v) => `${pct(v)}`}
+          rangeLabel="60% – 90%"
         />
-      </Setting>
+      </div>
 
-      <Setting
-        icon={<Clock />}
-        title="Block duration"
-        desc="The block is lifted automatically after the selected time."
-      >
+      {/* Slider 3: Block duration */}
+      <div className="pol-settings-row">
+        <div className="pol-settings-row__info">
+          <span className="pol-settings-row__icon-plate">
+            <ClockCountdown size={15} />
+          </span>
+          <div className="pol-settings-row__text">
+            <span className="pol-settings-row__label">Block duration</span>
+            <span className="pol-settings-row__sub">
+              The block is lifted automatically after the selected time.
+            </span>
+          </div>
+        </div>
         <LadderSlider
           options={durationOptions(draft.defaultMinutes, draft.maxMinutes)}
           value={draft.defaultMinutes}
-          onChange={(v) => set('defaultMinutes', v)}
-          ariaLabel="Block duration"
-          format={(m) => `${m} minutes`}
-        />
-      </Setting>
-    </>
-  );
-}
-
-/** The three staged-change actions, as icon buttons in the card header. Labels live in the tooltip and for assistive tech. */
-function SettingsActions({
-  policy,
-  dirty,
-  allowlistEmpty,
-  pending,
-  onSave,
-}: {
-  policy: PolicyResponse;
-  dirty: boolean;
-  allowlistEmpty: boolean;
-  pending: boolean;
-  onSave: (submit: boolean) => void;
-}): React.JSX.Element {
-  const canSave = dirty && allowlistEmpty && !pending;
-  return (
-    <div className="pol-settings__actions">
-      <button
-        type="button"
-        className="pol-settings__act pol-settings__act--primary"
-        title="Save as draft"
-        aria-label="Save as draft"
-        disabled={!canSave}
-        onClick={() => onSave(false)}
-      >
-        {pending ? <Spinner /> : <FloppyDisk />}
-      </button>
-      <button
-        type="button"
-        className="pol-settings__act"
-        title="Create draft & request approval"
-        aria-label="Create draft & request approval"
-        disabled={!canSave}
-        onClick={() => onSave(true)}
-      >
-        <PaperPlaneRight />
-      </button>
-      <button
-        type="button"
-        className="pol-settings__act"
-        title="Export current policy (YAML)"
-        aria-label="Export current policy"
-        disabled={!allowlistEmpty}
-        onClick={() => exportPolicy(policy)}
-      >
-        <DownloadSimple />
-      </button>
-    </div>
-  );
-}
-
-function exportPolicy(policy: PolicyResponse): void {
-  const yaml = buildPolicyYaml(draftFromPolicy(policy), policy, policy.version);
-  const url = URL.createObjectURL(new Blob([yaml], { type: 'text/yaml' }));
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = `sentinel-policy-v${policy.version}.yaml`;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
-/** A slider that steps through a fixed ladder of valid values — drag left/right, never an invalid stop. */
-function LadderSlider({
-  options,
-  value,
-  onChange,
-  ariaLabel,
-  format,
-}: {
-  options: number[];
-  value: number;
-  onChange: (next: number) => void;
-  ariaLabel: string;
-  format: (value: number) => string;
-}): React.JSX.Element {
-  const safe = options.length > 0 ? options : [value];
-  const idx = Math.max(0, safe.indexOf(value));
-  const first = safe[0] ?? value;
-  const last = safe[safe.length - 1] ?? value;
-  return (
-    <div className="pol-slider">
-      <div className="pol-slider__value">{format(value)}</div>
-      <input
-        type="range"
-        className="pol-slider__range"
-        min={0}
-        max={safe.length - 1}
-        step={1}
-        value={idx}
-        onChange={(event) => onChange(safe[Number(event.target.value)] ?? value)}
-        aria-label={ariaLabel}
-        aria-valuetext={format(value)}
-      />
-      <div className="pol-slider__ends" aria-hidden="true">
-        <span>{format(first)}</span>
-        <span>{format(last)}</span>
-      </div>
-    </div>
-  );
-}
-
-function Setting({
-  icon,
-  title,
-  desc,
-  children,
-}: {
-  icon: ReactNode;
-  title: string;
-  desc: string;
-  children: ReactNode;
-}): React.JSX.Element {
-  return (
-    <div className="pol-setting">
-      <div className="pol-setting__label">
-        <span className="pol-setting__ico">{icon}</span>
-        <span className="pol-setting__labeltext">
-          <strong>{title}</strong>
-          <small>{desc}</small>
-        </span>
-      </div>
-      <div className="pol-setting__control">{children}</div>
-    </div>
-  );
-}
-
-function ApprovalSetting({
-  draft,
-  set,
-}: {
-  draft: PolicyDraft;
-  set: (key: keyof PolicyDraft, value: number | boolean) => void;
-}): React.JSX.Element {
-  return (
-    <div className="pol-setting pol-setting--group">
-      <div className="pol-setting__label">
-        <span className="pol-setting__ico">
-          <Check />
-        </span>
-        <span className="pol-setting__labeltext">
-          <strong>Require approval before blocking</strong>
-          <small>Recommended, so no shopper is ever blocked without a person agreeing.</small>
-        </span>
-      </div>
-      <div className="pol-setting__control pol-setting__control--toggle">
-        <Toggle
-          checked={draft.containmentAlwaysNeedsApproval}
-          onChange={(next) => set('containmentAlwaysNeedsApproval', next)}
-          label="Require approval before blocking"
+          onChange={(val) => onDraft((d) => ({ ...d, defaultMinutes: val }))}
+          ariaLabel="Default block duration"
+          format={(v) => `${v} min`}
+          rangeLabel="5 min – 120 min"
         />
       </div>
 
-      <div className="pol-subsetting">
-        <div className="pol-subsetting__label">
-          <strong>Approval required above</strong>
-          <small>Transactions above this amount require an additional approver.</small>
-        </div>
-        <div className="pol-subsetting__control">
-          <span className="pol-money">
-            <span aria-hidden="true">₹</span>
-            <input
-              type="number"
-              min="0"
-              step="100"
-              value={Math.round(draft.dualApprovalAbovePaise / 100)}
-              onChange={(event) =>
-                set(
-                  'dualApprovalAbovePaise',
-                  Math.max(0, Math.round(Number(event.target.value))) * 100,
-                )
-              }
-              aria-label="Approval required above amount in rupees"
-            />
+      {/* Section 2: APPROVALS */}
+      <div className="pol-settings-card__section-head">
+        <UserCheck size={14} />
+        <span>Approvals</span>
+      </div>
+
+      {/* Toggle: Require approval before blocking */}
+      <div className="pol-settings-row">
+        <div className="pol-settings-row__info">
+          <span className="pol-settings-row__icon-plate">
+            <UserCheck size={15} />
           </span>
+          <div className="pol-settings-row__text">
+            <span className="pol-settings-row__label">Require approval before blocking</span>
+            <span className="pol-settings-row__sub">
+              Recommended, so no shopper is ever blocked without a person agreeing.
+            </span>
+          </div>
+        </div>
+        <div className="pol-settings-row__toggle-wrap">
+          <Toggle
+            checked={draft.containmentAlwaysNeedsApproval}
+            onChange={(checked) =>
+              onDraft((d) => ({ ...d, containmentAlwaysNeedsApproval: checked }))
+            }
+            label="Require approval before blocking"
+          />
         </div>
       </div>
-    </div>
-  );
-}
 
-function Advanced({
-  draft,
-  set,
-}: {
-  draft: PolicyDraft;
-  set: (key: keyof PolicyDraft, value: number | boolean) => void;
-}): React.JSX.Element {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className={`pol-advanced${open ? ' is-open' : ''}`}>
-      <button
-        type="button"
-        className="pol-advanced__bar"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-      >
-        <span className="pol-advanced__title">
-          <ArrowRight />
-          <span>
-            <strong>Advanced safeguards</strong>
-            <small>Set limits to control the maximum impact Sentinel can have.</small>
+      {/* Input: Approval required above */}
+      <div className="pol-settings-row">
+        <div className="pol-settings-row__info">
+          <span className="pol-settings-row__icon-plate">
+            <CurrencyInr size={15} />
           </span>
+          <div className="pol-settings-row__text">
+            <span className="pol-settings-row__label">Approval required above</span>
+            <span className="pol-settings-row__sub">
+              Transactions above this amount require an additional approver.
+            </span>
+          </div>
+        </div>
+        <div className="pol-settings-amount-wrap">
+          <span className="pol-settings-amount-cur">₹</span>
+          <input
+            type="number"
+            value={Math.round(draft.dualApprovalAbovePaise / 100)}
+            onChange={(e) => {
+              const rupees = Math.max(0, parseInt(e.target.value || '0', 10));
+              onDraft((d) => ({ ...d, dualApprovalAbovePaise: rupees * 100 }));
+            }}
+            className="pol-settings-amount-input"
+            aria-label="Approval required above amount in Rupees"
+          />
+        </div>
+      </div>
+
+      {/* Section 3: LIMITS */}
+      <div className="pol-settings-card__section-head">
+        <SlidersHorizontal size={14} />
+        <span>Limits</span>
+      </div>
+
+      <div className="pol-settings-safeguards-trigger" onClick={() => setSafeguardsOpen((v) => !v)}>
+        <span className="pol-settings-row__icon-plate">
+          <SlidersHorizontal size={15} />
         </span>
-        <span className="pol-advanced__count">{SAFEGUARDS.length} safeguards</span>
-      </button>
-      {open && (
-        <div className="pol-advanced__body">
-          {SAFEGUARDS.map((safeguard) => (
-            <SafeguardRow key={safeguard.key} safeguard={safeguard} draft={draft} set={set} />
+        <div className="pol-settings-row__text">
+          <span className="pol-settings-row__label">Advanced safeguards</span>
+          <span className="pol-settings-row__sub">
+            Limits that cap the maximum impact Sentinel can have.
+          </span>
+        </div>
+        <span className="pol-settings-safeguards-badge">9 safeguards</span>
+        {safeguardsOpen ? <CaretDown size={13} /> : <CaretRight size={13} />}
+      </div>
+
+      {safeguardsOpen && (
+        <div className="pol-settings-safeguards-body">
+          {SAFEGUARDS.map((s) => (
+            <div key={s.key} className="pol-safeguard-row">
+              <div className="pol-safeguard-row__info">
+                <span className="pol-safeguard-row__label">{s.label}</span>
+                <span className="pol-safeguard-row__hint">{s.hint}</span>
+              </div>
+              <div className="pol-safeguard-row__control">
+                {s.kind === 'bool' ? (
+                  <Toggle
+                    checked={draft[s.key] as boolean}
+                    onChange={(checked) =>
+                      onDraft((d) => ({ ...d, [s.key]: checked }) as PolicyDraft)
+                    }
+                    label={s.label}
+                  />
+                ) : (
+                  <div className="pol-safeguard-input-wrap">
+                    <input
+                      type="number"
+                      value={draft[s.key] as number}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value || '0');
+                        onDraft((d) => ({ ...d, [s.key]: val }) as PolicyDraft);
+                      }}
+                      className="pol-safeguard-input"
+                      aria-label={s.label}
+                    />
+                    {s.suffix && <span className="pol-safeguard-suffix">{s.suffix}</span>}
+                  </div>
+                )}
+              </div>
+            </div>
           ))}
         </div>
       )}
-    </div>
-  );
-}
 
-function SafeguardRow({
-  safeguard,
-  draft,
-  set,
-}: {
-  safeguard: Safeguard;
-  draft: PolicyDraft;
-  set: (key: keyof PolicyDraft, value: number | boolean) => void;
-}): React.JSX.Element {
-  const value = draft[safeguard.key];
-  return (
-    <div className="pol-guard">
-      <div className="pol-guard__text">
-        <strong>{safeguard.label}</strong>
-        <small>{safeguard.hint}</small>
+      {/* Card Footer */}
+      <div className="pol-settings-card__foot">
+        <Info size={14} />
+        <span>Change a setting to stage a draft.</span>
       </div>
-      <div className="pol-guard__control">
-        {safeguard.kind === 'bool' ? (
-          <Toggle
-            checked={value === true}
-            onChange={(next) => set(safeguard.key, next)}
-            label={safeguard.label}
-          />
-        ) : safeguard.kind === 'percent' ? (
-          <span className="pol-suffix">
-            <input
-              type="number"
-              min="0"
-              max="100"
-              value={Math.round((value as number) * 100)}
-              onChange={(event) =>
-                set(safeguard.key, Math.min(100, Math.max(0, Number(event.target.value))) / 100)
-              }
-              aria-label={safeguard.label}
-            />
-            <span aria-hidden="true">%</span>
-          </span>
-        ) : (
-          <span className="pol-suffix">
-            <input
-              type="number"
-              min="0"
-              value={value as number}
-              onChange={(event) =>
-                set(safeguard.key, Math.max(0, Math.round(Number(event.target.value))))
-              }
-              aria-label={safeguard.label}
-            />
-            {safeguard.suffix !== undefined && <span aria-hidden="true">{safeguard.suffix}</span>}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Spinner(): React.JSX.Element {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden="true"
-      className="pol-spin"
-    >
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.2" strokeOpacity="0.25" />
-      <path d="M21 12a9 9 0 00-9-9" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-    </svg>
+    </section>
   );
 }

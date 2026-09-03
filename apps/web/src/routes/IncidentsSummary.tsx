@@ -1,5 +1,4 @@
 import type { IncidentSummary } from '@sentinel/contracts';
-import { WarningCircle, Check } from '@phosphor-icons/react';
 
 export type Bucket = 'critical' | 'high' | 'medium' | 'low';
 
@@ -13,16 +12,45 @@ export function bucketOf(incident: IncidentSummary): Bucket {
   return incident.severity;
 }
 
-const CARDS: { key: Bucket | 'resolved'; label: string; tone: string; icon: React.ElementType }[] =
-  [
-    { key: 'critical', label: 'Critical', tone: 'critical', icon: WarningCircle },
-    { key: 'high', label: 'High', tone: 'high', icon: WarningCircle },
-    { key: 'medium', label: 'Medium', tone: 'medium', icon: WarningCircle },
-    { key: 'low', label: 'Low', tone: 'low', icon: WarningCircle },
-    { key: 'resolved', label: 'Resolved', tone: 'resolved', icon: Check },
-  ];
-
 export type SummaryKey = Bucket | 'resolved';
+
+const CARDS: {
+  key: SummaryKey;
+  label: string;
+  dotClass: string;
+  barClass: string;
+}[] = [
+  {
+    key: 'critical',
+    label: 'Critical',
+    dotClass: 'incp-metric-dot--critical',
+    barClass: 'incp-metric-bar--critical',
+  },
+  {
+    key: 'high',
+    label: 'High',
+    dotClass: 'incp-metric-dot--high',
+    barClass: 'incp-metric-bar--high',
+  },
+  {
+    key: 'medium',
+    label: 'Medium',
+    dotClass: 'incp-metric-dot--medium',
+    barClass: 'incp-metric-bar--medium',
+  },
+  {
+    key: 'low',
+    label: 'Low',
+    dotClass: 'incp-metric-dot--low',
+    barClass: 'incp-metric-bar--low',
+  },
+  {
+    key: 'resolved',
+    label: 'Resolved',
+    dotClass: 'incp-metric-dot--resolved',
+    barClass: 'incp-metric-bar--resolved',
+  },
+];
 
 /**
  * The tier cards double as the fastest triage filter: each one is a button that narrows the table to
@@ -46,30 +74,31 @@ export function IncidentSummaryCards({
   }
 
   return (
-    <div className="incp-cards">
+    <section className="incp-metrics" aria-label="Incident severity breakdown">
       {CARDS.map((card) => {
-        const Icon = card.icon;
+        const count = counts[card.key];
         const isActive = active === card.key;
         return (
           <button
             key={card.key}
             type="button"
-            className={`incp-card incp-card--${card.tone}${isActive ? ' is-active' : ''}`}
+            className={`incp-metric-col${isActive ? ' is-active' : ''}`}
             aria-pressed={isActive}
             onClick={() => onPick?.(card.key)}
           >
-            <div className="incp-card__inner">
-              <span className={`incp-card__icon incp-card__icon--${card.tone}`}>
-                <Icon />
-              </span>
-              <div className="incp-card__body">
-                <span className="incp-card__label">{card.label}</span>
-                <strong className="incp-card__count">{counts[card.key]}</strong>
-              </div>
+            <div className="incp-metric-col__header">
+              <span className={`incp-metric-dot ${card.dotClass}`} aria-hidden="true" />
+              <span className="incp-metric-label">{card.label}</span>
+            </div>
+            <span className={`incp-metric-num ${count === 0 ? 'incp-metric-num--faint' : ''}`}>
+              {count}
+            </span>
+            <div className="incp-metric-track" aria-hidden="true">
+              {count > 0 && <div className={`incp-metric-fill ${card.barClass}`} />}
             </div>
           </button>
         );
       })}
-    </div>
+    </section>
   );
 }

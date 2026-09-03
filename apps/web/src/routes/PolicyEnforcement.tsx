@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Power } from '@phosphor-icons/react';
-import { Link } from '@tanstack/react-router';
+import { Power, ArrowRight } from '@phosphor-icons/react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { EnforcementState } from '@sentinel/contracts';
 import { useSession } from '../auth/useSession.js';
@@ -21,15 +20,6 @@ const WHEN: Intl.DateTimeFormatOptions = {
 };
 const fmt = (iso: string): string => new Date(iso).toLocaleString('en-IN', WHEN);
 
-/**
- * The kill switch — one control that stops Sentinel instantly.
- *
- * This is the emergency stop, wired to the runtime enforcement flag (not the reviewed policy field):
- * engaging it takes effect at once, needs no approval, and releases every live block right away —
- * because stopping Sentinel from blocking people is the safe direction to hurry. It is admin-only
- * (the backend enforces that too), guarded by one confirm since it undoes live protection, and every
- * engage/resume is written to the audit log. State is read live from the backend and polled.
- */
 export function EnforcementCard(): React.JSX.Element {
   const { user } = useSession();
   const state = useQuery({
@@ -40,30 +30,44 @@ export function EnforcementCard(): React.JSX.Element {
   const stopped = state.data?.paused === true;
 
   return (
-    <section className={`pol-enf${stopped ? ' is-stopped' : ''}`}>
-      <header className="pol-enf__head">
-        <div>
-          <h2>
-            <Power /> Kill switch
-          </h2>
-          <p>
-            The emergency stop, separate from the policy below. Engage it and Sentinel stops
-            blocking and checking everyone at once, and every block running right now is released —
-            no review, because stopping protection is the safe direction to hurry.
+    <section className={`pol-enf-card${stopped ? ' is-stopped' : ''}`}>
+      {/* Hazard stripe on left edge */}
+      <span className="pol-enf-card__hazard" aria-hidden="true" />
+
+      <div className="pol-enf-card__body">
+        <div className="pol-enf-card__info">
+          <div className="pol-enf-card__heading-row">
+            <h2 className="pol-enf-card__title">Kill switch</h2>
+            <span
+              className={`pol-enf-card__pill pol-enf-card__pill--${stopped ? 'paused' : 'live'}`}
+            >
+              <span className="pol-enf-card__pill-dot" />
+              <span>
+                {state.isPending ? 'Checking…' : stopped ? 'Sentinel stopped' : 'Enforcing'}
+              </span>
+              {!stopped && !state.isPending && <span className="pol-sr-only">Sentinel active</span>}
+            </span>
+            <span className="pol-enf-card__badge">Emergency stop</span>
+          </div>
+          <p className="pol-enf-card__desc">
+            Separate from the policy below. Engage it and Sentinel stops blocking and checking
+            everyone at once, and every block running right now is released — no review, because
+            stopping protection is the safe direction to hurry.
           </p>
+          {stopped && state.data !== undefined && <StoppedMeta state={state.data} />}
         </div>
-        <span className={`pol-enf__pill pol-enf__pill--${stopped ? 'paused' : 'live'}`}>
-          {state.isPending ? '…' : stopped ? 'Engaged — Sentinel stopped' : 'Sentinel active'}
-        </span>
-      </header>
 
-      {stopped && state.data !== undefined && <StoppedMeta state={state.data} />}
-
-      {user?.role === 'admin' ? (
-        <Controls stopped={stopped} />
-      ) : (
-        <p className="pol-enf__note">Only an admin can use the kill switch.</p>
-      )}
+        <div className="pol-enf-card__actions">
+          <a href="/console/audit" className="pol-enf-card__audit-link">
+            Audit log <ArrowRight size={13} />
+          </a>
+          {user?.role === 'admin' ? (
+            <Controls stopped={stopped} />
+          ) : (
+            <p className="pol-enf-card__admin-only">Only an admin can use the kill switch.</p>
+          )}
+        </div>
+      </div>
     </section>
   );
 }
@@ -75,7 +79,7 @@ function StoppedMeta({ state }: { state: EnforcementState }): React.JSX.Element 
     state.reason === null || state.reason === '' ? null : `“${state.reason}”`,
   ].filter((bit) => bit !== null);
   return (
-    <p className="pol-enf__meta">
+    <p className="pol-enf-card__meta">
       Engaged {bits.join(' · ')}. Nobody is being blocked, and every live block was released.
     </p>
   );
@@ -94,97 +98,65 @@ function Controls({ stopped }: { stopped: boolean }): React.JSX.Element {
   const resume = useMutation({ mutationFn: () => resumeEnforcement(reason), onSuccess: done });
   const err = pause.error?.message ?? resume.error?.message ?? null;
 
-  const reasonInput = (
-    <input
-      className="pol-enf__reason"
-      placeholder="Reason (optional)"
-      value={reason}
-      onChange={(event) => setReason(event.target.value)}
-      maxLength={500}
-    />
-  );
-
-  return (
-    <div className="pol-enf__controls">
-      {err !== null && (
-        <p className="pol-enf__error" role="alert">
-          {err}
-        </p>
-      )}
-      {stopped ? (
-        <div className="pol-enf__row">
-          {reasonInput}
-          <button
-            type="button"
-            className="pol-enf__btn pol-enf__btn--resume"
-            onClick={() => resume.mutate()}
-            disabled={resume.isPending}
-          >
-            {resume.isPending ? 'Turning back on…' : 'Turn protection back on'}
-          </button>
-        </div>
-      ) : confirming ? (
-        <ConfirmStop
-          reasonInput={reasonInput}
-          pending={pause.isPending}
-          onCancel={() => setConfirming(false)}
-          onConfirm={() => pause.mutate()}
-        />
-      ) : (
-        <div className="pol-enf__row">
-          <button
-            type="button"
-            className="pol-enf__btn pol-enf__btn--pause"
-            onClick={() => setConfirming(true)}
-          >
-            <Power /> Engage kill switch
-          </button>
-          <Link to="/console/audit" className="pol-enf__link">
-            View in audit log →
-          </Link>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ConfirmStop({
-  reasonInput,
-  pending,
-  onCancel,
-  onConfirm,
-}: {
-  reasonInput: React.ReactNode;
-  pending: boolean;
-  onCancel: () => void;
-  onConfirm: () => void;
-}): React.JSX.Element {
-  return (
-    <div className="pol-enf__confirm">
-      <p>
-        <strong>Engage the kill switch now?</strong> This releases every active block immediately
-        and stops all new blocks and checks until you turn protection back on. Shoppers currently
-        blocked will be able to pay.
-      </p>
-      {reasonInput}
-      <div className="pol-enf__row pol-enf__row--end">
+  if (stopped) {
+    return (
+      <div className="pol-enf-ctrl">
+        {err !== null && <span className="pol-enf-ctrl__err">{err}</span>}
         <button
           type="button"
-          className="pol-enf__btn pol-enf__btn--ghost"
-          onClick={onCancel}
-          disabled={pending}
+          className="pol-enf-btn pol-enf-btn--resume"
+          onClick={() => resume.mutate()}
+          disabled={resume.isPending}
+        >
+          <Power size={15} /> Turn protection back on
+        </button>
+      </div>
+    );
+  }
+
+  if (confirming) {
+    return (
+      <div className="pol-enf-ctrl pol-enf-ctrl--confirming">
+        {err !== null && <span className="pol-enf-ctrl__err">{err}</span>}
+        <p className="pol-enf-ctrl__warn">
+          This immediately releases every active block and stops Sentinel from checking anyone.
+        </p>
+        <input
+          type="text"
+          className="pol-enf-ctrl__reason-input"
+          placeholder="Reason (optional)"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+        <button
+          type="button"
+          className="pol-enf-btn pol-enf-btn--kill"
+          onClick={() => pause.mutate()}
+          disabled={pause.isPending}
+        >
+          <Power size={15} /> Stop &amp; release all blocks
+        </button>
+        <button
+          type="button"
+          className="pol-enf-btn pol-enf-btn--cancel"
+          onClick={() => setConfirming(false)}
         >
           Cancel
         </button>
-        <button
-          type="button"
-          className="pol-enf__btn pol-enf__btn--pause"
-          onClick={onConfirm}
-          disabled={pending}
-        >
-          {pending ? 'Stopping…' : 'Stop & release all blocks'}
-        </button>
       </div>
+    );
+  }
+
+  return (
+    <div className="pol-enf-ctrl">
+      {err !== null && <span className="pol-enf-ctrl__err">{err}</span>}
+      <button
+        type="button"
+        className="pol-enf-btn pol-enf-btn--kill"
+        onClick={() => setConfirming(true)}
+      >
+        <Power size={15} /> Engage kill switch
+      </button>
     </div>
   );
 }

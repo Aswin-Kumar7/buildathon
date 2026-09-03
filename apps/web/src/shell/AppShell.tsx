@@ -3,27 +3,64 @@ import { systemHealthResponseSchema, type SystemHealthResponse } from '@sentinel
 import { Link, useRouterState } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
 import { useLogout, useSession } from '../auth/useSession.js';
-import { Icon, type IconName } from './icons.js';
 import { NotificationBell } from './NotificationBell.js';
-import { ArrowsClockwise } from '@phosphor-icons/react';
+import {
+  SquaresFour,
+  CreditCard,
+  WarningCircle,
+  ClipboardText,
+  ListChecks,
+  Gear,
+  SignOut,
+  ArrowsClockwise,
+  List,
+} from '@phosphor-icons/react';
 import { EnforcementBanner } from './EnforcementBanner.js';
 import { SimDockProvider } from './SimulationDock.js';
-import razorpayLogo from '../assets/white.png';
+import razorpayLogo from '../assets/razorpay-logo.svg';
 import './AppShell.css';
 
 interface NavItem {
   to: string;
   label: string;
-  icon: IconName;
+  icon: typeof SquaresFour;
   match?: (pathname: string) => boolean;
+  type?: 'attempts' | 'incidents';
 }
 
-const NAV: NavItem[] = [
-  { to: '/console', label: 'Overview', icon: 'overview', match: (p) => p === '/console' },
-  { to: '/console/attempts', label: 'Attempts', icon: 'attempts' },
-  { to: '/console/incidents', label: 'Incidents', icon: 'incidents' },
-  { to: '/console/policy', label: 'Policies', icon: 'policies' },
-  { to: '/console/audit', label: 'Audit', icon: 'audit' },
+const NAV_MONITOR: NavItem[] = [
+  {
+    to: '/console',
+    label: 'Overview',
+    icon: SquaresFour,
+    match: (p) => p === '/console' || p === '/console/',
+  },
+  {
+    to: '/console/attempts',
+    label: 'Attempts',
+    icon: CreditCard,
+    match: (p) => p === '/console/attempts' || p.startsWith('/console/attempts/'),
+    type: 'attempts',
+  },
+  {
+    to: '/console/incidents',
+    label: 'Incidents',
+    icon: WarningCircle,
+    match: (p) => p === '/console/incidents' || p.startsWith('/console/incidents/'),
+    type: 'incidents',
+  },
+  {
+    to: '/console/policy',
+    label: 'Policy',
+    icon: ClipboardText,
+    match: (p) => p === '/console/policy' || p.startsWith('/console/policy/'),
+  },
+  {
+    to: '/console/audit',
+    label: 'Audit trail',
+    icon: ListChecks,
+    match: (p) => p === '/console/audit' || p.startsWith('/console/audit/'),
+  },
 ];
 
 const isActive = (item: NavItem, pathname: string): boolean =>
@@ -50,7 +87,7 @@ function healthPill(system: UseQueryResult<SystemHealthResponse>): { label: stri
 }
 
 function getInitials(name?: string): string {
-  if (!name) return 'DA';
+  if (!name) return 'AK';
   const parts = name.trim().split(/\s+/).filter(Boolean);
   const p0 = parts[0];
   const p1 = parts[1];
@@ -63,79 +100,119 @@ function getInitials(name?: string): string {
 function Sidebar({ onNavigate }: { onNavigate: () => void }): React.JSX.Element {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { user } = useSession();
+  const logout = useLogout();
   const initials = getInitials(user?.displayName);
+
+  // Dynamic live badge count queries
+  const attemptsQuery = useQuery({
+    queryKey: ['attempt-count-sidebar'],
+    queryFn: async () => {
+      const res = await fetch('/api/attempts/rows?page=1&pageSize=1', { credentials: 'include' });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 30_000,
+  });
+
+  const incidentsQuery = useQuery({
+    queryKey: ['incidents-count-sidebar'],
+    queryFn: async () => {
+      const res = await fetch('/api/incidents', { credentials: 'include' });
+      if (!res.ok) return null;
+      return res.json();
+    },
+    staleTime: 30_000,
+  });
+
+  const attemptsCount: number | undefined = attemptsQuery.data?.total;
+  const activeIncidentsCount: number = incidentsQuery.data?.counts
+    ? (incidentsQuery.data.counts.open ?? 0) + (incidentsQuery.data.counts.underReview ?? 0)
+    : (incidentsQuery.data?.incidents?.filter(
+        (i: { status: string }) => i.status === 'open' || i.status === 'under_review',
+      ).length ?? 0);
 
   return (
     <aside className="shell__nav" aria-label="Console navigation">
-      <div className="shell__brand">
-        <div className="shell__company-info">
-          <img src={razorpayLogo} alt="Razorpay" className="shell__razorpay-img" />
-          <span className="shell__buildathon-tag">/ buildathon</span>
-        </div>
-
-        <div className="shell__product-name">
-          <h2>Sentinel</h2>
-          <p>Fraud &amp; Abuse Protection</p>
-        </div>
+      {/* Brand Top Header */}
+      <div className="shell__brand-top">
+        <img src={razorpayLogo} alt="Razorpay" className="shell__razorpay-logo" />
+        <span className="shell__brand-divider" aria-hidden="true" />
+        <span className="shell__buildathon-text">buildathon</span>
       </div>
 
-      <div className="shell__inset-divider" />
+      <div className="shell__product-block">
+        <div className="shell__product-title">Sentinel</div>
+        <div className="shell__product-subtitle">Fraud &amp; Abuse Protection</div>
+      </div>
 
-      <nav className="shell__navscroll">
-        <ul>
-          {NAV.map((item) => {
-            const current = isActive(item, pathname);
-            return (
-              <li key={item.to}>
-                <Link
-                  to={item.to}
-                  className={current ? 'is-current' : undefined}
-                  aria-current={current ? 'page' : undefined}
-                  onClick={onNavigate}
-                >
-                  <Icon name={item.icon} size={18} />
-                  <span>{item.label}</span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+      {/* Navigation list */}
+      <nav className="shell__nav-list">
+        <div className="shell__nav-divider" aria-hidden="true" />
+        <div className="shell__nav-section-title">Monitor</div>
 
-        <div className="shell__settings-link">
-          <Link
-            to="/console/settings"
-            className={
-              isActive({ to: '/console/settings', label: 'Settings', icon: 'settings' }, pathname)
-                ? 'is-current'
-                : undefined
-            }
-            onClick={onNavigate}
-          >
-            <Icon name="settings" size={18} />
-            <span>Settings</span>
-          </Link>
-        </div>
+        {NAV_MONITOR.map((item) => {
+          const current = isActive(item, pathname);
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={`shell__nav-item${current ? ' is-active' : ''}`}
+              aria-current={current ? 'page' : undefined}
+              onClick={onNavigate}
+            >
+              <Icon size={17} className="shell__nav-icon" />
+              <span className="shell__nav-label">{item.label}</span>
+
+              {item.type === 'attempts' && attemptsCount !== undefined && attemptsCount > 0 && (
+                <span className="shell__nav-badge-count">{attemptsCount}</span>
+              )}
+
+              {item.type === 'incidents' && activeIncidentsCount > 0 && (
+                <span className="shell__nav-alert-pill">{activeIncidentsCount}</span>
+              )}
+            </Link>
+          );
+        })}
+
+        <div className="shell__nav-divider" aria-hidden="true" style={{ margin: '14px 12px' }} />
+
+        <Link
+          to="/console/settings"
+          className={`shell__nav-item${pathname.startsWith('/console/settings') ? ' is-active' : ''}`}
+          aria-current={pathname.startsWith('/console/settings') ? 'page' : undefined}
+          onClick={onNavigate}
+        >
+          <Gear size={17} className="shell__nav-icon" />
+          <span className="shell__nav-label">Settings</span>
+        </Link>
       </nav>
 
-      <div className="shell__inset-divider" />
-
-      <div className="shell__navfoot">
-        <div className="shell__account" data-testid="current-user">
-          <span className="shell__acct-avatar" aria-hidden="true">
-            {initials}
-          </span>
-          <div className="shell__acct-id">
-            <strong>{user?.displayName ?? 'Demo Analyst'}</strong>
-            <span>Merchant Account</span>
-          </div>
+      {/* User Account Footer */}
+      <div className="shell__user-foot" data-testid="current-user">
+        <span className="shell__user-avatar" aria-hidden="true">
+          {initials}
+        </span>
+        <div className="shell__user-details">
+          <div className="shell__user-name">{user?.displayName ?? 'Aswin Kumar'}</div>
+          <div className="shell__user-account">Merchant Account</div>
         </div>
+        <button
+          type="button"
+          className="shell__logout-btn"
+          onClick={() => logout.mutate()}
+          disabled={logout.isPending}
+          aria-label="Sign out"
+          title="Log out"
+        >
+          <SignOut size={16} />
+        </button>
       </div>
     </aside>
   );
 }
 
 function TopBar({ onMenu }: { onMenu: () => void }): React.JSX.Element {
-  const logout = useLogout();
   const queryClient = useQueryClient();
   const system = useQuery({
     queryKey: ['system-health', 'header'],
@@ -155,14 +232,9 @@ function TopBar({ onMenu }: { onMenu: () => void }): React.JSX.Element {
   return (
     <header className="shell__top">
       <button type="button" className="shell__menu" aria-label="Open navigation" onClick={onMenu}>
-        <Icon name="menu" size={20} />
+        <List size={20} />
       </button>
-      <div className="shell__topbrand">
-        <span className="shell__mark shell__mark--sm" aria-hidden="true">
-          <Icon name="shield" size={18} />
-        </span>
-        Sentinel
-      </div>
+
       <div className="shell__topright">
         <span className={`shell__health-pill${health.ok ? '' : ' shell__health-pill--bad'}`}>
           <span className="shell__health-dot" />
@@ -175,19 +247,9 @@ function TopBar({ onMenu }: { onMenu: () => void }): React.JSX.Element {
           aria-label="Refresh data"
           title="Refresh data"
         >
-          <ArrowsClockwise />
+          <ArrowsClockwise size={16} />
         </button>
         <NotificationBell />
-        <button
-          type="button"
-          className="shell__signout"
-          onClick={() => logout.mutate()}
-          disabled={logout.isPending}
-          aria-label="Sign out"
-          title="Sign out"
-        >
-          <Icon name="logout" size={17} />
-        </button>
       </div>
     </header>
   );

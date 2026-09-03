@@ -21,29 +21,38 @@ import { RunHistory } from './RunHistory.js';
 import { useSimDock } from '../shell/SimulationDock.js';
 import './IncidentsPage.css';
 import { CustomSelectPill } from '../components/CustomSelectPill.js';
-import { PlayCircle, MagnifyingGlass } from '@phosphor-icons/react';
+import {
+  PlayCircle,
+  DownloadSimple,
+  CalendarBlank,
+  Gauge,
+  Funnel,
+  FlowArrow,
+  MagnifyingGlass,
+} from '@phosphor-icons/react';
 
 type Source = 'all' | IncidentSummary['source'];
 type StatusTab = 'all' | 'active' | 'under_review' | 'resolved' | 'expired' | 'history';
 type Sort = 'latest' | 'oldest' | 'risk';
 
 const STATUS_TABS: { id: StatusTab; label: string }[] = [
-  { id: 'all', label: 'All' },
+  { id: 'all', label: 'Status: all' },
   { id: 'active', label: 'Active' },
   { id: 'under_review', label: 'Under review' },
   { id: 'resolved', label: 'Resolved' },
   { id: 'expired', label: 'Expired' },
-  { id: 'history', label: 'History' },
 ];
+
 const RISK_LEVELS: { id: Bucket | 'all'; label: string }[] = [
-  { id: 'all', label: 'Risk level' },
+  { id: 'all', label: 'Risk: all' },
   { id: 'critical', label: 'Critical' },
   { id: 'high', label: 'High' },
   { id: 'medium', label: 'Medium' },
   { id: 'low', label: 'Low' },
 ];
+
 const SOURCES: { id: Source; label: string }[] = [
-  { id: 'all', label: 'Source' },
+  { id: 'all', label: 'Source: all' },
   { id: 'razorpay', label: 'Live' },
   { id: 'replay', label: 'Simulation' },
 ];
@@ -64,20 +73,20 @@ async function fetchSimStatus(): Promise<SimulationStatus> {
 function inTab(incident: IncidentSummary, tab: StatusTab): boolean {
   if (tab === 'all') return true;
   if (tab === 'active') return incident.status === 'open' || incident.status === 'contained';
-  if (tab === 'history') return false; // the History tab shows run history, not incidents
+  if (tab === 'history') return false;
   return incident.status === tab;
 }
 
-interface Filters {
+export interface Filters {
   source: Source;
   tab: StatusTab;
   risk: Bucket | 'all';
   search: string;
   sort: Sort;
 }
+
 const DEFAULTS: Filters = { source: 'all', tab: 'all', risk: 'all', search: '', sort: 'latest' };
 
-/** Live simulation status + incidents for the chosen source, with the polling cadences the page runs on. */
 function useIncidentsData(source: Source): {
   sim: UseQueryResult<SimulationStatus>;
   simRunning: boolean;
@@ -116,9 +125,9 @@ export function IncidentsPage(): React.JSX.Element {
   };
   const rows = sortAndFilter(all, f);
 
-  // The tier cards are a one-click filter over the same state the pills drive.
   const summaryActive: SummaryKey | null =
     f.tab === 'resolved' ? 'resolved' : f.risk === 'all' ? null : f.risk;
+
   const pickSummary = (key: SummaryKey): void => {
     if (key === 'resolved') {
       set({ tab: f.tab === 'resolved' ? 'all' : 'resolved', risk: 'all' });
@@ -128,48 +137,61 @@ export function IncidentsPage(): React.JSX.Element {
     }
   };
 
+  const handleExport = () => {
+    const dataStr =
+      'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(rows, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute(
+      'download',
+      `incidents-${new Date().toISOString().split('T')[0]}.json`,
+    );
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+  };
+
   return (
-    <div className="incp-shell">
-      <div className="incp">
-        <Header
-          count={all.length}
-          popupOpen={popupOpen}
-          togglePopup={() => setPopupOpen((v) => !v)}
-          closePopup={() => setPopupOpen(false)}
-          simRunning={simRunning}
-          minimized={dock.view === 'minimized'}
-          simStatus={sim.data}
-          onChipOpen={dock.open}
-          onChipDismiss={dock.dismiss}
-          onStarted={() => {
-            dock.open();
-            setPopupOpen(false);
-            set({ source: 'all' });
-            void client.invalidateQueries({ queryKey: ['incidents'] });
-            void client.invalidateQueries({ queryKey: ['simulation-status'] });
+    <div className="incp-page">
+      <Header
+        count={all.length}
+        popupOpen={popupOpen}
+        togglePopup={() => setPopupOpen((v) => !v)}
+        closePopup={() => setPopupOpen(false)}
+        simRunning={simRunning}
+        minimized={dock.view === 'minimized'}
+        simStatus={sim.data}
+        onChipOpen={dock.open}
+        onChipDismiss={dock.dismiss}
+        onExport={handleExport}
+        onStarted={() => {
+          dock.open();
+          setPopupOpen(false);
+          set({ source: 'all' });
+          void client.invalidateQueries({ queryKey: ['incidents'] });
+          void client.invalidateQueries({ queryKey: ['simulation-status'] });
+        }}
+      />
+
+      <IncidentSummaryCards incidents={all} active={summaryActive} onPick={pickSummary} />
+
+      {f.tab === 'history' ? (
+        <RunHistory />
+      ) : (
+        <IncidentsTable
+          incidents={rows}
+          loading={incidents.isPending}
+          error={incidents.isError ? incidents.error.message : null}
+          page={page}
+          onPage={setPage}
+          onOpen={(id) => void navigate({ to: '/console/incidents/$id', params: { id } })}
+          filterProps={{
+            filters: f,
+            onChange: set,
+            onClear: () => set(DEFAULTS),
           }}
         />
-
-        <IncidentSummaryCards incidents={all} active={summaryActive} onPick={pickSummary} />
-
-        {f.tab === 'history' ? (
-          <RunHistory />
-        ) : (
-          <IncidentsTable
-            incidents={rows}
-            loading={incidents.isPending}
-            error={incidents.isError ? incidents.error.message : null}
-            page={page}
-            onPage={setPage}
-            onOpen={(id) => void navigate({ to: '/console/incidents/$id', params: { id } })}
-            filterProps={{
-              filters: f,
-              onChange: set,
-              onClear: () => set(DEFAULTS),
-            }}
-          />
-        )}
-      </div>
+      )}
 
       {dock.view === 'open' && (
         <SimulationPanel
@@ -213,6 +235,7 @@ function Header({
   simStatus,
   onChipOpen,
   onChipDismiss,
+  onExport,
 }: {
   count: number;
   popupOpen: boolean;
@@ -224,19 +247,24 @@ function Header({
   simStatus: SimulationStatus | undefined;
   onChipOpen: () => void;
   onChipDismiss: () => void;
+  onExport: () => void;
 }): React.JSX.Element {
   return (
     <header className="incp-head">
-      <div>
+      <div className="incp-head__left">
         <h1>Incidents</h1>
         <p>
-          {count} {count === 1 ? 'incident' : 'incidents'}
+          {count} {count === 1 ? 'incident' : 'incidents'} · attempts grouped by entity and risk
+          pattern
         </p>
       </div>
       <div className="incp-head__actions">
         {minimized && <SimChip status={simStatus} onOpen={onChipOpen} onDismiss={onChipDismiss} />}
-        <button type="button" className="incp-run" onClick={togglePopup}>
-          <PlayCircle size={16} /> Run simulation
+        <button type="button" className="incp-btn-export" onClick={onExport}>
+          <DownloadSimple size={14} /> Export
+        </button>
+        <button type="button" className="incp-btn-run" onClick={togglePopup}>
+          <PlayCircle size={15} /> Run simulation
         </button>
         {popupOpen && (
           <SimulationPopup disabled={simRunning} onClose={closePopup} onStarted={onStarted} />
@@ -246,7 +274,6 @@ function Header({
   );
 }
 
-/** A determinate ring showing real streaming progress — emitted/total from the backend. */
 function RingProgress({ pct, active }: { pct: number; active: boolean }): React.JSX.Element {
   const radius = 8;
   const circumference = 2 * Math.PI * radius;
@@ -266,7 +293,7 @@ function RingProgress({ pct, active }: { pct: number; active: boolean }): React.
         cy="10"
         r={radius}
         fill="none"
-        stroke={active ? '#1769e8' : '#12854a'}
+        stroke={active ? '#1E6FD9' : '#12854a'}
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeDasharray={circumference}
@@ -277,11 +304,6 @@ function RingProgress({ pct, active }: { pct: number; active: boolean }): React.
   );
 }
 
-/**
- * The minimized simulation panel: a chip near Run simulation while a run streams in the background.
- * Its progress and label are real backend state (payments emitted of the planned total), never a
- * timer. Clicking it reopens the full panel; the × dismisses it.
- */
 function SimChip({
   status,
   onOpen,
@@ -326,70 +348,59 @@ export interface FilterRowProps {
   onClear: () => void;
 }
 
-export function FilterRow({ filters, onChange, onClear }: FilterRowProps): React.JSX.Element {
+export function FilterRow({ filters, onChange }: FilterRowProps): React.JSX.Element {
   return (
-    <div className="incp-card-topbar">
-      <div className="incp-card-topbar-left">
+    <div className="inct-toolbar">
+      <div className="inct-toolbar-filters">
+        <button type="button" className="ap-pill-btn" aria-label="All dates">
+          <CalendarBlank size={14} />
+          <span>All dates</span>
+          <span className="ap-pill-chevron">▾</span>
+        </button>
+
         <CustomSelectPill
           value={filters.risk}
           options={RISK_LEVELS.map((r) => ({
             value: r.id,
-            label: r.id === 'all' ? 'Risk: All' : r.label,
+            label: r.label,
           }))}
           onChange={(val) => onChange({ risk: val as Bucket | 'all' })}
           ariaLabel="Risk level"
+          icon={<Gauge size={14} />}
+        />
+
+        <CustomSelectPill
+          value={filters.tab}
+          options={STATUS_TABS.map((t) => ({
+            value: t.id,
+            label: t.label,
+          }))}
+          onChange={(val) => onChange({ tab: val as StatusTab })}
+          ariaLabel="Status"
+          icon={<Funnel size={14} />}
         />
 
         <CustomSelectPill
           value={filters.source}
           options={SOURCES.map((s) => ({
             value: s.id,
-            label: s.id === 'all' ? 'Source: All' : s.label,
+            label: s.label,
           }))}
           onChange={(val) => onChange({ source: val as Source })}
           ariaLabel="Source"
+          icon={<FlowArrow size={14} />}
         />
-
-        <CustomSelectPill
-          value={filters.tab}
-          options={[
-            { value: 'all', label: 'Status: All' },
-            ...STATUS_TABS.filter((t) => t.id !== 'all' && t.id !== 'history').map((t) => ({
-              value: t.id,
-              label: t.label,
-            })),
-          ]}
-          onChange={(val) => onChange({ tab: val as StatusTab })}
-          ariaLabel="Status"
-        />
-
-        <CustomSelectPill
-          value={filters.sort}
-          options={[
-            { value: 'latest', label: 'Sort: Latest' },
-            { value: 'oldest', label: 'Sort: Oldest' },
-            { value: 'risk', label: 'Sort: Risk' },
-          ]}
-          onChange={(val) => onChange({ sort: val as Sort })}
-          ariaLabel="Sort"
-        />
-
-        <button type="button" className="incp-clear" onClick={onClear}>
-          Clear filters
-        </button>
       </div>
 
-      <div className="incp-card-topbar-right">
-        <div className="incp-search-pill">
-          <MagnifyingGlass size={18} />
-          <input
-            type="search"
-            placeholder="Search incidents..."
-            value={filters.search}
-            onChange={(e) => onChange({ search: e.target.value })}
-            aria-label="Search incidents"
-          />
-        </div>
+      <div className="inct-toolbar-search">
+        <MagnifyingGlass size={15} />
+        <input
+          type="search"
+          placeholder="Find incident…"
+          value={filters.search}
+          onChange={(e) => onChange({ search: e.target.value })}
+          aria-label="Search incidents"
+        />
       </div>
     </div>
   );

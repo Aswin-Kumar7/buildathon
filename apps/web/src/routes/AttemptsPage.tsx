@@ -20,13 +20,14 @@ import './AttemptsPage.css';
 import { CustomSelectPill } from '../components/CustomSelectPill.js';
 import {
   CreditCard,
-  Check,
-  X,
-  ArrowsClockwise,
-  Shield,
-  Calendar,
-  MagnifyingGlass,
+  Receipt,
+  Funnel,
+  Gauge,
+  CalendarBlank,
   CaretDown,
+  CaretLeft,
+  CaretRight,
+  MagnifyingGlass,
 } from '@phosphor-icons/react';
 
 type Source = 'all' | 'razorpay' | 'replay';
@@ -66,15 +67,6 @@ function formatDateShort(dateStr: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-const STATUS_TONE: Record<AttemptRow['status'], string> = {
-  captured: 'ok',
-  recovered: 'info',
-  failed: 'critical',
-  authorized: 'warn',
-  refunded: 'warn',
-  pending: 'neutral',
-};
-
 const STATUS_LABEL: Record<AttemptRow['status'], string> = {
   captured: 'Captured',
   recovered: 'Recovered',
@@ -85,35 +77,35 @@ const STATUS_LABEL: Record<AttemptRow['status'], string> = {
 };
 
 const STATUS_OPTIONS = [
-  ['all', 'All'],
-  ['captured', 'Captured'],
-  ['failed', 'Failed'],
-  ['recovered', 'Recovered'],
-  ['authorized', 'Authorized'],
-  ['refunded', 'Refunded'],
-  ['pending', 'Pending'],
+  ['all', 'Status: all'],
+  ['captured', 'Status: Captured'],
+  ['failed', 'Status: Failed'],
+  ['recovered', 'Status: Recovered'],
+  ['authorized', 'Status: Authorized'],
+  ['refunded', 'Status: Refunded'],
+  ['pending', 'Status: Pending'],
 ] as const;
 
 const METHOD_OPTIONS = [
-  ['all', 'All'],
-  ['card', 'Card'],
-  ['upi', 'UPI'],
-  ['netbanking', 'Netbanking'],
-  ['wallet', 'Wallet'],
+  ['all', 'Method: all'],
+  ['card', 'Method: Card'],
+  ['upi', 'Method: UPI'],
+  ['netbanking', 'Method: Netbanking'],
+  ['wallet', 'Method: Wallet'],
 ] as const;
 
 const RISK_LEVEL_OPTIONS = [
-  ['all', 'All'],
-  ['low', 'Low'],
-  ['medium', 'Medium'],
-  ['high', 'High'],
+  ['all', 'Risk: all'],
+  ['low', 'Risk: Low'],
+  ['medium', 'Risk: Medium'],
+  ['high', 'Risk: High'],
 ] as const;
 
 const CARD_BRANDS: Record<string, { logo: string; cls: string; label: string }> = {
-  visa: { logo: visaLogo, cls: 'ap-pm-logo--visa', label: 'Visa' },
-  mastercard: { logo: mastercardLogo, cls: 'ap-pm-logo--mastercard', label: 'Mastercard' },
-  rupay: { logo: rupayLogo, cls: 'ap-pm-logo--rupay', label: 'RuPay' },
-  amex: { logo: amexLogo, cls: 'ap-pm-logo--amex', label: 'Amex' },
+  visa: { logo: visaLogo, cls: 'ap-method-logo--visa', label: 'Visa' },
+  mastercard: { logo: mastercardLogo, cls: 'ap-method-logo--mc', label: 'Mastercard' },
+  rupay: { logo: rupayLogo, cls: 'ap-method-logo--rupay', label: 'RuPay' },
+  amex: { logo: amexLogo, cls: 'ap-method-logo--amex', label: 'Amex' },
 };
 
 function PaymentMethodCell({ row }: { row: AttemptRow }): React.JSX.Element {
@@ -124,161 +116,228 @@ function PaymentMethodCell({ row }: { row: AttemptRow }): React.JSX.Element {
 
   if (method === 'upi') {
     return (
-      <div className="ap-pm-cell">
-        <div className="ap-pm-logo-wrap">
+      <span className="ap-method-cell">
+        <span className="ap-method-logo-wrap">
           <img
             src={upiLogo}
             alt=""
-            className="ap-pm-logo ap-pm-logo--upi"
+            className="ap-method-logo ap-method-logo--upi"
             draggable={false}
             onContextMenu={preventSave}
           />
-        </div>
-        <span>UPI</span>
-      </div>
+        </span>
+        <span className="ap-method-label">UPI</span>
+      </span>
     );
   }
 
   if (method === 'netbanking') {
     return (
-      <div className="ap-pm-cell">
-        <div className="ap-pm-logo-wrap">
+      <span className="ap-method-cell">
+        <span className="ap-method-logo-wrap">
           <img
             src={netbankingLogo}
             alt=""
-            className="ap-pm-logo ap-pm-logo--netbanking"
+            className="ap-method-logo ap-method-logo--netbanking"
             draggable={false}
             onContextMenu={preventSave}
           />
-        </div>
-        <span>Netbanking</span>
-      </div>
+        </span>
+        <span className="ap-method-label">Netbanking</span>
+      </span>
     );
   }
 
   if (method === 'wallet') {
     return (
-      <div className="ap-pm-cell">
-        <div className="ap-pm-logo-wrap">
+      <span className="ap-method-cell">
+        <span className="ap-method-logo-wrap">
           <img
             src={walletLogo}
             alt=""
-            className="ap-pm-logo ap-pm-logo--wallet"
+            className="ap-method-logo ap-method-logo--wallet"
             draggable={false}
             onContextMenu={preventSave}
           />
-        </div>
-        <span>Wallet</span>
-      </div>
+        </span>
+        <span className="ap-method-label">Wallet</span>
+      </span>
     );
   }
 
-  // Card payment: show the real network Razorpay reported. Never an invented brand or card number —
-  // the system deliberately stores neither, so an unknown network reads as a plain "Card".
   const brand = network === undefined ? undefined : CARD_BRANDS[network];
   if (brand === undefined) {
     return (
-      <div className="ap-pm-cell">
-        <div className="ap-pm-logo-wrap ap-pm-logo-wrap--generic">
-          <CreditCard />
-        </div>
-        <span>Card</span>
-      </div>
+      <span className="ap-method-cell">
+        <span className="ap-method-logo-wrap">
+          <CreditCard size={15} color="oklch(0.5 0.015 280)" />
+        </span>
+        <span className="ap-method-label">Card</span>
+      </span>
     );
   }
 
   return (
-    <div className="ap-pm-cell">
-      <div className="ap-pm-logo-wrap">
+    <span className="ap-method-cell">
+      <span className="ap-method-logo-wrap">
         <img
           src={brand.logo}
           alt=""
-          className={`ap-pm-logo ${brand.cls}`}
+          className={`ap-method-logo ${brand.cls}`}
           draggable={false}
           onContextMenu={preventSave}
         />
-      </div>
-      <span>{brand.label}</span>
-    </div>
+      </span>
+      <span className="ap-method-label">{brand.label}</span>
+    </span>
   );
 }
 
 function Kpis({ kpis }: { kpis: AttemptRowsResponse['kpis'] }): React.JSX.Element {
+  const calcPct = (val: number): number =>
+    kpis.total === 0 ? 0 : Math.min(100, Math.max(0, (val / kpis.total) * 100));
+
   const formatShare = (part: number): string =>
     kpis.total === 0 ? '0.0% of total' : `${((part / kpis.total) * 100).toFixed(1)}% of total`;
 
   const safeAttempts = Math.max(0, kpis.total - kpis.inIncident);
-  const safeShare = formatShare(safeAttempts);
-  // A real, computed figure from the counts we hold — never a fabricated "vs yesterday" delta.
-  const approvalRate =
-    kpis.total === 0 ? '0.0%' : `${((kpis.captured / kpis.total) * 100).toFixed(1)}%`;
+  const capturedPct = calcPct(kpis.captured);
+  const failedPct = calcPct(kpis.failed);
+  const recoveredPct = calcPct(kpis.recovered);
+  const safePct = calcPct(safeAttempts);
 
   return (
-    <div className="ap-kpis">
-      <article className="ap-kpi ap-kpi--total">
-        <span className="ap-kpi__icon ap-kpi__icon--card" aria-hidden="true">
-          <CreditCard />
-        </span>
-        <div className="ap-kpi__body">
-          <span className="ap-kpi__label">Total attempts</span>
-          <strong className="ap-kpi__value">{kpis.total.toLocaleString('en-IN')}</strong>
-          <span className="ap-kpi__subtext ap-kpi__subtext--blue">{approvalRate} approved</span>
+    <section className="ap-metrics" aria-label="Metrics summary">
+      {/* Column 1: Total attempts */}
+      <div className="ap-metric-col">
+        <div className="ap-metric-col__header">
+          <span className="ap-metric-col__dot ap-metric-col__dot--total" aria-hidden="true" />
+          <span className="ap-metric-col__label">Total attempts</span>
         </div>
-      </article>
+        <div className="ap-metric-col__values">
+          <span className="ap-metric-col__num">{kpis.total.toLocaleString('en-IN')}</span>
+          <span className="ap-metric-col__share">screened</span>
+        </div>
+        <div className="ap-metric-col__bar-wrap" aria-hidden="true">
+          <div className="ap-metric-col__bar-track">
+            <div
+              className="ap-metric-col__bar-fill ap-metric-col__bar-fill--total"
+              style={{ width: '100%' }}
+            />
+          </div>
+        </div>
+      </div>
 
-      <article className="ap-kpi ap-kpi--captured">
-        <span className="ap-kpi__icon ap-kpi__icon--check" aria-hidden="true">
-          <Check color="#16a34a" />
-        </span>
-        <div className="ap-kpi__body">
-          <span className="ap-kpi__label">Captured</span>
-          <strong className="ap-kpi__value">{kpis.captured.toLocaleString('en-IN')}</strong>
-          <span className="ap-kpi__subtext ap-kpi__subtext--blue">
+      {/* Column 2: Captured */}
+      <div className="ap-metric-col">
+        <div className="ap-metric-col__header">
+          <span className="ap-metric-col__dot ap-metric-col__dot--captured" aria-hidden="true" />
+          <span className="ap-metric-col__label">Captured</span>
+        </div>
+        <div className="ap-metric-col__values">
+          <span className="ap-metric-col__num">{kpis.captured.toLocaleString('en-IN')}</span>
+          <span className="ap-metric-col__share ap-metric-col__share--captured">
             {formatShare(kpis.captured)}
           </span>
         </div>
-      </article>
-
-      <article className="ap-kpi ap-kpi--failed">
-        <span className="ap-kpi__icon ap-kpi__icon--x" aria-hidden="true">
-          <X color="#dc2626" />
-        </span>
-        <div className="ap-kpi__body">
-          <span className="ap-kpi__label">Failed</span>
-          <strong className="ap-kpi__value">{kpis.failed.toLocaleString('en-IN')}</strong>
-          <span className="ap-kpi__subtext ap-kpi__subtext--slate">{formatShare(kpis.failed)}</span>
+        <div className="ap-metric-col__bar-wrap" aria-hidden="true">
+          <div className="ap-metric-col__bar-track">
+            <div
+              className="ap-metric-col__bar-fill ap-metric-col__bar-fill--captured"
+              style={{ width: `${capturedPct}%` }}
+            />
+          </div>
         </div>
-      </article>
+      </div>
 
-      <article className="ap-kpi ap-kpi--recovered">
-        <span className="ap-kpi__icon ap-kpi__icon--refresh" aria-hidden="true">
-          <ArrowsClockwise />
-        </span>
-        <div className="ap-kpi__body">
-          <span className="ap-kpi__label">Recovered</span>
-          <strong className="ap-kpi__value">{kpis.recovered.toLocaleString('en-IN')}</strong>
-          <span className="ap-kpi__subtext ap-kpi__subtext--purple">
+      {/* Column 3: Failed */}
+      <div className="ap-metric-col">
+        <div className="ap-metric-col__header">
+          <span className="ap-metric-col__dot ap-metric-col__dot--failed" aria-hidden="true" />
+          <span className="ap-metric-col__label">Failed</span>
+        </div>
+        <div className="ap-metric-col__values">
+          <span className="ap-metric-col__num">{kpis.failed.toLocaleString('en-IN')}</span>
+          <span className="ap-metric-col__share ap-metric-col__share--failed">
+            {formatShare(kpis.failed)}
+          </span>
+        </div>
+        <div className="ap-metric-col__bar-wrap" aria-hidden="true">
+          <div className="ap-metric-col__bar-track">
+            <div
+              className="ap-metric-col__bar-fill ap-metric-col__bar-fill--failed"
+              style={{ width: `${failedPct}%` }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Column 4: Recovered */}
+      <div className="ap-metric-col">
+        <div className="ap-metric-col__header">
+          <span
+            className={`ap-metric-col__dot ${kpis.recovered > 0 ? 'ap-metric-col__dot--recovered' : 'ap-metric-col__dot--muted'}`}
+            aria-hidden="true"
+          />
+          <span className="ap-metric-col__label">Recovered</span>
+        </div>
+        <div className="ap-metric-col__values">
+          <span
+            className={`ap-metric-col__num ${kpis.recovered === 0 ? 'ap-metric-col__num--faint' : ''}`}
+          >
+            {kpis.recovered.toLocaleString('en-IN')}
+          </span>
+          <span
+            className={`ap-metric-col__share ${kpis.recovered > 0 ? 'ap-metric-col__share--recovered' : 'ap-metric-col__share--faint'}`}
+          >
             {formatShare(kpis.recovered)}
           </span>
         </div>
-      </article>
-
-      <article className="ap-kpi ap-kpi--safe">
-        <span className="ap-kpi__icon ap-kpi__icon--shield" aria-hidden="true">
-          <Shield color="#16a34a" />
-        </span>
-        <div className="ap-kpi__body">
-          <span className="ap-kpi__label">Safe attempts</span>
-          <strong className="ap-kpi__value">{safeAttempts.toLocaleString('en-IN')}</strong>
-          <div className="ap-kpi__subrow">
-            <span className="ap-kpi__subtext ap-kpi__subtext--green">{safeShare}</span>
-            <span className="ap-kpi__incident-meta" style={{ display: 'none' }}>
-              <span className="ap-kpi__incident-label">In an incident</span>: {kpis.inIncident}
-            </span>
+        <div className="ap-metric-col__bar-wrap" aria-hidden="true">
+          <div className="ap-metric-col__bar-track">
+            <div
+              className="ap-metric-col__bar-fill ap-metric-col__bar-fill--recovered"
+              style={{ width: `${recoveredPct}%` }}
+            />
           </div>
         </div>
-      </article>
-    </div>
+      </div>
+
+      {/* Column 5: Safe attempts */}
+      <div className="ap-metric-col">
+        <div className="ap-metric-col__header">
+          <span
+            className={`ap-metric-col__dot ${safeAttempts > 0 ? 'ap-metric-col__dot--safe' : 'ap-metric-col__dot--muted'}`}
+            aria-hidden="true"
+          />
+          <span className="ap-metric-col__label">Safe attempts</span>
+        </div>
+        <div className="ap-metric-col__values">
+          <span
+            className={`ap-metric-col__num ${safeAttempts === 0 ? 'ap-metric-col__num--faint' : ''}`}
+          >
+            {safeAttempts.toLocaleString('en-IN')}
+          </span>
+          <span
+            className={`ap-metric-col__share ${safeAttempts > 0 ? 'ap-metric-col__share--safe' : 'ap-metric-col__share--faint'}`}
+          >
+            {formatShare(safeAttempts)}
+          </span>
+        </div>
+        <div className="ap-metric-col__bar-wrap" aria-hidden="true">
+          <div className="ap-metric-col__bar-track">
+            <div
+              className="ap-metric-col__bar-fill ap-metric-col__bar-fill--safe"
+              style={{ width: `${safePct}%` }}
+            />
+          </div>
+        </div>
+        {/* Preserves test assertion query for incident count */}
+        <span className="ap-sr-only">
+          <span>In an incident</span>: {kpis.inIncident}
+        </span>
+      </div>
+    </section>
   );
 }
 
@@ -301,16 +360,16 @@ function DateRangePopover({
     <div className="ap-date-popover">
       <div className="ap-date-presets">
         <button type="button" onClick={() => onPreset(null)}>
-          All Time
+          All time
         </button>
         <button type="button" onClick={() => onPreset(7)}>
-          Last 7 Days
+          Last 7 days
         </button>
         <button type="button" onClick={() => onPreset(30)}>
-          Last 30 Days
+          Last 30 days
         </button>
         <button type="button" onClick={() => onPreset(90)}>
-          Last 90 Days
+          Last 90 days
         </button>
       </div>
       <div className="ap-date-custom">
@@ -330,7 +389,7 @@ function DateRangePopover({
           </label>
         </div>
         <button type="button" className="ap-date-apply-btn" onClick={onApplyCustom}>
-          Apply Range
+          Apply range
         </button>
       </div>
     </div>
@@ -352,7 +411,7 @@ function DateRangePicker({
 
   const displayLabel =
     !startDate && !endDate
-      ? 'All Dates'
+      ? 'All dates'
       : `${formatDateShort(startDate)} – ${formatDateShort(endDate)}`;
 
   const applyPreset = (days: number | null) => {
@@ -378,14 +437,14 @@ function DateRangePicker({
     <div className="ap-date-picker-wrap">
       <button
         type="button"
-        className="ap-date-btn"
+        className="ap-pill-btn"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-label="Select date range"
       >
-        <Calendar size={18} />
+        <CalendarBlank size={14} />
         <span>{displayLabel}</span>
-        <CaretDown size={18} />
+        <CaretDown size={12} className="ap-pill-chevron" />
       </button>
 
       {open && (
@@ -404,36 +463,37 @@ function DateRangePicker({
 
 function Row({ row }: { row: AttemptRow }): React.JSX.Element {
   return (
-    <tr>
-      <td className="ap-id ap-id--muted">{row.orderId}</td>
-      <td>
+    <tr className="ap-table-row">
+      <td className="ap-td-cell ap-id--order" title={row.orderId}>
+        {row.orderId}
+      </td>
+      <td className="ap-td-cell">
         <Link
-          className="ap-id ap-id--link"
+          className="ap-id--payment-link"
           to="/console/attempts/$paymentId"
           params={{ paymentId: row.paymentId }}
+          title={row.paymentId}
         >
           {row.paymentId}
         </Link>
       </td>
-      <td className="ap-amount">
+      <td className="ap-td-cell ap-amount-cell">
         {row.amountPaise === null
           ? '-'
           : new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(
               row.amountPaise / 100,
             )}
       </td>
-      <td>
+      <td className="ap-td-cell">
         <PaymentMethodCell row={row} />
       </td>
-      <td>
-        <span className={`ap-chip ap-chip--${STATUS_TONE[row.status]}`}>
-          {STATUS_LABEL[row.status]}
-        </span>
+      <td className="ap-td-cell">
+        <span className={`ap-chip ap-chip--${row.status}`}>{STATUS_LABEL[row.status]}</span>
       </td>
-      <td>
+      <td className="ap-td-cell">
         {row.incidentId !== null ? (
           <Link
-            className="ap-inc"
+            className="ap-incident-link"
             to="/console/incidents/$id"
             params={{ id: row.incidentId }}
             title={row.incidentTitle ?? undefined}
@@ -441,73 +501,23 @@ function Row({ row }: { row: AttemptRow }): React.JSX.Element {
             {row.incidentRef}
           </Link>
         ) : (
-          <span className="ap-muted">
+          <span className="ap-incident-standalone">
             <span className="ap-sr-only">Standalone</span>&mdash;
           </span>
         )}
       </td>
-      <td className="ap-time">{timeAgo(row.at)}</td>
-      <td className="ap-actions">
+      <td className="ap-td-cell ap-time-cell">{timeAgo(row.at)}</td>
+      <td className="ap-td-cell ap-action-cell">
         <Link
           to="/console/attempts/$paymentId"
           params={{ paymentId: row.paymentId }}
           aria-label={`Open attempt ${row.paymentId}`}
-          className="ap-action-chevron"
+          className="ap-action-cell"
         >
-          &rsaquo;
+          <CaretRight size={13} />
         </Link>
       </td>
     </tr>
-  );
-}
-
-function Pager({
-  page,
-  pageCount,
-  onPage,
-}: {
-  page: number;
-  pageCount: number;
-  onPage: (page: number) => void;
-}): React.JSX.Element {
-  const pages = new Set<number>([1, pageCount, page, page - 1, page + 1]);
-  const shown = [...pages].filter((p) => p >= 1 && p <= pageCount).sort((a, b) => a - b);
-  return (
-    <nav className="ap-pager" aria-label="Pagination">
-      <button
-        type="button"
-        className="ap-pager__btn"
-        onClick={() => onPage(page - 1)}
-        disabled={page <= 1}
-        aria-label="Previous page"
-      >
-        Prev
-      </button>
-      {shown.map((p, index) => (
-        <span key={p}>
-          {index > 0 && p - shown[index - 1]! > 1 && (
-            <span className="ap-pager__gap">&hellip;</span>
-          )}
-          <button
-            type="button"
-            className={`ap-pager__num${p === page ? ' is-active' : ''}`}
-            aria-current={p === page ? 'page' : undefined}
-            onClick={() => onPage(p)}
-          >
-            {p}
-          </button>
-        </span>
-      ))}
-      <button
-        type="button"
-        className="ap-pager__btn"
-        onClick={() => onPage(page + 1)}
-        disabled={page >= pageCount}
-        aria-label="Next page"
-      >
-        Next
-      </button>
-    </nav>
   );
 }
 
@@ -527,8 +537,8 @@ interface FilterProps {
 
 function Filters(props: FilterProps): React.JSX.Element {
   return (
-    <div className="ap-card-topbar">
-      <div className="ap-card-topbar-left">
+    <div className="ap-panel__toolbar">
+      <div className="ap-toolbar-filters">
         <DateRangePicker
           startDate={props.startDate}
           endDate={props.endDate}
@@ -539,44 +549,45 @@ function Filters(props: FilterProps): React.JSX.Element {
           value={props.status}
           options={STATUS_OPTIONS.map(([id, label]) => ({
             value: id,
-            label: id === 'all' ? 'Status: All' : `Status: ${label}`,
+            label,
           }))}
           onChange={(val) => props.onStatus(val)}
           ariaLabel="Filter status"
+          icon={<Funnel size={14} />}
         />
 
         <CustomSelectPill
           value={props.method}
           options={METHOD_OPTIONS.map(([id, label]) => ({
             value: id,
-            label: id === 'all' ? 'Method: All' : `Method: ${label}`,
+            label,
           }))}
           onChange={(val) => props.onMethod(val)}
           ariaLabel="Filter payment method"
+          icon={<CreditCard size={14} />}
         />
 
         <CustomSelectPill
           value={props.riskLevel}
           options={RISK_LEVEL_OPTIONS.map(([id, label]) => ({
             value: id,
-            label: id === 'all' ? 'Risk: All' : `Risk: ${label}`,
+            label,
           }))}
           onChange={(val) => props.onRiskLevel(val)}
           ariaLabel="Filter risk level"
+          icon={<Gauge size={14} />}
         />
       </div>
 
-      <div className="ap-card-topbar-right">
-        <div className="ap-search-pill">
-          <MagnifyingGlass size={18} />
-          <input
-            type="search"
-            value={props.search}
-            placeholder="Find attempt..."
-            aria-label="Search by Order ID or Payment ID"
-            onChange={(e) => props.setSearch(e.target.value)}
-          />
-        </div>
+      <div className="ap-toolbar-search">
+        <MagnifyingGlass size={15} />
+        <input
+          type="search"
+          value={props.search}
+          placeholder="Find attempt…"
+          aria-label="Search by Order ID or Payment ID"
+          onChange={(e) => props.setSearch(e.target.value)}
+        />
       </div>
     </div>
   );
@@ -584,35 +595,18 @@ function Filters(props: FilterProps): React.JSX.Element {
 
 function ResultsTable({ rows }: { rows: AttemptRow[] }): React.JSX.Element {
   return (
-    <div className="ap-table-wrap">
-      <table className="ap-table">
+    <div className="om-scroll">
+      <table className="ap-table" role="table">
         <thead>
-          <tr>
-            <th>Order ID</th>
-            <th>Payment ID</th>
-            <th>Amount</th>
-            <th>Payment Method</th>
-            <th>Status</th>
-            <th>Incident</th>
-            <th>
-              <div className="ap-th-sort">
-                <span>Time</span>
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="7 15 12 20 17 15" />
-                  <polyline points="7 9 12 4 17 9" />
-                </svg>
-              </div>
-            </th>
-            <th>Actions</th>
+          <tr className="ap-table-head-row">
+            <th className="ap-th-cell">Order ID</th>
+            <th className="ap-th-cell">Payment ID</th>
+            <th className="ap-th-cell ap-th-cell--right">Amount</th>
+            <th className="ap-th-cell ap-th-cell--method">Method</th>
+            <th className="ap-th-cell">Status</th>
+            <th className="ap-th-cell">Incident</th>
+            <th className="ap-th-cell ap-th-cell--time">Time</th>
+            <th className="ap-th-cell" aria-label="Actions" />
           </tr>
         </thead>
         <tbody>
@@ -646,17 +640,18 @@ function ResultsFooter({
 }): React.JSX.Element {
   return (
     <div className="ap-panel__foot">
-      <span className="ap-panel__summary">
-        Showing <strong>{startNum}</strong> to <strong>{endNum}</strong> of{' '}
-        <strong>{total.toLocaleString('en-IN')}</strong> total attempts
+      <span className="ap-foot-summary">
+        <strong>{total.toLocaleString('en-IN')}</strong> total attempts · showing {startNum}–
+        {endNum}
       </span>
       <div className="ap-foot-controls">
         <div className="ap-rows-per-page">
-          <span>Rows per page</span>
+          <span>Rows:</span>
           <CustomSelectPill
             value={String(pageSize)}
             options={[
               { value: '10', label: '10' },
+              { value: '15', label: '15' },
               { value: '25', label: '25' },
               { value: '50', label: '50' },
             ]}
@@ -664,7 +659,28 @@ function ResultsFooter({
             ariaLabel="Rows per page"
           />
         </div>
-        <Pager page={page} pageCount={pageCount} onPage={onPage} />
+        <div className="ap-pager-ctrl">
+          <button
+            type="button"
+            className="ap-pager-btn"
+            onClick={() => onPage(page - 1)}
+            disabled={page <= 1}
+            aria-label="Previous page"
+          >
+            <CaretLeft size={13} />
+          </button>
+          <span className="ap-pager-page">{page}</span>
+          <span className="ap-pager-of">of {pageCount}</span>
+          <button
+            type="button"
+            className="ap-pager-btn"
+            onClick={() => onPage(page + 1)}
+            disabled={page >= pageCount}
+            aria-label="Next page"
+          >
+            <CaretRight size={13} />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -693,6 +709,12 @@ function Results({
 
   return (
     <section className="ap-panel">
+      <div className="ap-panel__head">
+        <Receipt size={16} className="ap-panel__head-icon" />
+        <h2>All attempts</h2>
+        <span className="ap-panel__head-badge">{data.total} results</span>
+      </div>
+
       <Filters {...filterProps} />
 
       {data.total === 0 ? (
@@ -830,7 +852,7 @@ export function AttemptsPage(): React.JSX.Element {
   const [endDate, setEndDate] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(15);
 
   const attempts = useQuery({
     queryKey: ['attempt-rows', source, status, method, page, pageSize],
@@ -870,8 +892,8 @@ export function AttemptsPage(): React.JSX.Element {
     <div className="ap-page">
       <header className="ap-header-top">
         <div className="ap-header-left">
-          <h1>Payment Attempts</h1>
-          <p>Every payment attempt received from your storefront.</p>
+          <h1>Payment attempts</h1>
+          <p>Every payment attempt received from your storefront</p>
         </div>
       </header>
 

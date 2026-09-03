@@ -1,11 +1,18 @@
 import type { IncidentSummary } from '@sentinel/contracts';
-import { WarningCircle, Sparkle, ArrowRight } from '@phosphor-icons/react';
+import {
+  CreditCard,
+  WarningCircle,
+  ShieldSlash,
+  ArrowRight,
+  CaretLeft,
+  CaretRight,
+} from '@phosphor-icons/react';
 import { bucketOf, type Bucket } from './IncidentsSummary.js';
 import { FilterRow, type FilterRowProps } from './IncidentsPage.js';
 
 const PAGE_SIZE = 10;
 
-const incidentRef = (id: string): string => `INC-${id.replace(/-/g, '').slice(0, 4).toUpperCase()}`;
+const incidentRef = (id: string): string => `INC–${id.replace(/-/g, '').slice(0, 4).toUpperCase()}`;
 
 const BUCKET_LABEL: Record<Bucket, string> = {
   critical: 'CRITICAL',
@@ -34,35 +41,24 @@ function statusPill(status: IncidentSummary['status']): {
 }
 
 const stampDate = (ms: number): string =>
-  new Date(ms).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
 const stampTime = (ms: number): string =>
-  new Date(ms).toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true,
-  });
+  new Date(ms)
+    .toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    })
+    .toLowerCase();
+
 function ago(ms: number): string {
   const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
   if (s < 60) return `${s}s ago`;
   if (s < 3600) return `${Math.round(s / 60)} min ago`;
   if (s < 86_400) return `${Math.round(s / 3600)} hr ago`;
   return `${Math.round(s / 86_400)}d ago`;
-}
-
-/** What Sentinel recommends a merchant do about this row, in a merchant's words — real backend field. */
-const RECOMMENDATION: Record<
-  IncidentSummary['recommendedDecision'],
-  { label: string; tone: string }
-> = {
-  contain: { label: 'Block', tone: 'block' },
-  review: { label: 'Review', tone: 'review' },
-  monitor: { label: 'Monitor', tone: 'monitor' },
-  none: { label: 'Watch', tone: 'monitor' },
-};
-
-function BucketIcon(): React.JSX.Element {
-  return <WarningCircle />;
 }
 
 function relationship(incident: IncidentSummary): string {
@@ -74,6 +70,18 @@ function relationship(incident: IncidentSummary): string {
   return parts.join(' · ');
 }
 
+function RiskMeter({ score }: { score: number }): React.JSX.Element {
+  const filledCount = score >= 0.75 ? 4 : score >= 0.5 ? 3 : score >= 0.25 ? 2 : 1;
+  return (
+    <div className="inct-risk-meter" aria-hidden="true">
+      <span className={`inct-risk-segment${filledCount >= 1 ? ' is-filled' : ''}`} />
+      <span className={`inct-risk-segment${filledCount >= 2 ? ' is-filled' : ''}`} />
+      <span className={`inct-risk-segment${filledCount >= 3 ? ' is-filled' : ''}`} />
+      <span className={`inct-risk-segment${filledCount >= 4 ? ' is-filled' : ''}`} />
+    </div>
+  );
+}
+
 function IncidentRow({
   incident,
   onOpen,
@@ -83,71 +91,123 @@ function IncidentRow({
 }): React.JSX.Element {
   const bucket = bucketOf(incident);
   const pill = statusPill(incident.status);
-  const live = incident.source === 'razorpay';
-  const needsAction = incident.status === 'open' || incident.status === 'under_review';
-  const rec = RECOMMENDATION[incident.recommendedDecision];
+  const isSim = incident.source === 'replay';
+  const failPct =
+    incident.attempts > 0
+      ? Math.min(100, Math.max(0, (incident.failures / incident.attempts) * 100))
+      : 0;
+
   return (
     <tr className="inct-row" onClick={() => onOpen(incident.id)}>
-      <td className="inct-inc">
-        <span className={`inct-ico inct-ico--${bucket}`}>
-          <BucketIcon />
-        </span>
-        <span className="inct-inc__text">
-          <strong>{incident.title}</strong>
-          <span className="inct-ref">{incidentRef(incident.id)}</span>
-          <span className="inct-rel">{relationship(incident)}</span>
-        </span>
-      </td>
-      <td>
-        <span className={`inct-risk inct-risk--${bucket}`}>{BUCKET_LABEL[bucket]}</span>
-        <span className="inct-score">
-          {Math.round(incident.score * 100)}
-          <small>/100</small>
-        </span>
-      </td>
-      <td>
-        <span className={`inct-status inct-status--${pill.tone}`}>{pill.label}</span>
-        <span className="inct-sub">{pill.sub}</span>
-      </td>
-      <td>
-        <span className="inct-src">
-          <i className={`inct-dot inct-dot--${live ? 'live' : 'sim'}`} aria-hidden="true" />
-          {live ? 'Live' : 'Simulated'}
-        </span>
-        <span className="inct-sub">{live ? 'Razorpay' : 'Simulation'}</span>
-      </td>
-      <td className="inct-when">
-        <span>{stampDate(incident.detectedAt)}</span>
-        <span className="inct-sub">{stampTime(incident.detectedAt)}</span>
-        <span className="inct-sub">{ago(incident.detectedAt)}</span>
-      </td>
-      <td className="inct-att">
-        <strong>{incident.attempts}</strong>
-        <span className="inct-sub">{incident.failures} failed</span>
-      </td>
-      <td className="inct-act">
-        {needsAction && (
-          <span className={`inct-rec inct-rec--${rec.tone}`} title="Sentinel's recommended action">
-            <Sparkle /> {rec.label}
+      {/* 1. Incident Details */}
+      <td className="inct-col inct-col--inc">
+        <div className="inct-inc-wrap">
+          <span className={`inct-plate inct-plate--${bucket}`} aria-hidden="true">
+            {bucket === 'critical' || bucket === 'high' ? (
+              <CreditCard size={16} />
+            ) : (
+              <WarningCircle size={16} />
+            )}
           </span>
-        )}
-        <button
-          type="button"
-          className="inct-review"
-          aria-label={`Review ${incident.title}`}
-          onClick={(event) => {
-            event.stopPropagation();
-            onOpen(incident.id);
-          }}
-        >
-          Review <ArrowRight />
-        </button>
+          <div className="inct-inc-text">
+            <span className="inct-inc-title">{incident.title}</span>
+            <span className="inct-inc-sub">
+              {incidentRef(incident.id)} · {relationship(incident)}
+            </span>
+          </div>
+        </div>
+      </td>
+
+      {/* 2. Risk Score & Multi-segment Meter */}
+      <td className="inct-col inct-col--risk">
+        <div className="inct-risk-wrap">
+          <div className="inct-risk-score-line">
+            <span className={`inct-score-num inct-score-num--${bucket}`}>
+              {Math.round(incident.score * 100)}
+            </span>
+            <span className="inct-score-max">/100</span>
+          </div>
+          <RiskMeter score={incident.score} />
+          <span className={`inct-tier-tag inct-tier-tag--${bucket}`}>{BUCKET_LABEL[bucket]}</span>
+        </div>
+      </td>
+
+      {/* 3. Status Pill & Stage */}
+      <td className="inct-col inct-col--status">
+        <div className="inct-status-wrap">
+          <span className={`inct-status-pill inct-status-pill--${pill.tone}`}>{pill.label}</span>
+          <span className="inct-status-sub">{pill.sub}</span>
+        </div>
+      </td>
+
+      {/* 4. Source */}
+      <td className="inct-col inct-col--source">
+        <div className="inct-source-wrap">
+          <span className="inct-source-line">
+            <span
+              className={`inct-source-dot inct-source-dot--${isSim ? 'sim' : 'live'}`}
+              aria-hidden="true"
+            />
+            {isSim ? 'Simulated' : 'Live'}
+          </span>
+          <span className="inct-source-sub">{isSim ? 'Simulation' : 'Storefront'}</span>
+        </div>
+      </td>
+
+      {/* 5. First detected */}
+      <td className="inct-col inct-col--when">
+        <div className="inct-when-wrap">
+          <span className="inct-when-date">{stampDate(incident.detectedAt)}</span>
+          <span className="inct-when-time">
+            {stampTime(incident.detectedAt)} · {ago(incident.detectedAt)}
+          </span>
+        </div>
+      </td>
+
+      {/* 6. Attempts & Failure bar */}
+      <td className="inct-col inct-col--attempts">
+        <div className="inct-attempts-wrap">
+          <span className="inct-attempts-count">{incident.attempts}</span>
+          <div className="inct-attempts-bar" aria-hidden="true">
+            <span className="inct-attempts-bar-fail" style={{ width: `${failPct}%` }} />
+          </div>
+          <span className="inct-attempts-sub">{incident.failures} failed</span>
+        </div>
+      </td>
+
+      {/* 7. Action buttons */}
+      <td className="inct-col inct-col--action">
+        <div className="inct-action-wrap">
+          {incident.recommendedDecision === 'contain' && (
+            <button
+              type="button"
+              className="inct-btn-block"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen(incident.id);
+              }}
+            >
+              <ShieldSlash size={14} /> Block
+            </button>
+          )}
+          <button
+            type="button"
+            className="inct-btn-review"
+            aria-label={`Review ${incident.title}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen(incident.id);
+            }}
+          >
+            Review <ArrowRight size={13} />
+          </button>
+        </div>
       </td>
     </tr>
   );
 }
 
-const HEADERS = ['Incident', 'Risk', 'Status', 'Source', 'First detected', 'Attempts', ''];
+const HEADERS = ['Incident', 'Risk', 'Status', 'Source', 'First detected', 'Attempts', 'Action'];
 
 function TableFooter({
   total,
@@ -160,44 +220,37 @@ function TableFooter({
   pageCount: number;
   onPage: (page: number) => void;
 }): React.JSX.Element {
+  const start = total === 0 ? 0 : (current - 1) * PAGE_SIZE + 1;
+  const end = Math.min(current * PAGE_SIZE, total);
+
   return (
     <div className="inct-foot">
-      <span className="inct-summary">
-        Showing <strong>{(current - 1) * PAGE_SIZE + 1}</strong> to{' '}
-        <strong>{Math.min(current * PAGE_SIZE, total)}</strong> of <strong>{total}</strong>{' '}
-        incidents
+      <span className="inct-foot-summary">
+        Showing <strong>{start}</strong> to <strong>{end}</strong> of <strong>{total}</strong>{' '}
+        {total === 1 ? 'incident' : 'incidents'}
       </span>
-      <nav className="inct-pager" aria-label="Pagination">
+      <div className="inct-foot-pager">
         <button
           type="button"
-          className="inct-pager__btn"
+          className="inct-pager-btn"
           disabled={current <= 1}
           onClick={() => onPage(current - 1)}
           aria-label="Previous page"
         >
-          Prev
+          <CaretLeft size={13} />
         </button>
-        {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
-          <button
-            key={p}
-            type="button"
-            className={`inct-pager__num${p === current ? ' is-active' : ''}`}
-            aria-current={p === current ? 'page' : undefined}
-            onClick={() => onPage(p)}
-          >
-            {p}
-          </button>
-        ))}
+        <span className="inct-pager-page">{current}</span>
+        <span className="inct-pager-of">of {pageCount}</span>
         <button
           type="button"
-          className="inct-pager__btn"
+          className="inct-pager-btn"
           disabled={current >= pageCount}
           onClick={() => onPage(current + 1)}
           aria-label="Next page"
         >
-          Next
+          <CaretRight size={13} />
         </button>
-      </nav>
+      </div>
     </div>
   );
 }
@@ -227,12 +280,17 @@ export function IncidentsTable({
     <section className="inct-panel">
       {filterProps && <FilterRow {...filterProps} />}
 
-      <div className="inct-wrap">
-        <table className="inct">
+      <div className="om-scroll">
+        <table className="inct-table" role="table">
           <thead>
-            <tr>
-              {HEADERS.map((h, index) => (
-                <th key={h || `a${index}`}>{h}</th>
+            <tr className="inct-head-row">
+              {HEADERS.map((h) => (
+                <th
+                  key={h}
+                  className={`inct-th-cell${h === 'Action' ? ' inct-th-cell--right' : ''}`}
+                >
+                  {h}
+                </th>
               ))}
             </tr>
           </thead>
@@ -243,6 +301,7 @@ export function IncidentsTable({
           </tbody>
         </table>
       </div>
+
       {loading && <p className="inct-empty">Loading incidents…</p>}
       {error !== null && (
         <p className="inct-empty" role="alert">

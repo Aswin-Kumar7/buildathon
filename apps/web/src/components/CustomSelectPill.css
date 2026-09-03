@@ -34,29 +34,29 @@
 .csp-container--pill .csp-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.42rem 0.85rem;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 9999px;
-  color: #334155;
-  font-size: 0.9375rem;
-  font-weight: 400;
-  box-shadow: 0 1px 3px rgba(13, 21, 38, 0.04);
+  gap: 6px;
+  padding: 6px 11px;
+  background: oklch(1 0 0);
+  border: 1px solid oklch(0.93 0.006 280);
+  border-radius: 8px;
+  color: oklch(0.34 0.015 280);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
   transition: all 0.15s ease;
   white-space: nowrap;
   pointer-events: none; /* Let clicks pass to overlay select */
 }
 
 .csp-container--pill:hover .csp-trigger {
-  border-color: #cbd5e1;
-  color: #0f172a;
-  box-shadow: 0 2px 5px rgba(13, 21, 38, 0.08);
+  background: oklch(0.985 0.003 270);
+  border-color: oklch(0.88 0.01 280);
+  color: oklch(0.24 0.015 280);
 }
 
 .csp-container--pill:focus-within .csp-trigger {
-  border-color: #0b72e7;
-  box-shadow: 0 0 0 3px rgba(11, 114, 231, 0.12);
+  border-color: #1E6FD9;
+  box-shadow: 0 0 0 2px rgba(30, 111, 217, 0.12);
 }
 
 /* ── Field Variant Trigger ── */
