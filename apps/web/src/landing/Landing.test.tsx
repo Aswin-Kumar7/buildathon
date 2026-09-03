@@ -20,7 +20,7 @@ const layer = (id: string, name: string) => ({
 const meta = {
   name: 'Sentinel',
   claim: 'Detects suspicious failed-payment clusters and tells them apart from outages.',
-  version: '0.16.1',
+  version: '0.21.0',
   commit: 'abc1234',
   slice: { number: 16, name: 'Redesign' },
   evidenceLayers: [layer('L1', 'Integration'), layer('L2', 'Compliance'), layer('L3', 'Benchmark')],
@@ -37,35 +37,43 @@ function stubMeta(): void {
 }
 
 describe('Landing', () => {
-  it('renders the hero immediately, without waiting for the api', () => {
+  it('leads with what the product detects, without waiting for the api', () => {
     stubDown();
     render(<Landing />);
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/catch card testing/i);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      /fraud .* abuse detection/i,
+    );
   });
 
-  it('leads the reader to the console', () => {
+  it('routes every call to action at the console', () => {
     stubDown();
     render(<Landing />);
-    // Two entry points (hero + final CTA), both routing to the login/console.
-    expect(screen.getAllByRole('button', { name: /open the console/i }).length).toBeGreaterThan(0);
+    const toConsole = screen
+      .getAllByRole('link')
+      .filter((a) => a.getAttribute('href') === '/login');
+    expect(toConsole.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('offers the storefront as the other half of the demo', () => {
+  it('states the differentiators plainly, as claims a merchant can check', () => {
     stubDown();
     render(<Landing />);
-    expect(screen.getByRole('button', { name: /view the storefront/i })).toBeInTheDocument();
+    expect(screen.getByText(/nothing blocks a shopper alone/i)).toBeInTheDocument();
+    expect(screen.getByText(/pr-auc on a held-out grouped split/i)).toBeInTheDocument();
   });
 
-  it('states the product’s differentiator plainly', () => {
+  it('answers the ten questions a merchant actually asks', () => {
     stubDown();
     render(<Landing />);
-    expect(screen.getByText(/the model you’re shown is the model that runs/i)).toBeInTheDocument();
-    expect(screen.getByText(/A model you can trust/i)).toBeInTheDocument();
+    // Only the FAQ rows carry a question mark, so this counts them without matching the
+    // "/01".."/04" labels used elsewhere on the page.
+    const questions = screen.getAllByRole('button').filter((b) => b.textContent?.includes('?'));
+    expect(questions).toHaveLength(10);
+    expect(screen.getByText(/will it block real customers by mistake\?/i)).toBeInTheDocument();
   });
 
   it('shows the build version once the api answers', async () => {
     stubMeta();
     render(<Landing />);
-    expect(await screen.findByText(/0\.16\.1/)).toBeInTheDocument();
+    expect(await screen.findByText(/0\.21\.0/)).toBeInTheDocument();
   });
 });
