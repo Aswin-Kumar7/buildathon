@@ -696,3 +696,122 @@
   font-size: 0.875rem;
   line-height: 1.55;
 }
+
+/* ── Payment Method Cell & Logos matching Sentinel Console.html ── */
+.ap-pm-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ap-pm-logo-wrap {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+.ap-pm-logo {
+  max-height: 16px;
+  width: auto;
+  object-fit: contain;
+  user-select: none;
+  pointer-events: none;
+}
+
+.ap-pm-logo--upi {
+  height: 13px;
+  max-width: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.ap-pm-logo--netbanking {
+  height: 14px;
+}
+
+.ap-pm-logo--visa,
+.ap-pm-logo--mastercard,
+.ap-pm-logo--amex {
+  height: 14px;
+}
+
+.ap-pm-logo--rupay {
+  height: 12px;
+  max-width: 24px;
+}
+
+/* ── Dropdown Menu styling matching HTML spec ── */
+.ad-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.ad-dropdown__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border: 1px solid oklch(0.93 0.006 280);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: oklch(0.34 0.015 280);
+  background: oklch(1 0 0);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ad-dropdown__button:hover {
+  background: oklch(0.985 0.004 270);
+  border-color: oklch(0.88 0.01 280);
+}
+
+.ad-dropdown__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  min-width: 186px;
+  padding: 5px;
+  border-radius: 10px;
+  background: oklch(1 0 0);
+  border: 1px solid oklch(0.92 0.008 280);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+}
+
+.ad-dropdown__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: oklch(0.3 0.015 280);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.ad-dropdown__item:hover {
+  background: oklch(0.975 0.004 270);
+  color: oklch(0.2 0.015 280);
+}
+
+.ad-dropdown__item.is-selected {
+  font-weight: 600;
+  color: oklch(0.2 0.015 280);
+  background: oklch(0.96 0.006 280);
+}

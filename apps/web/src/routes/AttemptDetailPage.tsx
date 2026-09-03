@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pulse, WarningCircle, Shield } from '@phosphor-icons/react';
+import { Pulse, WarningCircle, Shield, Wallet } from '@phosphor-icons/react';
 import { CreditCard, Laptop, ArrowLeft } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
@@ -142,13 +142,7 @@ function MethodFactCell({ payment }: { payment: AttemptDetailPayment }): React.J
     return (
       <div className="ap-pm-cell">
         <div className="ap-pm-logo-wrap">
-          <img
-            src={walletLogo}
-            alt=""
-            className="ap-pm-logo ap-pm-logo--wallet"
-            draggable={false}
-            onContextMenu={preventSave}
-          />
+          <Wallet size={15} color="oklch(0.5 0.015 280)" />
         </div>
         <span>Wallet</span>
       </div>

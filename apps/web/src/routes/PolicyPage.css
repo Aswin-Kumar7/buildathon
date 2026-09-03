@@ -80,6 +80,34 @@
   color: oklch(0.55 0.015 280);
 }
 
+.pol-head__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pol-head__sim-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: oklch(1 0 0);
+  background: oklch(0.55 0.15 258);
+  border: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.pol-head__sim-btn:hover {
+  background: oklch(0.5 0.15 258);
+}
+
 .pol-head__history-btn {
   display: inline-flex;
   align-items: center;

@@ -5,58 +5,42 @@
   user-select: none;
 }
 
-/* Invisible overlay native select — 100% visible to DOM/tests, styled visually by custom trigger */
-.csp-native-select {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-  cursor: pointer;
-  z-index: 2;
-  appearance: none;
-  -webkit-appearance: none;
-  border: none;
-  outline: none;
-}
-
-.csp-native-select option {
-  font-family: inherit;
-  font-size: 0.9375rem;
-  font-weight: 500;
-  color: #0f172a;
-  background-color: #ffffff;
-  padding: 0.6rem 0.85rem;
-}
-
 /* ── Pill Variant Trigger ── */
 .csp-container--pill .csp-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 11px;
+  gap: 7px;
+  padding: 6px 12px;
   background: oklch(1 0 0);
-  border: 1px solid oklch(0.93 0.006 280);
+  border: 1px solid oklch(0.925 0.008 280);
   border-radius: 8px;
-  color: oklch(0.34 0.015 280);
-  font-size: 12px;
-  font-weight: 600;
+  color: oklch(0.24 0.015 280);
+  font-size: 13px;
+  font-weight: 500;
   font-family: inherit;
   transition: all 0.15s ease;
   white-space: nowrap;
-  pointer-events: none; /* Let clicks pass to overlay select */
+  cursor: pointer;
 }
 
-.csp-container--pill:hover .csp-trigger {
+.csp-container--pill .csp-trigger:hover {
   background: oklch(0.985 0.003 270);
   border-color: oklch(0.88 0.01 280);
-  color: oklch(0.24 0.015 280);
 }
 
-.csp-container--pill:focus-within .csp-trigger {
-  border-color: #1E6FD9;
-  box-shadow: 0 0 0 2px rgba(30, 111, 217, 0.12);
+/* ── Active / Open Pill State matching screenshot ── */
+.csp-container--pill .csp-trigger.is-open,
+.csp-container--pill.is-open .csp-trigger {
+  background: #EFF6FF !important;
+  border-color: #3B82F6 !important;
+  color: #1D4ED8 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+.csp-container--pill .csp-trigger.is-open .csp-icon,
+.csp-container--pill .csp-trigger.is-open .csp-chevron {
+  color: #1D4ED8 !important;
 }
 
 /* ── Field Variant Trigger ── */
@@ -77,22 +61,23 @@
   font-size: 0.875rem;
   font-weight: 500;
   transition: all 0.15s ease;
-  pointer-events: none; /* Let clicks pass to overlay select */
+  cursor: pointer;
 }
 
-.csp-container--field:hover .csp-trigger {
+.csp-container--field .csp-trigger:hover {
   border-color: #cbd5e1;
 }
 
-.csp-container--field:focus-within .csp-trigger {
-  border-color: #0b72e7;
-  box-shadow: 0 0 0 3px rgba(11, 114, 231, 0.12);
+.csp-container--field .csp-trigger.is-open {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
 .csp-icon {
   display: inline-flex;
   align-items: center;
-  color: #64748b;
+  color: oklch(0.5 0.015 280);
+  transition: color 0.15s ease;
 }
 
 .csp-label {
@@ -103,11 +88,71 @@
 .csp-chevron {
   display: inline-flex;
   align-items: center;
-  color: #64748b;
-  transition: transform 0.18s ease;
+  color: oklch(0.5 0.015 280);
+  transition: color 0.15s ease;
 }
 
-.csp-chevron.is-expanded {
-  transform: rotate(180deg);
-  color: #0b72e7;
+/* ── Floating Dropdown Menu Card ── */
+.csp-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 190px;
+  z-index: 1000;
+  background: oklch(1 0 0);
+  border: 1px solid oklch(0.925 0.006 280);
+  border-radius: 14px;
+  box-shadow:
+    0 12px 32px -8px rgba(0, 0, 0, 0.12),
+    0 4px 12px -2px rgba(0, 0, 0, 0.05);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: cspFadeIn 0.14s ease-out;
+}
+
+@keyframes cspFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.csp-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: oklch(0.24 0.015 280);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  white-space: nowrap;
+}
+
+.csp-dropdown-item:hover {
+  background: oklch(0.968 0.006 280);
+}
+
+.csp-dropdown-item.is-selected {
+  font-weight: 600;
+  color: oklch(0.2 0.015 280);
+}
+
+.csp-check-icon {
+  color: #2563eb;
+  flex-shrink: 0;
+  margin-left: 12px;
 }

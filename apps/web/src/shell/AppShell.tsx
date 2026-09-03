@@ -167,10 +167,6 @@ function Sidebar({ onNavigate }: { onNavigate: () => void }): React.JSX.Element 
               {item.type === 'attempts' && attemptsCount !== undefined && attemptsCount > 0 && (
                 <span className="shell__nav-badge-count">{attemptsCount}</span>
               )}
-
-              {item.type === 'incidents' && activeIncidentsCount > 0 && (
-                <span className="shell__nav-alert-pill">{activeIncidentsCount}</span>
-              )}
             </Link>
           );
         })}

@@ -1,22 +1,19 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  Lightning,
-  Pulse as PulseIcon,
-  GitBranch,
-  MagnifyingGlass,
-  WarningCircle,
+  FlowArrow,
+  Eye,
+  GitMerge,
+  Crosshair,
+  WarningOctagon,
   Check,
+  Warning,
+  CaretUp,
+  CaretDown,
+  X,
   PlayCircle,
-  Shield,
 } from '@phosphor-icons/react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Link } from '@tanstack/react-router';
-import {
-  simulationStatusSchema,
-  type SimulationActivity,
-  type SimulationDetected,
-  type SimulationStatus,
-} from '@sentinel/contracts';
+import { simulationStatusSchema, type SimulationStatus } from '@sentinel/contracts';
 import { apiMutate } from '../auth/api.js';
 
 async function fetchStatus(): Promise<SimulationStatus> {
@@ -24,56 +21,25 @@ async function fetchStatus(): Promise<SimulationStatus> {
   if (!response.ok) throw new Error(`api returned ${response.status}`);
   return simulationStatusSchema.parse(await response.json());
 }
+
 async function stopSimulation(): Promise<void> {
   const response = await apiMutate('/api/simulation/stop');
   if (!response.ok) throw new Error(`api returned ${response.status}`);
 }
 
-const rupees = (paise: number | null): string =>
-  paise === null ? '—' : `₹${(paise / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
-const clock = (ms: number): string =>
-  new Date(ms).toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true,
-  });
+const TONES: Record<string, [string, string]> = {
+  benign: ['oklch(0.955 0.026 162)', 'oklch(0.42 0.11 162)'],
+  operational: ['oklch(0.962 0.028 62)', 'oklch(0.48 0.12 52)'],
+  attack: ['oklch(0.958 0.026 22)', 'oklch(0.52 0.15 22)'],
+};
 
-const STEPS: {
-  key: string;
-  label: string;
-  icon: React.ReactNode;
-  reached: (s: SimulationStatus) => boolean;
-}[] = [
-  { key: 'generating', label: 'Generating', icon: <Lightning />, reached: (s) => s.emitted > 0 },
-  { key: 'monitoring', label: 'Monitoring', icon: <PulseIcon />, reached: (s) => s.emitted > 0 },
-  {
-    key: 'correlating',
-    label: 'Correlating',
-    icon: <GitBranch />,
-    reached: (s) => s.attemptsCorrelated > 0,
-  },
-  {
-    key: 'detecting',
-    label: 'Detecting',
-    icon: <MagnifyingGlass />,
-    reached: (s) => s.evaluations > 0,
-  },
-  {
-    key: 'incident',
-    label: 'Incident',
-    icon: <WarningCircle />,
-    reached: (s) => s.incidentsDetected > 0,
-  },
-];
-
-function phaseLine(s: SimulationStatus): string {
-  if (s.incidentsDetected > 0) return 'Incident opened — Sentinel detected the pattern.';
-  if (s.phase === 'generating') return 'Streaming payment attempts through the live pipeline…';
-  if (s.phase === 'analyzing')
-    return `Correlating and evaluating — ${s.attemptsCorrelated} attempts grouped, no incident yet.`;
-  return 'Idle.';
-}
+const PHASES = [
+  ['Generating', FlowArrow],
+  ['Monitoring', Eye],
+  ['Correlating', GitMerge],
+  ['Detecting', Crosshair],
+  ['Incident', WarningOctagon],
+] as const;
 
 export function SimulationPanel({
   onClose,
@@ -81,273 +47,580 @@ export function SimulationPanel({
 }: {
   onClose: () => void;
   onTick: () => void;
-}): React.JSX.Element {
+}): React.JSX.Element | null {
   const status = useQuery({
     queryKey: ['simulation-status'],
     queryFn: fetchStatus,
     refetchInterval: 2500,
   });
-  const stop = useMutation({ mutationFn: stopSimulation, onSuccess: () => void status.refetch() });
+
+  const stop = useMutation({
+    mutationFn: stopSimulation,
+    onSuccess: () => void status.refetch(),
+  });
+
+  const [userToggledFeed, setUserToggledFeed] = useState<boolean | null>(null);
 
   const s = status.data;
-  // Refresh the incidents table only when real run progress changes — same backend source of truth,
-  // via a ref so a new onTick identity each render cannot spin a refetch loop.
+  const isRunning = s?.running ?? false;
+  const feedOpen =
+    userToggledFeed !== null ? userToggledFeed : isRunning || (s?.recentActivity.length ?? 0) > 0;
+
   const onTickRef = useRef(onTick);
   onTickRef.current = onTick;
   useEffect(() => {
     onTickRef.current();
   }, [s?.emitted, s?.incidentsDetected]);
 
+  if (!s || (!s.running && s.emitted === 0 && s.scenario === null)) return null;
+
+  const toneKey = s.scenario?.classification ?? 'benign';
+  const [bg, fg] = (TONES[toneKey] ?? TONES.benign) as [string, string];
+  const isDone = !s.running;
+
+  // Phase computation
+  const curPhase = isDone
+    ? 4
+    : s.incidentsDetected > 0
+      ? 4
+      : s.attemptsCorrelated > 0
+        ? 3
+        : s.emitted > 0
+          ? 1
+          : 0;
+
+  const phaseNote = isDone
+    ? s.incidentsDetected > 0
+      ? `Incident opened — ${s.attemptsCorrelated || s.emitted} attempts correlated to abuse pattern.`
+      : `Correlating and evaluating — ${s.emitted} attempts grouped, no incident raised.`
+    : [
+        'Generating traffic against the live detector.',
+        'Monitoring attempts as they arrive.',
+        'Correlating attempts by device, card and network.',
+        'Evaluating correlated groups against the policy.',
+        'Incident evaluation active.',
+      ][curPhase] || '';
+
+  const verdictTitle = isDone
+    ? s.incidentsDetected > 0
+      ? 'Incident raised — abuse pattern detected'
+      : 'No incident — and that is the right call'
+    : '';
+
+  const verdictText = isDone
+    ? s.incidentsDetected > 0
+      ? `${s.emitted} attempts, correlated device fingerprint, matching card-testing pattern. Incident opened.`
+      : `This was ordinary, legitimate traffic. Sentinel opens an incident only when payments match an abuse pattern. Real customers paying never qualify.`
+    : '';
+
   return (
-    <aside className="simpanel">
-      <header className="simpanel-head">
-        <span className="simpanel-title">
-          <PlayCircle /> Simulation
-        </span>
-        <button type="button" className="simpanel-x" onClick={onClose} aria-label="Close">
-          ✕
-        </button>
-      </header>
-
-      {s === undefined ? (
-        <p className="simpanel-note">Loading run state…</p>
-      ) : (
-        <>
-          {(s.running || s.emitted > 0 || s.scenario !== null) && (
-            <>
-              <p className={`simpanel-status simpanel-status--${s.running ? 'on' : 'off'}`}>
-                <i aria-hidden="true" /> {s.running ? 'Simulation running' : 'Simulation finished'}
-              </p>
-
-              {s.scenario !== null && (
-                <div className="simpanel-scenario">
-                  <Shield />
-                  <strong>{s.scenario.title}</strong>
-                  <span className="simpanel-tag">SIMULATED</span>
-                </div>
-              )}
-              {s.scenario !== null && <p className="simpanel-desc">{s.scenario.description}</p>}
-
-              <Metrics status={s} />
-
-              <div className="simpanel-block">
-                <h4>Current phase</h4>
-                <Pipeline status={s} />
-                <p className="simpanel-phaseline">{phaseLine(s)}</p>
-              </div>
-
-              <Detected status={s} />
-
-              <StoodDown status={s} />
-
-              <div className="simpanel-block">
-                <h4>Live activity</h4>
-                <Pulse items={s.recentActivity} />
-              </div>
-
-              {s.running && (
-                <button
-                  type="button"
-                  className="simpanel-stop"
-                  onClick={() => stop.mutate()}
-                  disabled={stop.isPending}
-                >
-                  {stop.isPending ? 'Stopping…' : 'Stop simulation'}
-                </button>
-              )}
-            </>
-          )}
-        </>
-      )}
-    </aside>
-  );
-}
-
-function Metrics({ status }: { status: SimulationStatus }): React.JSX.Element {
-  const cells: [string, number][] = [
-    ['Payments generated', status.emitted],
-    ['Incidents detected', status.incidentsDetected],
-    ['Attempts correlated', status.attemptsCorrelated],
-  ];
-  return (
-    <div className="simpanel-metrics">
-      {cells.map(([label, value]) => (
-        <div key={label}>
-          <span className="simpanel-metric__label">{label}</span>
-          <strong className="simpanel-metric__value">{value}</strong>
+    <aside
+      style={{
+        flex: '1 1 300px',
+        maxWidth: '326px',
+        minWidth: '280px',
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: '12px',
+        background: 'oklch(1 0 0)',
+        border: '1px solid oklch(0.925 0.006 280)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          padding: '14px 16px',
+          borderBottom: '1px solid oklch(0.95 0.006 280)',
+          background: 'oklch(0.99 0.002 270)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: '0 0 24px',
+              width: '24px',
+              height: '24px',
+              borderRadius: '7px',
+              background: bg,
+              color: fg,
+            }}
+          >
+            <PlayCircle size={14} />
+          </span>
+          <span
+            style={{
+              fontSize: '13.5px',
+              fontWeight: 600,
+              letterSpacing: '-0.022em',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              color: 'oklch(0.21 0.015 280)',
+            }}
+          >
+            {s.scenario?.title ?? 'Simulation'}
+          </span>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '3px 9px',
+              borderRadius: '99px',
+              fontSize: '10.5px',
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              color: isDone ? 'oklch(0.42 0.015 280)' : 'oklch(0.46 0.12 258)',
+              background: isDone ? 'oklch(0.955 0.006 280)' : 'oklch(0.962 0.024 258)',
+            }}
+          >
+            {isDone ? 'Finished' : 'Running'}
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close panel"
+            style={{
+              marginLeft: 'auto',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: '0 0 26px',
+              width: '26px',
+              height: '26px',
+              border: 0,
+              borderRadius: '7px',
+              color: 'oklch(0.58 0.015 280)',
+              background: 'transparent',
+              cursor: 'pointer',
+            }}
+          >
+            <X size={14} />
+          </button>
         </div>
-      ))}
-    </div>
-  );
-}
+        <p
+          style={{
+            margin: 0,
+            fontSize: '12px',
+            fontWeight: 500,
+            lineHeight: 1.55,
+            color: 'oklch(0.55 0.015 280)',
+          }}
+        >
+          {s.scenario?.description ?? 'Streamed payment attempts running through Sentinel.'}
+        </p>
+      </div>
 
-function Pipeline({ status }: { status: SimulationStatus }): React.JSX.Element {
-  const reached = STEPS.map((step) => step.reached(status));
-  const activeIndex = reached.lastIndexOf(true);
-  return (
-    <div className="simpanel-pipeline">
-      <ol className="simpanel-pipe">
-        {STEPS.map((step, index) => {
-          const isReached = reached[index];
-          const isDone = isReached && (index < activeIndex || !status.running);
-          const isActive = index === activeIndex && status.running;
-          const isNextReached = index < STEPS.length - 1 && reached[index + 1];
-          const state = !isReached ? 'pending' : isActive ? 'active' : 'done';
-          return (
-            <li key={step.key} className={`simpanel-step simpanel-step--${state}`}>
-              <div className="simpanel-step__node-wrap">
-                <span className="simpanel-node" aria-hidden="true">
-                  {isDone ? <Check /> : step.icon}
-                </span>
-                {index < STEPS.length - 1 && (
-                  <span
-                    className={`simpanel-rail${isNextReached ? ' is-filled' : isActive ? ' is-animating' : ''}`}
-                  />
-                )}
-              </div>
-              <span className="simpanel-step__label">{step.label}</span>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
-}
-
-/** Why a finished run raised nothing — so a correct "no incident" is never read as a broken run. */
-function noIncidentCopy(status: SimulationStatus): {
-  headline: string;
-  body: string;
-  correct: boolean;
-} {
-  const kind = status.scenario?.classification ?? null;
-  if (kind === 'benign') {
-    return {
-      correct: true,
-      headline: 'No incident — and that is the right call',
-      body: 'This was ordinary, legitimate traffic. Sentinel opens an incident only when payments match an abuse pattern — rapid card-testing, enumeration across many cards. Real customers paying never qualify, so nothing was raised.',
-    };
-  }
-  if (kind === 'operational') {
-    return {
-      correct: true,
-      headline: 'No incident — and that is the right call',
-      body: 'A gateway wobble and biller retries are operational noise, not abuse. Sentinel deliberately holds fire on these so a real attack is not buried under false alarms.',
-    };
-  }
-  return {
-    correct: false,
-    headline: 'No incident opened',
-    body: 'The streamed attempts did not match an abuse pattern this run. Ordinary orders, retries after a decline and gateway wobbles are expected and stay off the incident list.',
-  };
-}
-
-function Detected({ status }: { status: SimulationStatus }): React.JSX.Element | null {
-  if (status.detected.length > 0) {
-    return (
-      <div className="simpanel-block">
-        <h4>Detected by Sentinel</h4>
-        {status.detected.map((incident) => (
-          <DetectedRow key={incident.id} incident={incident} />
+      {/* 3 Metrics Grid */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          borderTop: '1px solid oklch(0.958 0.006 280)',
+          borderBottom: '1px solid oklch(0.958 0.006 280)',
+        }}
+      >
+        {(
+          [
+            ['Payments generated', String(s.emitted), false],
+            ['Incidents detected', String(s.incidentsDetected), s.incidentsDetected > 0],
+            ['Attempts correlated', String(s.attemptsCorrelated), false],
+          ] as [string, string, boolean][]
+        ).map(([label, val, hot], idx) => (
+          <div
+            key={label}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '7px',
+              padding: '12px 14px',
+              borderLeft: idx > 0 ? '1px solid oklch(0.958 0.006 280)' : 'none',
+            }}
+          >
+            <span
+              style={{
+                fontSize: '9.5px',
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                lineHeight: 1.3,
+                color: 'oklch(0.56 0.015 280)',
+              }}
+            >
+              {label}
+            </span>
+            <span
+              style={{
+                fontSize: '22px',
+                fontWeight: 700,
+                letterSpacing: '-0.035em',
+                lineHeight: 1,
+                fontVariantNumeric: 'tabular-nums',
+                color: hot
+                  ? 'oklch(0.5 0.15 22)'
+                  : val === '0'
+                    ? 'oklch(0.74 0.015 280)'
+                    : 'oklch(0.21 0.015 280)',
+              }}
+            >
+              {val}
+            </span>
+          </div>
         ))}
       </div>
-    );
-  }
-  if (!status.running && status.emitted > 0) {
-    const copy = noIncidentCopy(status);
-    return (
-      <div className="simpanel-block">
-        <h4>Detection outcome</h4>
-        <div className={`simpanel-clear${copy.correct ? ' simpanel-clear--ok' : ''}`}>
-          <span className="simpanel-clear__ico" aria-hidden="true">
-            {copy.correct ? '✓' : 'ⓘ'}
-          </span>
-          <span className="simpanel-clear__text">
-            <strong>{copy.headline}</strong>
-            <span>{copy.body}</span>
-          </span>
-        </div>
-      </div>
-    );
-  }
-  return null;
-}
 
-/**
- * Incidents the detector opened on a burst and then stood down. Shown apart from detections — this
- * is the judgment on display (a dunning storm that briefly looked like testing, re-classified and
- * resolved), never a detection, so it is never counted as one.
- */
-function StoodDown({ status }: { status: SimulationStatus }): React.JSX.Element | null {
-  if (status.stoodDown.length === 0) return null;
-  return (
-    <div className="simpanel-block">
-      <h4>Opened, then stood down</h4>
-      <p className="simpanel-runsnote">
-        Sentinel opened these on a burst, then re-evaluated and resolved them as legitimate — no
-        action taken. This is the restraint that keeps a real attack from being buried in false
-        alarms.
-      </p>
-      {status.stoodDown.map((incident) => (
-        <div key={incident.id} className="simpanel-stood">
-          <span className="simpanel-stood__ico" aria-hidden="true">
-            <Shield />
-          </span>
-          <span className="simpanel-detected__text">
-            <strong>{incident.title}</strong>
-            <span>
-              Re-classified as {incident.resolvedAs} · {incident.entityKind}
-            </span>
-          </span>
-          <span className="simpanel-stood__pill">stood down</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DetectedRow({ incident }: { incident: SimulationDetected }): React.JSX.Element {
-  const bucket =
-    incident.severity === 'high' && incident.score >= 0.9 ? 'critical' : incident.severity;
-  return (
-    <Link to="/console/incidents/$id" params={{ id: incident.id }} className="simpanel-detected">
-      <span className={`simpanel-detected__ico simpanel-detected__ico--${bucket}`}>
-        <Shield />
-      </span>
-      <span className="simpanel-detected__text">
-        <strong>{incident.title}</strong>
-        <span>
-          {Math.round(incident.score * 100)}/100 · {incident.entityKind}
+      {/* Current Phase Stepper */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+          padding: '14px 16px',
+          borderBottom: '1px solid oklch(0.958 0.006 280)',
+        }}
+      >
+        <span
+          style={{
+            fontSize: '10.5px',
+            fontWeight: 700,
+            letterSpacing: '0.07em',
+            textTransform: 'uppercase',
+            color: 'oklch(0.52 0.015 280)',
+          }}
+        >
+          Current phase
         </span>
-      </span>
-      <span className={`simpanel-detected__pill simpanel-detected__pill--${bucket}`}>{bucket}</span>
-    </Link>
-  );
-}
+        <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+          {PHASES.map(([label, IconComp], i) => {
+            const isIncidentStep = i === 4;
+            const reached = i < curPhase || (isDone && i <= curPhase);
+            const active = i === curPhase && !reached;
+            const lit = reached || active;
 
-function Pulse({ items }: { items: SimulationActivity[] }): React.JSX.Element {
-  if (items.length === 0) return <p className="simpanel-none">No events yet.</p>;
-  return (
-    <ol className="simpanel-activity">
-      {items.map((item, index) => (
-        <li key={`${item.at}-${index}`} className="simpanel-act">
-          <span className="simpanel-act__time">{clock(item.at)}</span>
-          {item.kind === 'incident' ? (
-            <span className="simpanel-act__body">
-              <strong className="simpanel-act__crit">Incident detected</strong>
-              <span>{item.title}</span>
+            const ACC = isIncidentStep ? 'oklch(0.64 0.15 22)' : 'oklch(0.62 0.13 258)';
+            const SOFT = isIncidentStep ? 'oklch(0.952 0.03 22)' : 'oklch(0.955 0.028 258)';
+            const INK = isIncidentStep ? 'oklch(0.52 0.15 22)' : 'oklch(0.46 0.13 258)';
+
+            return (
+              <div
+                key={label}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '7px',
+                  flex: '1 1 0',
+                  minWidth: 0,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                  <span
+                    style={{
+                      flex: '1 1 0',
+                      height: '2px',
+                      background:
+                        i === 0
+                          ? 'transparent'
+                          : lit
+                            ? 'oklch(0.82 0.07 258)'
+                            : 'oklch(0.93 0.006 280)',
+                    }}
+                  />
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flex: '0 0 26px',
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '99px',
+                      transition: 'background .25s ease, border-color .25s ease',
+                      background: reached ? SOFT : 'oklch(1 0 0)',
+                      border: reached
+                        ? `1.5px solid ${ACC}`
+                        : active
+                          ? `2px solid ${ACC}`
+                          : '1.5px solid oklch(0.93 0.006 280)',
+                    }}
+                  >
+                    {reached ? (
+                      <Check size={12} style={{ color: INK }} />
+                    ) : (
+                      <IconComp size={12} style={{ color: active ? INK : 'oklch(0.8 0.01 280)' }} />
+                    )}
+                  </span>
+                  <span
+                    style={{
+                      flex: '1 1 0',
+                      height: '2px',
+                      background:
+                        i === PHASES.length - 1
+                          ? 'transparent'
+                          : reached
+                            ? 'oklch(0.82 0.07 258)'
+                            : 'oklch(0.93 0.006 280)',
+                    }}
+                  />
+                </div>
+                <span
+                  style={{
+                    fontSize: '9.5px',
+                    fontWeight: lit ? 700 : 500,
+                    letterSpacing: '0.02em',
+                    textAlign: 'center',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    maxWidth: '100%',
+                    color: lit
+                      ? isIncidentStep
+                        ? 'oklch(0.5 0.14 22)'
+                        : 'oklch(0.42 0.11 258)'
+                      : 'oklch(0.7 0.015 280)',
+                  }}
+                >
+                  {label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <p
+          style={{
+            margin: 0,
+            fontSize: '11.5px',
+            fontWeight: 500,
+            lineHeight: 1.5,
+            color: 'oklch(0.55 0.015 280)',
+          }}
+        >
+          {phaseNote}
+        </p>
+      </div>
+
+      {/* Detection Outcome Verdict */}
+      {isDone && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+            padding: '14px 16px',
+            borderBottom: '1px solid oklch(0.958 0.006 280)',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '10.5px',
+              fontWeight: 700,
+              letterSpacing: '0.07em',
+              textTransform: 'uppercase',
+              color: 'oklch(0.52 0.015 280)',
+            }}
+          >
+            Detection outcome
+          </span>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+              padding: '12px 13px',
+              borderRadius: '11px',
+              background:
+                s.incidentsDetected > 0 ? 'oklch(0.982 0.014 22)' : 'oklch(0.98 0.014 162)',
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flex: '0 0 20px',
+                width: '20px',
+                height: '20px',
+                marginTop: '1px',
+                borderRadius: '99px',
+                background:
+                  s.incidentsDetected > 0 ? 'oklch(0.58 0.17 22)' : 'oklch(0.55 0.13 162)',
+                color: 'oklch(1 0 0)',
+              }}
+            >
+              {s.incidentsDetected > 0 ? <Warning size={12} /> : <Check size={12} />}
             </span>
-          ) : (
-            <span className="simpanel-act__body">
-              <strong>Payment attempt</strong>
-              <span>
-                {rupees(item.amountPaise)} · {item.status ?? 'processing'}
-                {item.paymentId !== null && ` · ${item.paymentId.slice(-8)}`}
+            <span style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
+              <span
+                style={{
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  letterSpacing: '-0.012em',
+                  lineHeight: 1.35,
+                  color: 'oklch(0.22 0.015 280)',
+                }}
+              >
+                {verdictTitle}
+              </span>
+              <span
+                style={{
+                  fontSize: '11.5px',
+                  fontWeight: 500,
+                  lineHeight: 1.55,
+                  color: 'oklch(0.45 0.015 280)',
+                }}
+              >
+                {verdictText}
               </span>
             </span>
-          )}
-        </li>
-      ))}
-    </ol>
+          </div>
+        </div>
+      )}
+
+      {/* Expandable Live Activity Feed */}
+      <button
+        type="button"
+        onClick={() => setUserToggledFeed(!feedOpen)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '9px',
+          padding: '13px 16px',
+          border: 0,
+          borderTop: '1px solid oklch(0.958 0.006 280)',
+          fontFamily: 'inherit',
+          background: 'oklch(1 0 0)',
+          cursor: 'pointer',
+        }}
+      >
+        <span
+          style={{
+            flex: '0 0 6px',
+            width: '6px',
+            height: '6px',
+            borderRadius: '99px',
+            background: 'oklch(0.58 0.16 22)',
+          }}
+        />
+        <span
+          style={{
+            fontSize: '12.5px',
+            fontWeight: 600,
+            letterSpacing: '-0.01em',
+            color: 'oklch(0.26 0.015 280)',
+          }}
+        >
+          Live activity
+        </span>
+        <span
+          style={{
+            padding: '2px 7px',
+            borderRadius: '99px',
+            fontSize: '10.5px',
+            fontWeight: 600,
+            fontVariantNumeric: 'tabular-nums',
+            color: 'oklch(0.5 0.015 280)',
+            background: 'oklch(0.958 0.006 280)',
+          }}
+        >
+          {s.recentActivity.length}
+        </span>
+        {feedOpen ? (
+          <CaretUp size={13} style={{ marginLeft: 'auto', color: 'oklch(0.62 0.015 280)' }} />
+        ) : (
+          <CaretDown size={13} style={{ marginLeft: 'auto', color: 'oklch(0.62 0.015 280)' }} />
+        )}
+      </button>
+
+      {feedOpen && (
+        <div
+          className="om-scroll"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            padding: '0 16px 12px',
+            maxHeight: '208px',
+            overflowY: 'auto',
+          }}
+        >
+          {s.recentActivity.map((ev, idx) => (
+            <div
+              key={`${ev.at}-${idx}`}
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+                padding: '9px 0',
+                borderTop: idx > 0 ? '1px solid oklch(0.968 0.006 280)' : 'none',
+              }}
+            >
+              <span
+                style={{
+                  flex: '0 0 68px',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  fontVariantNumeric: 'tabular-nums',
+                  color: 'oklch(0.6 0.015 280)',
+                }}
+              >
+                {new Date(ev.at).toLocaleTimeString('en-IN', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  second: '2-digit',
+                  hour12: true,
+                })}
+              </span>
+              <span style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'oklch(0.24 0.015 280)' }}>
+                  {ev.kind === 'incident' ? 'Incident detected' : 'Payment attempt'}
+                </span>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 500,
+                    fontVariantNumeric: 'tabular-nums',
+                    color: 'oklch(0.58 0.015 280)',
+                  }}
+                >
+                  {ev.kind === 'incident'
+                    ? ev.title
+                    : `${ev.amountPaise ? `₹${(ev.amountPaise / 100).toFixed(2)}` : '—'} · ${ev.status ?? 'processing'}`}
+                </span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Stop button when running */}
+      {s.running && (
+        <div style={{ padding: '12px 16px', borderTop: '1px solid oklch(0.958 0.006 280)' }}>
+          <button
+            type="button"
+            onClick={() => stop.mutate()}
+            disabled={stop.isPending}
+            style={{
+              width: '100%',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              border: '1px solid oklch(0.85 0.01 280)',
+              background: 'oklch(0.98 0.003 270)',
+              color: 'oklch(0.3 0.015 280)',
+              fontSize: '12.5px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            {stop.isPending ? 'Stopping…' : 'Stop simulation'}
+          </button>
+        </div>
+      )}
+    </aside>
   );
 }

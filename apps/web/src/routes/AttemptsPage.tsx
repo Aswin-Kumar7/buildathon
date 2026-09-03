@@ -4,8 +4,10 @@ import { Link } from '@tanstack/react-router';
 import { EmptyState, ErrorState, Loading } from '@sentinel/ui';
 import {
   attemptRowsResponseSchema,
+  simulationStatusSchema,
   type AttemptRow,
   type AttemptRowsResponse,
+  type SimulationStatus,
 } from '@sentinel/contracts';
 
 import visaLogo from '../assets/payments/visa.png';
@@ -18,6 +20,8 @@ import walletLogo from '../assets/payments/wallet.png';
 
 import './AttemptsPage.css';
 import { CustomSelectPill } from '../components/CustomSelectPill.js';
+import { SimulationPopup } from './SimulationPopup.js';
+import { SimulationPanel } from './SimulationPanel.js';
 import {
   CreditCard,
   Receipt,
@@ -28,6 +32,8 @@ import {
   CaretLeft,
   CaretRight,
   MagnifyingGlass,
+  Wallet,
+  Play,
 } from '@phosphor-icons/react';
 
 type Source = 'all' | 'razorpay' | 'replay';
@@ -152,13 +158,7 @@ function PaymentMethodCell({ row }: { row: AttemptRow }): React.JSX.Element {
     return (
       <span className="ap-method-cell">
         <span className="ap-method-logo-wrap">
-          <img
-            src={walletLogo}
-            alt=""
-            className="ap-method-logo ap-method-logo--wallet"
-            draggable={false}
-            onContextMenu={preventSave}
-          />
+          <Wallet size={15} color="oklch(0.5 0.015 280)" />
         </span>
         <span className="ap-method-label">Wallet</span>
       </span>
@@ -843,6 +843,12 @@ function AttemptsBody({
   );
 }
 
+async function fetchStatus(): Promise<SimulationStatus> {
+  const response = await fetch('/api/simulation/status', { credentials: 'include' });
+  if (!response.ok) throw new Error(`api returned ${response.status}`);
+  return simulationStatusSchema.parse(await response.json());
+}
+
 export function AttemptsPage(): React.JSX.Element {
   const [source] = useState<Source>('all');
   const [status, setStatus] = useState('all');
@@ -853,6 +859,15 @@ export function AttemptsPage(): React.JSX.Element {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
+
+  const [showSimModal, setShowSimModal] = useState(false);
+  const [simPanelOpen, setSimPanelOpen] = useState(false);
+
+  const simStatus = useQuery({
+    queryKey: ['simulation-status'],
+    queryFn: fetchStatus,
+    refetchInterval: 2500,
+  });
 
   const attempts = useQuery({
     queryKey: ['attempt-rows', source, status, method, page, pageSize],
@@ -888,6 +903,8 @@ export function AttemptsPage(): React.JSX.Element {
           rowMatchesFilters(row, { term, startDate, endDate, status, method, riskLevel }),
         );
 
+  const isRunning = simStatus.data?.running ?? false;
+
   return (
     <div className="ap-page">
       <header className="ap-header-top">
@@ -895,29 +912,83 @@ export function AttemptsPage(): React.JSX.Element {
           <h1>Payment attempts</h1>
           <p>Every payment attempt received from your storefront</p>
         </div>
+        <button
+          type="button"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '7px 14px',
+            borderRadius: '8px',
+            fontFamily: 'inherit',
+            fontSize: '13px',
+            fontWeight: 600,
+            color: 'oklch(1 0 0)',
+            background: 'oklch(0.55 0.15 258)',
+            border: 0,
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)',
+            cursor: 'pointer',
+          }}
+          onClick={() => setShowSimModal(true)}
+        >
+          <Play size={14} weight="bold" /> Run simulation scenarios
+        </button>
       </header>
 
-      <AttemptsBody
-        attempts={attempts}
-        rows={rows}
-        searching={term !== '' || startDate !== ''}
-        pageSize={pageSize}
-        onPage={setPage}
-        onPageSizeChange={handlePageSizeChange}
-        filterProps={{
-          status,
-          method,
-          riskLevel,
-          startDate,
-          endDate,
-          search,
-          setSearch,
-          onStatus: onFilter(setStatus),
-          onMethod: onFilter(setMethod),
-          onRiskLevel: onFilter(setRiskLevel),
-          onDateRangeChange: handleDateRangeChange,
+      {showSimModal && (
+        <SimulationPopup
+          disabled={isRunning}
+          onClose={() => setShowSimModal(false)}
+          onStarted={() => {
+            setShowSimModal(false);
+            setSimPanelOpen(true);
+            void simStatus.refetch();
+          }}
+        />
+      )}
+
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '10px',
+          alignItems: 'flex-start',
+          width: '100%',
         }}
-      />
+      >
+        <div style={{ flex: simPanelOpen || isRunning ? '1 1 620px' : '1 1 100%', minWidth: 0 }}>
+          <AttemptsBody
+            attempts={attempts}
+            rows={rows}
+            searching={term !== '' || startDate !== ''}
+            pageSize={pageSize}
+            onPage={setPage}
+            onPageSizeChange={handlePageSizeChange}
+            filterProps={{
+              status,
+              method,
+              riskLevel,
+              startDate,
+              endDate,
+              search,
+              setSearch,
+              onStatus: onFilter(setStatus),
+              onMethod: onFilter(setMethod),
+              onRiskLevel: onFilter(setRiskLevel),
+              onDateRangeChange: handleDateRangeChange,
+            }}
+          />
+        </div>
+
+        {(simPanelOpen || isRunning) && (
+          <SimulationPanel
+            onClose={() => setSimPanelOpen(false)}
+            onTick={() => {
+              void attempts.refetch();
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }

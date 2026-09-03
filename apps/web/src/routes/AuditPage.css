@@ -18,11 +18,40 @@
   padding: 8px 0 18px;
 }
 
+.aud-head__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 .aud-head__title {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.aud-btn-sim {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: oklch(1 0 0);
+  background: oklch(0.55 0.15 258);
+  border: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.aud-btn-sim:hover {
+  background: oklch(0.5 0.15 258);
 }
 
 .aud-head__title h1 {

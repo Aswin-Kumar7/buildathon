@@ -650,7 +650,10 @@
 }
 
 .ap-method-logo--upi {
-  height: 14px;
+  height: 13px;
+  max-width: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .ap-method-logo--netbanking {

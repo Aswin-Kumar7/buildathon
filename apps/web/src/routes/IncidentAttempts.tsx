@@ -11,6 +11,7 @@ import upiLogo from '../assets/payments/upi.svg';
 import netbankingLogo from '../assets/payments/netbanking.svg';
 import walletLogo from '../assets/payments/wallet.png';
 
+import { Wallet } from '@phosphor-icons/react';
 import './IncidentAttempts.css';
 import { CustomSelectPill } from '../components/CustomSelectPill.js';
 
@@ -114,13 +115,7 @@ function PaymentMethodCell({ attempt }: { attempt: Attempt }): React.JSX.Element
     return (
       <div className="ap-pm-cell">
         <div className="ap-pm-logo-wrap">
-          <img
-            src={walletLogo}
-            alt=""
-            className="ap-pm-logo ap-pm-logo--wallet"
-            draggable={false}
-            onContextMenu={preventSave}
-          />
+          <Wallet size={15} color="oklch(0.5 0.015 280)" />
         </div>
         <span>Wallet</span>
       </div>

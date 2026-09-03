@@ -178,18 +178,6 @@ function IncidentRow({
       {/* 7. Action buttons */}
       <td className="inct-col inct-col--action">
         <div className="inct-action-wrap">
-          {incident.recommendedDecision === 'contain' && (
-            <button
-              type="button"
-              className="inct-btn-block"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpen(incident.id);
-              }}
-            >
-              <ShieldSlash size={14} /> Block
-            </button>
-          )}
           <button
             type="button"
             className="inct-btn-review"

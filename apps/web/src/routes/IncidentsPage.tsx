@@ -29,6 +29,9 @@ import {
   Funnel,
   FlowArrow,
   MagnifyingGlass,
+  CheckCircle,
+  CircleNotch,
+  X,
 } from '@phosphor-icons/react';
 
 type Source = 'all' | IncidentSummary['source'];
@@ -175,30 +178,42 @@ export function IncidentsPage(): React.JSX.Element {
 
       <IncidentSummaryCards incidents={all} active={summaryActive} onPick={pickSummary} />
 
-      {f.tab === 'history' ? (
-        <RunHistory />
-      ) : (
-        <IncidentsTable
-          incidents={rows}
-          loading={incidents.isPending}
-          error={incidents.isError ? incidents.error.message : null}
-          page={page}
-          onPage={setPage}
-          onOpen={(id) => void navigate({ to: '/console/incidents/$id', params: { id } })}
-          filterProps={{
-            filters: f,
-            onChange: set,
-            onClear: () => set(DEFAULTS),
-          }}
-        />
-      )}
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'nowrap',
+          gap: '12px',
+          alignItems: 'flex-start',
+          width: '100%',
+        }}
+      >
+        <div style={{ flex: '1 1 0', minWidth: 0 }}>
+          {f.tab === 'history' ? (
+            <RunHistory />
+          ) : (
+            <IncidentsTable
+              incidents={rows}
+              loading={incidents.isPending}
+              error={incidents.isError ? incidents.error.message : null}
+              page={page}
+              onPage={setPage}
+              onOpen={(id) => void navigate({ to: '/console/incidents/$id', params: { id } })}
+              filterProps={{
+                filters: f,
+                onChange: set,
+                onClear: () => set(DEFAULTS),
+              }}
+            />
+          )}
+        </div>
 
-      {dock.view === 'open' && (
-        <SimulationPanel
-          onClose={dock.minimize}
-          onTick={() => void client.invalidateQueries({ queryKey: ['incidents'] })}
-        />
-      )}
+        {(dock.view === 'open' || simRunning) && (
+          <SimulationPanel
+            onClose={dock.minimize}
+            onTick={() => void client.invalidateQueries({ queryKey: ['incidents'] })}
+          />
+        )}
+      </div>
     </div>
   );
 }
@@ -259,7 +274,9 @@ function Header({
         </p>
       </div>
       <div className="incp-head__actions">
-        {minimized && <SimChip status={simStatus} onOpen={onChipOpen} onDismiss={onChipDismiss} />}
+        {simStatus && (simStatus.running || simStatus.emitted > 0) && (
+          <SimChip status={simStatus} onOpen={onChipOpen} onDismiss={onChipDismiss} />
+        )}
         <button type="button" className="incp-btn-export" onClick={onExport}>
           <DownloadSimple size={14} /> Export
         </button>
@@ -274,36 +291,6 @@ function Header({
   );
 }
 
-function RingProgress({ pct, active }: { pct: number; active: boolean }): React.JSX.Element {
-  const radius = 8;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference * (1 - Math.min(1, Math.max(0, pct / 100)));
-  return (
-    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" className="incp-ring">
-      <circle
-        cx="10"
-        cy="10"
-        r={radius}
-        fill="none"
-        stroke="var(--s-line-2, #e4e7ec)"
-        strokeWidth="2.5"
-      />
-      <circle
-        cx="10"
-        cy="10"
-        r={radius}
-        fill="none"
-        stroke={active ? '#1E6FD9' : '#12854a'}
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={offset}
-        transform="rotate(-90 10 10)"
-      />
-    </svg>
-  );
-}
-
 function SimChip({
   status,
   onOpen,
@@ -312,33 +299,95 @@ function SimChip({
   status: SimulationStatus | undefined;
   onOpen: () => void;
   onDismiss: () => void;
-}): React.JSX.Element {
-  const running = status?.running ?? false;
-  const emitted = status?.emitted ?? 0;
-  const total = status?.total ?? 0;
-  const pct = total === 0 ? (running ? 0 : 100) : Math.round((emitted / total) * 100);
+}): React.JSX.Element | null {
+  if (!status || (!status.running && status.emitted === 0 && status.scenario === null)) {
+    return null;
+  }
+
+  const running = status.running;
+  const emitted = status.emitted ?? 0;
+  const total = status.total || emitted || 0;
+
   return (
-    <span className="incp-simchip">
-      <button type="button" className="incp-simchip__main" onClick={onOpen} title="Show simulation">
-        <RingProgress pct={pct} active={running} />
-        <span className="incp-simchip__text">
-          {running ? 'Simulation running' : 'Simulation finished'}
-          {total > 0 && (
-            <em>
-              {emitted}/{total}
-            </em>
-          )}
-        </span>
-      </button>
+    <div
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '10px',
+        padding: '6px 14px',
+        borderRadius: '99px',
+        fontSize: '13px',
+        fontWeight: 600,
+        fontFamily: 'inherit',
+        background: running ? '#E8F0FE' : '#E6F4EA',
+        border: `1px solid ${running ? '#D2E3FC' : '#CEEAD6'}`,
+        color: running ? '#1A73E8' : '#0D652D',
+        transition: 'all 0.15s ease',
+      }}
+    >
       <button
         type="button"
-        className="incp-simchip__x"
-        onClick={onDismiss}
-        aria-label="Dismiss simulation"
+        onClick={onOpen}
+        title="Show simulation details"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+          border: 0,
+          background: 'transparent',
+          color: 'inherit',
+          fontFamily: 'inherit',
+          fontSize: 'inherit',
+          fontWeight: 'inherit',
+          cursor: 'pointer',
+          padding: 0,
+        }}
       >
-        ✕
+        {running ? (
+          <CircleNotch size={16} className="csp-spinner" />
+        ) : (
+          <CheckCircle size={16} weight="bold" />
+        )}
+        <span>{running ? 'Simulation running' : 'Simulation finished'}</span>
+        {total > 0 && (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '2px 9px',
+              borderRadius: '99px',
+              background: '#FFFFFF',
+              color: running ? '#1A73E8' : '#0D652D',
+              fontSize: '12.5px',
+              fontWeight: 700,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {emitted}/{total}
+          </span>
+        )}
       </button>
-    </span>
+
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss simulation banner"
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: 0,
+          background: 'transparent',
+          color: 'inherit',
+          cursor: 'pointer',
+          padding: 0,
+          marginLeft: '2px',
+        }}
+      >
+        <X size={14} />
+      </button>
+    </div>
   );
 }
 
@@ -352,11 +401,18 @@ export function FilterRow({ filters, onChange }: FilterRowProps): React.JSX.Elem
   return (
     <div className="inct-toolbar">
       <div className="inct-toolbar-filters">
-        <button type="button" className="ap-pill-btn" aria-label="All dates">
-          <CalendarBlank size={14} />
-          <span>All dates</span>
-          <span className="ap-pill-chevron">▾</span>
-        </button>
+        <CustomSelectPill
+          value="all"
+          options={[
+            { value: 'all', label: 'All dates' },
+            { value: 'today', label: 'Today' },
+            { value: '7d', label: 'Last 7 days' },
+            { value: '30d', label: 'Last 30 days' },
+          ]}
+          onChange={() => {}}
+          ariaLabel="Date filter"
+          icon={<CalendarBlank size={14} />}
+        />
 
         <CustomSelectPill
           value={filters.risk}

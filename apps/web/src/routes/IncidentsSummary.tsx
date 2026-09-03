@@ -73,11 +73,14 @@ export function IncidentSummaryCards({
     else if (incident.status !== 'expired') counts[bucketOf(incident)] += 1;
   }
 
+  const total = incidents.length || 1;
+
   return (
     <section className="incp-metrics" aria-label="Incident severity breakdown">
       {CARDS.map((card) => {
         const count = counts[card.key];
         const isActive = active === card.key;
+        const fillPct = (count / total) * 100;
         return (
           <button
             key={card.key}
@@ -94,7 +97,12 @@ export function IncidentSummaryCards({
               {count}
             </span>
             <div className="incp-metric-track" aria-hidden="true">
-              {count > 0 && <div className={`incp-metric-fill ${card.barClass}`} />}
+              {count > 0 && (
+                <div
+                  className={`incp-metric-fill ${card.barClass}`}
+                  style={{ width: `${fillPct}%` }}
+                />
+              )}
             </div>
           </button>
         );

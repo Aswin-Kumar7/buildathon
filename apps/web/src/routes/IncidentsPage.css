@@ -178,9 +178,9 @@
 }
 
 .incp-metric-fill {
-  width: 100%;
   height: 100%;
   border-radius: 2px;
+  transition: width 0.3s ease;
 }
 
 .incp-metric-bar--critical { background: oklch(0.62 0.17 22); }
@@ -264,10 +264,10 @@
 
 .inct-head-row {
   display: grid;
-  grid-template-columns: minmax(240px, 1.5fr) minmax(104px, 0.7fr) minmax(112px, 0.7fr) minmax(112px, 0.7fr) minmax(150px, 0.95fr) minmax(96px, 0.6fr) minmax(168px, 0.9fr);
-  gap: 16px;
-  min-width: 1080px;
-  padding: 12px 22px;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(90px, 0.7fr) minmax(90px, 0.7fr) minmax(90px, 0.7fr) minmax(130px, 0.9fr) minmax(80px, 0.6fr) minmax(80px, 0.6fr);
+  gap: 12px;
+  min-width: 750px;
+  padding: 12px 16px;
   background: oklch(0.984 0.003 270);
   border-bottom: 1px solid oklch(0.95 0.006 280);
   font-size: 11px;
@@ -283,11 +283,11 @@
 
 .inct-row {
   display: grid;
-  grid-template-columns: minmax(240px, 1.5fr) minmax(104px, 0.7fr) minmax(112px, 0.7fr) minmax(112px, 0.7fr) minmax(150px, 0.95fr) minmax(96px, 0.6fr) minmax(168px, 0.9fr);
-  gap: 16px;
-  min-width: 1080px;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(90px, 0.7fr) minmax(90px, 0.7fr) minmax(90px, 0.7fr) minmax(130px, 0.9fr) minmax(80px, 0.6fr) minmax(80px, 0.6fr);
+  gap: 12px;
+  min-width: 750px;
   align-items: center;
-  padding: 15px 22px;
+  padding: 14px 16px;
   border-bottom: 1px solid oklch(0.972 0.006 280);
   cursor: pointer;
   transition: background 0.12s ease;

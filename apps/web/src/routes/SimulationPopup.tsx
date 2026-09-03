@@ -8,29 +8,24 @@ import {
   type SimulationRun,
 } from '@sentinel/contracts';
 import { apiMutate } from '../auth/api.js';
-import { WarningCircle, Gear, Check } from '@phosphor-icons/react';
-
-/** What the analyst should expect the detector to do — so a benign run is not read as a failure. */
-const EXPECTATION: Record<
-  ScenarioSummary['classification'],
-  { tone: string; label: string; text: string }
-> = {
-  attack: {
-    tone: 'attack',
-    label: 'Should raise an incident',
-    text: 'This is a card-testing attack. Expect Sentinel to correlate the attempts and open an incident.',
-  },
-  operational: {
-    tone: 'operational',
-    label: 'The hard case — should stay quiet',
-    text: 'Legitimate operational activity — a biller’s dunning or a gateway wobble — that looks like card testing on raw failure volume. A well-tuned detector holds fire; this is exactly where false positives happen, so watch what Sentinel does.',
-  },
-  benign: {
-    tone: 'benign',
-    label: 'Should NOT raise an incident',
-    text: 'This is ordinary, legitimate traffic. Expect no incident — it proves Sentinel does not over-flag real customers.',
-  },
-};
+import {
+  WarningCircle,
+  Gear,
+  Check,
+  Play,
+  X,
+  Storefront,
+  Keyboard,
+  PlugsConnected,
+  ArrowsClockwise,
+  TrendUp,
+  ListNumbers,
+  HourglassMedium,
+  ShareNetwork,
+  ShoppingBag,
+  Browsers,
+  Cards,
+} from '@phosphor-icons/react';
 
 async function fetchScenarios(): Promise<ScenarioSummary[]> {
   const response = await fetch('/api/replay', { credentials: 'include' });
@@ -38,7 +33,6 @@ async function fetchScenarios(): Promise<ScenarioSummary[]> {
   return scenarioListResponseSchema.parse(await response.json()).scenarios;
 }
 
-/** The scenarios already run, so the picker can mark them — re-running one just resets that one. */
 async function fetchRuns(): Promise<SimulationRun[]> {
   const response = await fetch('/api/simulation/runs', { credentials: 'include' });
   if (!response.ok) throw new Error(`api returned ${response.status}`);
@@ -54,22 +48,29 @@ async function startSimulation(family: string): Promise<void> {
   simulationStartResponseSchema.parse(await response.json());
 }
 
-/** Scenario cards per page in the picker — a neat 3×2 grid. */
-const PAGE_SIZE = 6;
-
-const CAT_TONE: Record<ScenarioSummary['classification'], string> = {
-  attack: 'attack',
-  operational: 'operational',
-  benign: 'benign',
+const TONES: Record<ScenarioSummary['classification'], [string, string]> = {
+  benign: ['oklch(0.955 0.026 162)', 'oklch(0.42 0.11 162)'],
+  operational: ['oklch(0.962 0.028 62)', 'oklch(0.48 0.12 52)'],
+  attack: ['oklch(0.958 0.026 22)', 'oklch(0.52 0.15 22)'],
 };
 
-function CatIcon({ kind }: { kind: ScenarioSummary['classification'] }): React.JSX.Element {
-  if (kind === 'attack') {
-    return <WarningCircle size={16} />;
-  }
-  if (kind === 'operational') {
-    return <Gear size={16} />;
-  }
+function getScenarioIcon(
+  family: string,
+  classification: ScenarioSummary['classification'],
+): React.JSX.Element {
+  if (family.includes('ordinary') || family.includes('benign')) return <Storefront size={16} />;
+  if (family.includes('mistype') || family.includes('keyboard')) return <Keyboard size={16} />;
+  if (family.includes('outage') || family.includes('plug')) return <PlugsConnected size={16} />;
+  if (family.includes('dunning')) return <ArrowsClockwise size={16} />;
+  if (family.includes('sale')) return <TrendUp size={16} />;
+  if (family.includes('enum')) return <ListNumbers size={16} />;
+  if (family.includes('account')) return <HourglassMedium size={16} />;
+  if (family.includes('proxy') || family.includes('network')) return <ShareNetwork size={16} />;
+  if (family.includes('carding') || family.includes('shopping')) return <ShoppingBag size={16} />;
+  if (family.includes('browser')) return <Browsers size={16} />;
+  if (family.includes('card')) return <Cards size={16} />;
+  if (classification === 'attack') return <WarningCircle size={16} />;
+  if (classification === 'operational') return <Gear size={16} />;
   return <Check size={16} />;
 }
 
@@ -86,13 +87,12 @@ export function SimulationPopup({
   const runs = useQuery({ queryKey: ['simulation-runs'], queryFn: fetchRuns });
   const runFamilies = new Set((runs.data ?? []).map((run) => run.family));
   const [selected, setSelected] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
+
   const start = useMutation({
     mutationFn: () => startSimulation(selected!),
     onSuccess: () => onStarted(selected!),
   });
 
-  // Escape closes the modal, the usual dialog affordance.
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') onClose();
@@ -102,169 +102,256 @@ export function SimulationPopup({
   }, [onClose]);
 
   const list = scenarios.data ?? [];
-  const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
-  const current = Math.min(page, pageCount - 1);
-  const shown = list.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE);
   const chosen = list.find((scenario) => scenario.family === selected) ?? null;
 
   return (
-    <div className="simpop-overlay" onClick={onClose}>
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 60,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '32px',
+        background: 'oklch(0.24 0.02 280 / 0.32)',
+        backdropFilter: 'blur(3px)',
+      }}
+      onClick={onClose}
+    >
       <div
-        className="simpop"
         role="dialog"
         aria-modal="true"
         aria-label="Run a simulation"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          width: '100%',
+          maxWidth: '920px',
+          borderRadius: '16px',
+          background: 'oklch(1 0 0)',
+          boxShadow: '0 34px 80px -26px oklch(0.24 0.03 280 / 0.42)',
+          overflow: 'hidden',
+        }}
         onClick={(event) => event.stopPropagation()}
       >
-        <SimPopHeader onClose={onClose} />
-
-        {scenarios.isError && (
-          <p className="simpop-note" role="alert">
-            Could not load scenarios.
-          </p>
-        )}
-
-        <ScenarioList
-          scenarios={shown}
-          selected={selected}
-          runFamilies={runFamilies}
-          onSelect={setSelected}
-        />
-
-        <ScenarioPager current={current} pageCount={pageCount} onPage={setPage} />
-
-        <div className="simpop-foot">
-          {chosen !== null && <ExpectationNote kind={chosen.classification} />}
-          {disabled && <p className="simpop-note">A simulation is already running.</p>}
-          {start.isError && (
-            <p className="simpop-note" role="alert">
-              {start.error.message}
+        {/* Modal Header */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '14px',
+            padding: '20px 24px 16px',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', minWidth: 0 }}>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: '18px',
+                fontWeight: 700,
+                letterSpacing: '-0.028em',
+                color: 'oklch(0.21 0.015 280)',
+              }}
+            >
+              Run a simulation
+            </h2>
+            <p
+              style={{
+                margin: 0,
+                fontSize: '12.5px',
+                fontWeight: 500,
+                color: 'oklch(0.55 0.015 280)',
+              }}
+            >
+              Choose a scenario. Sentinel runs it through the same live detector — the outcome is
+              not scripted.
             </p>
-          )}
+          </div>
           <button
             type="button"
-            className="simpop-start"
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              marginLeft: 'auto',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: '0 0 30px',
+              width: '30px',
+              height: '30px',
+              border: 0,
+              borderRadius: '8px',
+              color: 'oklch(0.55 0.015 280)',
+              background: 'transparent',
+              cursor: 'pointer',
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* 2-Column Scrollable Scenarios Grid */}
+        <div
+          className="om-scroll"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gap: '8px',
+            padding: '0 24px 4px',
+            maxHeight: '54vh',
+            overflowY: 'auto',
+          }}
+        >
+          {list.map((scenario) => {
+            const isRun = runFamilies.has(scenario.family);
+            const isSelected = selected === scenario.family;
+            const [bg, fg] = TONES[scenario.classification];
+
+            return (
+              <button
+                key={scenario.family}
+                type="button"
+                onClick={() => setSelected(scenario.family)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px',
+                  padding: '14px',
+                  borderRadius: '11px',
+                  fontFamily: 'inherit',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'border-color .14s ease, background .14s ease',
+                  border: isSelected
+                    ? '1.5px solid oklch(0.6 0.13 258)'
+                    : '1.5px solid oklch(0.94 0.006 280)',
+                  background: isSelected ? 'oklch(0.99 0.008 258)' : 'oklch(1 0 0)',
+                }}
+              >
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flex: '0 0 30px',
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '9px',
+                    background: bg,
+                    color: fg,
+                  }}
+                >
+                  {getScenarioIcon(scenario.family, scenario.classification)}
+                </span>
+                <span
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                    minWidth: 0,
+                    textAlign: 'left',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span
+                      style={{
+                        fontSize: '13.5px',
+                        fontWeight: 600,
+                        letterSpacing: '-0.018em',
+                        color: 'oklch(0.21 0.015 280)',
+                      }}
+                    >
+                      {scenario.title}
+                    </span>
+                    <span
+                      style={{
+                        padding: '2px 6px',
+                        borderRadius: '5px',
+                        fontSize: '9px',
+                        fontWeight: 700,
+                        letterSpacing: '0.08em',
+                        whiteSpace: 'nowrap',
+                        color: fg,
+                        background: bg,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {scenario.classification}
+                    </span>
+                    {isRun && (
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          color: 'oklch(0.55 0.015 280)',
+                        }}
+                      >
+                        ✓ RUN
+                      </span>
+                    )}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      lineHeight: 1.5,
+                      color: 'oklch(0.56 0.015 280)',
+                    }}
+                  >
+                    {scenario.narrative}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Modal Footer */}
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px 24px 20px' }}
+        >
+          <span
+            style={{
+              minWidth: 0,
+              fontSize: '12px',
+              fontWeight: 500,
+              color: 'oklch(0.58 0.015 280)',
+            }}
+          >
+            {chosen ? `${chosen.title} selected` : 'Select a scenario to begin.'}
+          </span>
+
+          {start.isError && (
+            <span style={{ fontSize: '12px', color: 'oklch(0.52 0.15 22)' }} role="alert">
+              {start.error.message}
+            </span>
+          )}
+
+          <button
+            type="button"
             disabled={selected === null || disabled || start.isPending}
             onClick={() => start.mutate()}
+            style={{
+              flex: '0 0 auto',
+              marginLeft: 'auto',
+              padding: '10px 20px',
+              border: 0,
+              borderRadius: '9px',
+              fontFamily: 'inherit',
+              fontSize: '13px',
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              color: 'oklch(1 0 0)',
+              background: selected ? 'oklch(0.55 0.15 258)' : 'oklch(0.86 0.008 280)',
+              cursor: selected && !disabled && !start.isPending ? 'pointer' : 'not-allowed',
+            }}
           >
+            <Play size={14} style={{ verticalAlign: '-1px', marginRight: '7px' }} />
             {start.isPending ? 'Starting…' : 'Start simulation'}
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function SimPopHeader({ onClose }: { onClose: () => void }): React.JSX.Element {
-  return (
-    <header className="simpop-head">
-      <div>
-        <h3>Run a simulation</h3>
-        <p>
-          Choose a scenario. Sentinel runs it through the same live detector — the outcome is not
-          scripted.
-        </p>
-      </div>
-      <button type="button" className="simpop-x" onClick={onClose} aria-label="Close">
-        ✕
-      </button>
-    </header>
-  );
-}
-
-function ScenarioPager({
-  current,
-  pageCount,
-  onPage,
-}: {
-  current: number;
-  pageCount: number;
-  onPage: (page: number) => void;
-}): React.JSX.Element | null {
-  if (pageCount <= 1) return null;
-  return (
-    <div className="simpop-pager">
-      <button
-        type="button"
-        className="simpop-pager__btn"
-        disabled={current === 0}
-        onClick={() => onPage(current - 1)}
-        aria-label="Previous scenarios"
-      >
-        ‹
-      </button>
-      <span className="simpop-pager__pos">
-        {current + 1} / {pageCount}
-      </span>
-      <button
-        type="button"
-        className="simpop-pager__btn"
-        disabled={current >= pageCount - 1}
-        onClick={() => onPage(current + 1)}
-        aria-label="More scenarios"
-      >
-        ›
-      </button>
-    </div>
-  );
-}
-
-function ScenarioList({
-  scenarios,
-  selected,
-  runFamilies,
-  onSelect,
-}: {
-  scenarios: ScenarioSummary[];
-  selected: string | null;
-  runFamilies: Set<string>;
-  onSelect: (family: string) => void;
-}): React.JSX.Element {
-  return (
-    <ul className="simpop-list">
-      {scenarios.map((scenario) => {
-        const isRun = runFamilies.has(scenario.family);
-        const isSelected = selected === scenario.family;
-        return (
-          <li key={scenario.family}>
-            <button
-              type="button"
-              className={`simpop-item${isSelected ? ' is-selected' : ''}${isRun ? ' is-run' : ''}`}
-              onClick={() => onSelect(scenario.family)}
-              aria-pressed={isSelected}
-            >
-              <span className="simpop-item__top">
-                <span className={`simpop-ico simpop-ico--${CAT_TONE[scenario.classification]}`}>
-                  <CatIcon kind={scenario.classification} />
-                </span>
-                <span className={`simpop-cat simpop-cat--${CAT_TONE[scenario.classification]}`}>
-                  {scenario.classification}
-                </span>
-                {isRun && (
-                  <span
-                    className="simpop-run"
-                    title="Already run — re-running resets just this one"
-                  >
-                    ✓ Run
-                  </span>
-                )}
-              </span>
-              <span className="simpop-item__title">{scenario.title}</span>
-              <span className="simpop-item__desc">{scenario.narrative}</span>
-            </button>
-          </li>
-        );
-      })}
-    </ul>
-  );
-}
-
-function ExpectationNote({ kind }: { kind: ScenarioSummary['classification'] }): React.JSX.Element {
-  const expectation = EXPECTATION[kind];
-  return (
-    <div className={`simpop-expect simpop-expect--${expectation.tone}`}>
-      <strong>{expectation.label}</strong>
-      <span>{expectation.text}</span>
     </div>
   );
 }

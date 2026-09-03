@@ -18,10 +18,18 @@ import {
   CaretDown,
 } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
-import type { AuditEntry, AuditVerifyResponse } from '@sentinel/contracts';
-import { auditListResponseSchema, auditVerifyResponseSchema } from '@sentinel/contracts';
+import {
+  auditListResponseSchema,
+  auditVerifyResponseSchema,
+  simulationStatusSchema,
+  type AuditEntry,
+  type AuditVerifyResponse,
+  type SimulationStatus,
+} from '@sentinel/contracts';
 import { kindLabel, reasonText } from '../incidents/audit-words.js';
 import { AuditDrawer } from './AuditDrawer.js';
+import { SimulationPopup } from './SimulationPopup.js';
+import { SimulationPanel } from './SimulationPanel.js';
 import './AuditPage.css';
 
 const PAGE_SIZE = 25;
@@ -122,14 +130,27 @@ function exportCsv(entries: AuditEntry[]): void {
   URL.revokeObjectURL(url);
 }
 
+async function fetchStatus(): Promise<SimulationStatus> {
+  const response = await fetch('/api/simulation/status', { credentials: 'include' });
+  if (!response.ok) throw new Error(`api returned ${response.status}`);
+  return simulationStatusSchema.parse(await response.json());
+}
+
 export function AuditPage(): React.JSX.Element {
   const entriesQuery = useQuery({ queryKey: ['audit-entries'], queryFn: fetchAuditEntries });
   const verify = useQuery({ queryKey: ['audit-verify'], queryFn: fetchVerify });
+  const simStatus = useQuery({
+    queryKey: ['simulation-status'],
+    queryFn: fetchStatus,
+    refetchInterval: 2500,
+  });
 
   const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS);
   const [selectedSeq, setSelectedSeq] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [showTechnical, setShowTechnical] = useState(false);
+  const [showSimModal, setShowSimModal] = useState(false);
+  const [simPanelOpen, setSimPanelOpen] = useState(false);
 
   const all = entriesQuery.data ?? [];
 
@@ -174,40 +195,81 @@ export function AuditPage(): React.JSX.Element {
     setPage(1);
   };
 
+  const isRunning = simStatus.data?.running ?? false;
+
   return (
     <div className="aud">
-      <AuditHeader pending={verify.isPending} error={verify.isError} result={verify.data} />
+      <AuditHeader
+        pending={verify.isPending}
+        error={verify.isError}
+        result={verify.data}
+        isRunning={isRunning}
+        onRunSim={() => setShowSimModal(true)}
+      />
 
-      <section className="aud-card">
-        <Toolbar
-          filters={filters}
-          entries={all}
-          onChange={set}
-          onExport={() => exportCsv(filtered)}
-          showTechnical={showTechnical}
-          onToggleTechnical={() => setShowTechnical((v) => !v)}
+      {showSimModal && (
+        <SimulationPopup
+          disabled={isRunning}
+          onClose={() => setShowSimModal(false)}
+          onStarted={() => {
+            setShowSimModal(false);
+            setSimPanelOpen(true);
+            void simStatus.refetch();
+          }}
         />
-        <AuditTable
-          rows={rows}
-          selectedSeq={selectedSeq}
-          onSelect={setSelectedSeq}
-          loading={entriesQuery.isPending}
-          error={entriesQuery.isError ? entriesQuery.error.message : null}
-          onRetry={() => void entriesQuery.refetch()}
-          filteredEmpty={!entriesQuery.isPending && filtered.length === 0 && all.length > 0}
-          totalEmpty={!entriesQuery.isPending && all.length === 0}
-          showTechnical={showTechnical}
-        />
-        {filtered.length > 0 && (
-          <Pagination
-            page={clampedPage}
-            totalPages={totalPages}
-            total={filtered.length}
-            pageSize={PAGE_SIZE}
-            onPage={setPage}
+      )}
+
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '10px',
+          alignItems: 'flex-start',
+          width: '100%',
+        }}
+      >
+        <div style={{ flex: simPanelOpen || isRunning ? '1 1 620px' : '1 1 100%', minWidth: 0 }}>
+          <section className="aud-card">
+            <Toolbar
+              filters={filters}
+              entries={all}
+              onChange={set}
+              onExport={() => exportCsv(filtered)}
+              showTechnical={showTechnical}
+              onToggleTechnical={() => setShowTechnical((v) => !v)}
+            />
+            <AuditTable
+              rows={rows}
+              selectedSeq={selectedSeq}
+              onSelect={setSelectedSeq}
+              loading={entriesQuery.isPending}
+              error={entriesQuery.isError ? entriesQuery.error.message : null}
+              onRetry={() => void entriesQuery.refetch()}
+              filteredEmpty={!entriesQuery.isPending && filtered.length === 0 && all.length > 0}
+              totalEmpty={!entriesQuery.isPending && all.length === 0}
+              showTechnical={showTechnical}
+            />
+            {filtered.length > 0 && (
+              <Pagination
+                page={clampedPage}
+                totalPages={totalPages}
+                total={filtered.length}
+                pageSize={PAGE_SIZE}
+                onPage={setPage}
+              />
+            )}
+          </section>
+        </div>
+
+        {(simPanelOpen || isRunning) && (
+          <SimulationPanel
+            onClose={() => setSimPanelOpen(false)}
+            onTick={() => {
+              void entriesQuery.refetch();
+            }}
           />
         )}
-      </section>
+      </div>
 
       {selected !== null && (
         <AuditDrawer
@@ -224,16 +286,25 @@ function AuditHeader({
   pending,
   error,
   result,
+  isRunning,
+  onRunSim,
 }: {
   pending: boolean;
   error: boolean;
   result: AuditVerifyResponse | undefined;
+  isRunning: boolean;
+  onRunSim: () => void;
 }): React.JSX.Element {
   return (
     <header className="aud-head">
-      <div className="aud-head__title">
-        <h1>Audit trail</h1>
-        <TamperBadge pending={pending} error={error} result={result} />
+      <div className="aud-head__top">
+        <div className="aud-head__title">
+          <h1>Audit trail</h1>
+          <TamperBadge pending={pending} error={error} result={result} />
+        </div>
+        <button type="button" className="aud-btn-sim" onClick={onRunSim}>
+          <Play size={14} weight="bold" /> Run simulation scenarios
+        </button>
       </div>
       <p>
         Every decision and every hand that touched one, kept as a tamper-evident record — if a past
