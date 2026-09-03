@@ -185,7 +185,7 @@ body::-webkit-scrollbar,
   padding: 0.45rem 0.6rem 0.45rem 1.35rem;
   background: #080c16 !important;
   border-color: rgba(255, 255, 255, 0.22) !important;
-  box-shadow: 
+  box-shadow:
     0 18px 48px rgba(0, 0, 0, 0.8),
     0 4px 12px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
@@ -349,7 +349,7 @@ body::-webkit-scrollbar,
   content: '';
   position: absolute;
   inset: 0;
-  background: 
+  background:
     radial-gradient(
       ellipse 100% 80% at 50% 100%,
       rgba(29, 78, 216, 0.45) 0%,
@@ -573,7 +573,9 @@ body::-webkit-scrollbar,
   height: 1.7rem;
   flex: none;
   color: rgba(255, 255, 255, 0.82);
-  transition: color 0.25s ease, transform 0.25s ease;
+  transition:
+    color 0.25s ease,
+    transform 0.25s ease;
 }
 
 .lp-mouse__wheel {
@@ -673,7 +675,9 @@ body::-webkit-scrollbar,
   font-weight: 600;
   letter-spacing: -0.015em;
   white-space: nowrap;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
 }
 
 .lp-stack__logos li:hover {

@@ -33,7 +33,7 @@ describe('LoginPage', () => {
     vi.stubGlobal('fetch', fetchSpy);
 
     render(wrap(<LoginPage />));
-    await userEvent.type(screen.getByLabelText('Work Email'), 'not-an-email');
+    await userEvent.type(screen.getByLabelText('Email'), 'not-an-email');
     await userEvent.type(screen.getByLabelText('Password'), 'whatever');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
@@ -44,7 +44,7 @@ describe('LoginPage', () => {
   it('requires a password', async () => {
     vi.stubGlobal('fetch', vi.fn());
     render(wrap(<LoginPage />));
-    await userEvent.type(screen.getByLabelText('Work Email'), 'analyst@sentinel.local');
+    await userEvent.type(screen.getByLabelText('Email'), 'analyst@sentinel.local');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
     expect(await screen.findByText('Password is required')).toBeInTheDocument();
   });
@@ -60,7 +60,7 @@ describe('LoginPage', () => {
     );
 
     render(wrap(<LoginPage />));
-    await userEvent.type(screen.getByLabelText('Work Email'), 'analyst@sentinel.local');
+    await userEvent.type(screen.getByLabelText('Email'), 'analyst@sentinel.local');
     await userEvent.type(screen.getByLabelText('Password'), 'wrong');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
@@ -85,7 +85,7 @@ describe('LoginPage', () => {
     );
 
     render(wrap(<LoginPage />));
-    await userEvent.type(screen.getByLabelText('Work Email'), 'analyst@sentinel.local');
+    await userEvent.type(screen.getByLabelText('Email'), 'analyst@sentinel.local');
     await userEvent.type(screen.getByLabelText('Password'), 'sentinel-demo');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 

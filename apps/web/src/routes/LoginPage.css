@@ -1,449 +1,492 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+/* Sign-in — a wide pastel art panel beside a narrow white form column, after the Razorpay
+   onboarding layout: the marketing surface carries the story, the form stays quiet and quick. */
 
-/* Strict Non-Scrollable Full Screen Split Container */
-.login-split-page {
-  height: 100vh;
-  max-height: 100vh;
-  width: 100vw;
+.lg {
+  --lg-ink: #0b1220;
+  --lg-ink-2: #5b6474;
+  --lg-line: #e3e6ec;
+  --lg-blue: #2b5cff;
+  --lg-blue-2: #1e46d8;
+  --lg-solid: #0b1220;
+  --lg-solid-2: #1e2a44;
+
+  min-height: 100vh;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) clamp(27rem, 34vw, 35rem);
+  background: #fff;
+  color: var(--lg-ink);
+  font-family: 'Inter Tight', var(--s-font), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── art panel ──────────────────────────────────────────────────────────────────────────────── */
+.lg-art {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(1.75rem, 3vw, 2.75rem);
   background: #ffffff;
+  isolation: isolate;
+}
+
+.lg-art__canvas {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+.lg-art__canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The same lockup the console sidebar carries, so the product is recognisable on both sides of
+   the sign-in. */
+.lg-art__brand {
+  position: relative;
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 1.85rem;
+}
+.lg-art__logo {
+  display: block;
+  height: 100%;
+  line-height: 0;
+}
+.lg-art__tag {
+  transform: translateY(0.098em);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  color: #6b7689;
+  white-space: nowrap;
+}
+/* The shipped asset is white-on-dark, so on this white ground it has to be inked to read. */
+.lg-art__logo img {
+  height: 1.85rem;
+  width: auto;
+  filter: brightness(0) saturate(100%);
+  opacity: 0.9;
+}
+
+.lg-art__copy h1 {
+  margin: 0 0 1.4rem;
+  font-size: clamp(1.6rem, 2.5vw, 2.35rem);
+  font-weight: 600;
+  line-height: 1.22;
+  letter-spacing: -0.03em;
+  /* Walks the same four stops as the shader, on the same 16s period, so the copy shifts hue with
+     the field behind it. Done in CSS rather than from the render loop: a JS-written variable stalls
+     whenever the tab is hidden and leaves the text on whatever colour it froze at. */
+  color: #2d4a5e;
+  animation: lg-ink-cycle 16s linear infinite;
+}
+
+.lg-art__copy ul {
+  list-style: none;
   margin: 0;
   padding: 0;
-  overflow: hidden;
-  box-sizing: border-box;
-  font-family:
-    'Outfit',
-    system-ui,
-    -apple-system,
-    sans-serif;
-}
-
-@media (max-width: 900px) {
-  .login-split-page {
-    grid-template-columns: 1fr;
-    overflow-y: auto;
-  }
-}
-
-/* Left 50% Banner Section - Warm Dark Matte Theme */
-.login-split-left {
-  background: #141211;
-  border-radius: 0 32px 32px 0;
   display: flex;
-  flex-direction: column;
-  height: 100vh;
-  padding: 3.25rem 3.5rem 0 3.5rem;
-  position: relative;
-  overflow: hidden;
-  color: #ffffff;
-  box-sizing: border-box;
+  flex-wrap: wrap;
+  gap: 0.85rem 2rem;
 }
-
-@media (max-width: 900px) {
-  .login-split-left {
-    display: none;
-  }
-}
-
-.login-split-left__header {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  position: relative;
-  z-index: 2;
-  flex-shrink: 0;
-}
-
-.login-split-left__subtitle {
-  margin: 0;
-  font-size: 0.9375rem;
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 400;
-  letter-spacing: 0.01em;
-  max-width: 28rem;
-  line-height: 1.5;
-}
-
-.login-split-left__title {
-  margin: 0;
-  font-family: 'Outfit', sans-serif;
-  font-size: 3.25rem;
-  font-weight: 600;
-  line-height: 1.08;
-  letter-spacing: -0.035em;
-  color: #ffffff;
-}
-
-/* Content Split: Left Phone, Right Clean Bullet Points */
-.login-split-left__content-wrap {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 1.5rem;
-  width: 100%;
-  height: 100%;
-  flex: 1;
-  align-items: flex-end;
-  margin-top: 1rem;
-  overflow: hidden;
-}
-
-.login-split-left__graphic-side {
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-start;
-  height: 100%;
-  overflow: hidden;
-}
-
-.login-split-left__graphic {
-  height: 100%;
-  max-height: 560px;
-  width: auto;
-  object-fit: contain;
-  object-position: bottom left;
-  transform: scale(1.08) translateX(-3%);
-  transform-origin: bottom left;
-  filter: drop-shadow(16px 20px 40px rgba(0, 0, 0, 0.55));
-}
-
-/* Center-Aligned Clean Bullet Points Container (No Box Border) */
-.login-split-left__points-side {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-self: center;
-  padding-bottom: 2rem;
-  padding-right: 1.5rem;
-  z-index: 2;
-}
-
-.login-points-container {
-  display: flex;
-  flex-direction: column;
-  gap: 1.35rem;
-}
-
-.login-point-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.85rem;
-}
-
-.login-point-icon-badge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.1rem;
-  height: 2.1rem;
-  border-radius: 8px;
-  background: rgba(11, 114, 231, 0.16);
-  border: 1px solid rgba(11, 114, 231, 0.3);
-  color: #0b72e7;
-  flex-shrink: 0;
-  margin-top: 0.1rem;
-}
-
-.login-point-text h3 {
-  margin: 0 0 0.2rem 0;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: #ffffff;
-  letter-spacing: -0.015em;
-}
-
-.login-point-text p {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: rgba(255, 255, 255, 0.65);
-  line-height: 1.4;
-}
-
-/* Right 50% Form Section - Clean Enterprise Light Theme */
-.login-split-right {
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  padding: 3rem 4rem;
-  box-sizing: border-box;
-  overflow-y: auto;
-}
-
-@media (max-width: 600px) {
-  .login-split-right {
-    padding: 2rem 1.5rem;
-    height: auto;
-    min-height: 100vh;
-  }
-}
-
-.login-split-right__content {
-  width: 100%;
-  max-width: 380px;
-}
-
-/* Brand Logo */
-.login-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  margin-bottom: 2rem;
-}
-
-.login-brand__logo {
+.lg-art__copy li {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 8px;
-  background: #0a142f;
-  color: #0b72e7;
-}
-
-.login-brand__name {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #0f172a;
-  letter-spacing: -0.025em;
-}
-
-.login-brand__tag {
-  font-size: 0.75rem;
+  gap: 0.5rem;
+  font-size: 1.0625rem;
   font-weight: 500;
-  padding: 0.2rem 0.5rem;
-  background: #f1f5f9;
-  color: #475569;
-  border-radius: 6px;
-  margin-left: 0.2rem;
+  color: #2d4a5e;
+  animation: lg-ink-cycle 16s linear infinite;
+}
+.lg-art__copy li span {
+  color: #2d4a5e;
+  opacity: 0.7;
+  font-size: 1.15rem;
+  line-height: 1;
+  animation: lg-ink-cycle 16s linear infinite;
 }
 
-/* Header */
-.login-header {
-  margin-bottom: 1.75rem;
+/* The shader's ramp — periwinkle, sky, aqua, mint — darkened to a readable text weight. */
+@keyframes lg-ink-cycle {
+  0% {
+    color: #3d4a5e;
+  }
+  25% {
+    color: #2e4d5e;
+  }
+  50% {
+    color: #285249;
+  }
+  75% {
+    color: #2f5540;
+  }
+  100% {
+    color: #3d4a5e;
+  }
 }
 
-.login-title {
-  margin: 0;
-  font-family: 'Outfit', sans-serif;
-  font-size: 2.1rem;
-  font-weight: 600;
-  color: #0f172a;
-  letter-spacing: -0.03em;
-  line-height: 1.2;
+@media (prefers-reduced-motion: reduce) {
+  .lg-art__copy h1,
+  .lg-art__copy li,
+  .lg-art__copy li span {
+    animation: none;
+  }
 }
 
-.login-subtitle {
-  margin: 0.4rem 0 0;
-  font-size: 0.875rem;
-  color: #64748b;
-  font-weight: 400;
-  line-height: 1.45;
-}
-
-/* Form */
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.15rem;
-}
-
-.login-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.login-field label {
-  font-size: 0.84375rem;
-  font-weight: 500;
-  color: #334155;
-}
-
-.login-input-icon-wrap {
+/* ── form panel ─────────────────────────────────────────────────────────────────────────────── */
+.lg-panel {
   position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
+  border-left: 1px solid var(--lg-line);
+  padding: clamp(1.5rem, 3vw, 2.5rem);
 }
 
-.login-input-icon {
-  position: absolute;
-  left: 0.8rem;
-  color: #94a3b8;
-  pointer-events: none;
-}
-
-.login-field input {
+.lg-panel__inner {
   width: 100%;
-  padding: 0.725rem 0.95rem 0.725rem 2.6rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 9px;
-  background: #ffffff;
-  color: #0f172a;
-  font-size: 0.875rem;
+  max-width: 23rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.lg-head {
+  margin-bottom: 1.6rem;
+}
+.lg-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+.lg-lockup img {
+  height: 1.35rem;
+  width: auto;
+  filter: brightness(0) saturate(100%);
+}
+.lg-lockup__rule {
+  width: 1px;
+  height: 1.15rem;
+  background: #d7dbe3;
+}
+.lg-lockup__name {
+  transform: translateY(0.19em);
+  font-family: 'Space Grotesk', 'Inter Tight', system-ui, sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--lg-ink);
+}
+.lg-welcome {
+  margin: 0 0 0.45rem;
+  font-size: 0.9375rem;
+  color: var(--lg-ink-2);
+}
+.lg-welcome strong {
+  color: var(--lg-ink);
+  font-weight: 600;
+}
+.lg-title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.24;
+  letter-spacing: -0.03em;
+}
+
+/* ── fields ─────────────────────────────────────────────────────────────────────────────────── */
+.lg-form {
+  display: flex;
+  flex-direction: column;
+}
+.lg-field + .lg-field {
+  margin-top: 1rem;
+}
+.lg-field label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--lg-ink-2);
+}
+.lg-field__wrap {
+  position: relative;
+}
+.lg-field input {
+  width: 100%;
+  height: 3.1rem;
+  padding: 0 1rem;
+  border: 1px solid #dfe3ea;
+  border-radius: 10px;
+  background: #fbfcfe;
+  box-shadow: inset 0 1px 2px rgba(16, 24, 40, 0.03);
+  color: var(--lg-ink);
   font-family: inherit;
-  box-sizing: border-box;
+  font-size: 0.9375rem;
+  outline: none;
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
 }
-
-.login-field input:focus {
-  outline: none;
-  border-color: #0b72e7;
-  box-shadow: 0 0 0 3px rgba(11, 114, 231, 0.12);
+.lg-field input::placeholder {
+  color: #a4abb9;
 }
-
-.login-field input[aria-invalid='true'] {
-  border-color: #d72424;
-  background: #ffe3e0;
+.lg-field input:focus {
+  border-color: var(--lg-blue);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(43, 92, 255, 0.13);
 }
-
-.login-field__error {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: #d72424;
-  font-weight: 500;
+.lg-field input[aria-invalid='true'] {
+  border-color: #dc2626;
 }
-
-.login-password-toggle {
+.lg-field__wrap input {
+  padding-right: 2.6rem;
+}
+.lg-reveal {
   position: absolute;
-  right: 0.65rem;
-  background: transparent;
-  border: none;
-  color: #64748b;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: #8b93a4;
   cursor: pointer;
+}
+.lg-reveal:hover {
+  color: var(--lg-ink);
+}
+.lg-field__error {
+  margin: 0.4rem 0 0;
+  font-size: 0.8125rem;
+  color: #dc2626;
+}
+
+/* ── actions ────────────────────────────────────────────────────────────────────────────────── */
+.lg-alert {
+  margin: 0 0 1rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.875rem;
+}
+
+.lg-submit {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.25rem;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  height: 3.1rem;
+  border: 0;
+  border-radius: 10px;
+  background: var(--lg-solid);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  /* Flat, and exactly the height and radius of the inputs above it. A gradient, a lit inner top
+     edge and a coloured cast shadow make this sit proud of a form that is otherwise entirely
+     flat; the arrow is what gives it character instead, and it costs the page nothing. */
+  transition: background-color 0.15s ease;
+}
+.lg-submit__go {
+  font-size: 1.05em;
+  line-height: 1;
+  transition: transform 0.18s ease;
+}
+.lg-submit:hover:not(:disabled) {
+  background: var(--lg-solid-2);
+}
+.lg-submit:hover:not(:disabled) .lg-submit__go {
+  transform: translateX(3px);
+}
+.lg-submit:active:not(:disabled) {
+  background: #05080f;
+}
+.lg-submit:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(43, 92, 255, 0.3);
+}
+.lg-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ── demo credentials ───────────────────────────────────────────────────────────────────────── */
+.lg-demo {
+  margin: 1.25rem 0 0;
+  padding: 0.8rem 1rem 0.9rem;
+  border: 1px solid var(--lg-line);
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.lg-demo__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.7rem;
+}
+.lg-demo__label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #8b93a4;
+}
+.lg-demo__fill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.55rem 0.25rem 0.45rem;
+  border: 1px solid var(--lg-line);
   border-radius: 6px;
-  transition: color 0.15s ease;
+  background: #fff;
+  color: var(--lg-ink-2);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.lg-demo__fill:hover {
+  border-color: var(--lg-solid);
+  background: var(--lg-solid);
+  color: #fff;
+}
+.lg-demo__fill:focus-visible {
+  outline: none;
+  border-color: var(--lg-solid);
+  box-shadow: 0 0 0 3px rgba(11, 18, 32, 0.16);
+}
+/* Two columns: the first sizes to the wider of the two terms, so both values share one left
+   edge. `baseline` keeps the sans labels sitting on the same line as the mono values. */
+.lg-demo__list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 0.4rem 0.9rem;
+  margin: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--lg-line);
+}
+.lg-demo__list dt {
+  font-size: 0.75rem;
+  color: #8b93a4;
+}
+.lg-demo__list dd {
+  margin: 0;
+  font-family: var(--s-mono, ui-monospace, monospace);
+  font-size: 0.8125rem;
+  color: #334155;
+  overflow-wrap: anywhere;
+  /* One click takes the whole value, which is the only thing anyone does with these. */
+  user-select: all;
 }
 
-.login-password-toggle:hover {
-  color: #0f172a;
+/* ── footnotes ──────────────────────────────────────────────────────────────────────────────── */
+.lg-aside {
+  margin-top: auto;
+  padding-top: 2rem;
 }
-
-/* Options Row (Checkbox & Forgot Password) */
-.login-options-row {
+/* A row that behaves like the link it is, rather than a grey slab with a link buried in it. */
+.lg-storefront {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  font-size: 0.84375rem;
-  margin-top: 0.1rem;
-}
-
-.login-remember {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  color: #475569;
-  cursor: pointer;
-  user-select: none;
-}
-
-.login-remember input[type='checkbox'] {
-  width: 0.95rem;
-  height: 0.95rem;
-  border-radius: 4px;
-  accent-color: #000000;
-  cursor: pointer;
-}
-
-.login-forgot-link {
-  color: #334155;
-  font-weight: 500;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--lg-line);
+  border-radius: 10px;
+  background: #fff;
+  color: inherit;
   text-decoration: none;
-  transition: color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
-
-.login-forgot-link:hover {
-  color: #0b72e7;
-  text-decoration: underline;
+.lg-storefront:hover {
+  border-color: #c3d0f5;
+  background: #f7f9ff;
 }
-
-/* Primary Submit Button - Solid Black */
-.login-submit-btn {
-  width: 100%;
-  padding: 0.8125rem 1rem;
-  background: #000000;
-  color: #ffffff;
-  border: none;
-  border-radius: 9px;
+.lg-storefront:focus-visible {
+  outline: none;
+  border-color: var(--lg-blue);
+  box-shadow: 0 0 0 3px rgba(43, 92, 255, 0.18);
+}
+.lg-storefront__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  font-size: 0.8125rem;
+  color: var(--lg-ink-2);
+}
+.lg-storefront__text strong {
   font-size: 0.875rem;
   font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  margin-top: 0.4rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition:
-    background 0.15s ease,
-    transform 0.1s ease;
+  color: var(--lg-ink);
+}
+.lg-storefront__go {
+  flex: none;
+  color: var(--lg-blue);
+  font-size: 1rem;
+  transition: transform 0.15s ease;
+}
+.lg-storefront:hover .lg-storefront__go {
+  transform: translateX(2px);
+}
+.lg-legal {
+  margin: 0.9rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: #9aa1b1;
 }
 
-.login-submit-btn:hover:not(:disabled) {
-  background: #1c1917;
+/* ── responsive ─────────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 64rem) {
+  .lg {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* The art panel becomes a header band; the form is what a phone came for. */
+  .lg-art {
+    min-height: 20rem;
+    gap: 3rem;
+  }
+  .lg-panel {
+    border-left: 0;
+    border-top: 1px solid var(--lg-line);
+    align-items: flex-start;
+  }
 }
 
-.login-submit-btn:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.login-submit-btn:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-/* Demo Credentials Hint Box */
-.login-demo-box {
-  margin-top: 1.5rem;
-  padding: 0.65rem 0.85rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 0.8125rem;
-  color: #475569;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.login-demo-box__label {
-  font-weight: 500;
-  color: #334155;
-}
-
-.login-demo-box code {
-  font-family: var(--s-mono, monospace);
-  color: #0f172a;
-  font-weight: 600;
-}
-
-/* Footer Link */
-.login-footer {
-  margin-top: 1.75rem;
-  text-align: center;
-}
-
-.login-footer p {
-  margin: 0;
-  font-size: 0.84375rem;
-  color: #64748b;
-}
-
-.login-signup-link {
-  color: #0f172a;
-  font-weight: 600;
-  text-decoration: none;
-  transition: color 0.15s ease;
-}
-
-.login-signup-link:hover {
-  color: #0b72e7;
-  text-decoration: underline;
+@media (max-width: 30rem) {
+  .lg-art {
+    min-height: 16rem;
+    padding: 1.25rem;
+  }
+  .lg-art__copy ul {
+    gap: 0.5rem 1.25rem;
+  }
+  .lg-art__copy li {
+    font-size: 0.9375rem;
+  }
 }

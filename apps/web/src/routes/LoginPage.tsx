@@ -1,22 +1,18 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { Callout } from '@sentinel/ui';
 import { loginRequestSchema } from '@sentinel/contracts';
 import { useLogin } from '../auth/useSession.js';
-import { DEMO_HINT } from '../config.js';
-import {
-  Eye,
-  EyeSlash,
-  ShieldCheck,
-  EnvelopeSimple,
-  LockKey,
-  Lightning,
-  ShieldCheckered,
-  Target,
-  FileText,
-} from '@phosphor-icons/react';
-import mobileCardBannerImg from '../assets/login_mobile_card-nobg.png';
+import { STOREFRONT_URL } from '../links.js';
+import { Eye, EyeSlash, Plus } from '@phosphor-icons/react';
+import razorpayLogo from '../assets/white.png';
+import { LightStreaks } from '../components/LightStreaks.js';
 import './LoginPage.css';
+
+const DEMO_EMAIL = 'analyst@sentinel.local';
+const DEMO_PASSWORD = 'sentinel-demo';
+
+/** The three claims the art panel closes on — short enough to read at a glance. */
+const HIGHLIGHTS = ['Real-time detection', 'A calibrated model', 'Immutable audit logs'];
 
 type FieldErrors = { email?: string; password?: string };
 
@@ -30,195 +26,150 @@ function collectErrors(issues: { path: PropertyKey[]; message: string }[]): Fiel
   return errors;
 }
 
-function LoginMarketingPanel(): React.JSX.Element {
+function LoginArtPanel(): React.JSX.Element {
   return (
-    <div className="login-split-left">
-      <div className="login-split-left__header">
-        <p className="login-split-left__subtitle">
-          Real-time AI payment protection, velocity anomaly detection & automated risk policies.
-        </p>
-        <h1 className="login-split-left__title">
-          Autonomous <br />
-          Fraud Defense
+    <div className="lg-art">
+      <LightStreaks className="lg-art__canvas" />
+      <div className="lg-art__brand">
+        <a className="lg-art__logo" href="/">
+          <img src={razorpayLogo} alt="Razorpay" />
+        </a>
+        <span className="lg-art__tag">/ buildathon</span>
+      </div>
+      <div className="lg-art__copy">
+        <h1>
+          Catch card testing before
+          <br />
+          it drains your gateway
         </h1>
-      </div>
-
-      {/* Center Content: Left Phone Graphic, Right Clean Bullet Points (No Box) */}
-      <div className="login-split-left__content-wrap">
-        <div className="login-split-left__graphic-side">
-          <img
-            src={mobileCardBannerImg}
-            alt="Sentinel Fraud Detection Mobile Dashboard"
-            className="login-split-left__graphic"
-          />
-        </div>
-
-        <div className="login-split-left__points-side">
-          <div className="login-points-container">
-            <div className="login-point-row">
-              <div className="login-point-icon-badge">
-                <Lightning size={18} weight="fill" />
-              </div>
-              <div className="login-point-text">
-                <h3>Sub-45ms Real-Time AI Scoring</h3>
-                <p>Instant risk evaluation before transaction authorization</p>
-              </div>
-            </div>
-
-            <div className="login-point-row">
-              <div className="login-point-icon-badge">
-                <ShieldCheckered size={18} weight="fill" />
-              </div>
-              <div className="login-point-text">
-                <h3>Autonomous Velocity Defense</h3>
-                <p>Blocks botnet card testing & stolen credential spikes</p>
-              </div>
-            </div>
-
-            <div className="login-point-row">
-              <div className="login-point-icon-badge">
-                <Target size={18} weight="bold" />
-              </div>
-              <div className="login-point-text">
-                <h3>99.98% Detection Precision</h3>
-                <p>Eliminates false declines for legitimate buyers</p>
-              </div>
-            </div>
-
-            <div className="login-point-row">
-              <div className="login-point-icon-badge">
-                <FileText size={18} weight="bold" />
-              </div>
-              <div className="login-point-text">
-                <h3>Automated Policy Enforcement</h3>
-                <p>Approve, challenge, or block with immutable audit logs</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ul>
+          {HIGHLIGHTS.map((item) => (
+            <li key={item}>
+              <span aria-hidden="true">+</span>
+              {item}
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
 }
 
-function LoginBrandHeader(): React.JSX.Element {
+function LoginHead(): React.JSX.Element {
   return (
-    <>
-      <div className="login-brand">
-        <div className="login-brand__logo">
-          <ShieldCheck size={22} weight="fill" />
-        </div>
-        <span className="login-brand__name">Sentinel</span>
-        <span className="login-brand__tag">Fraud Engine</span>
+    <div className="lg-head">
+      {/* The shipped asset is the full wordmark, so it gets a wordmark slot rather than being
+          squeezed into a square icon tile. */}
+      <div className="lg-lockup">
+        <img src={razorpayLogo} alt="Razorpay" />
+        <span className="lg-lockup__rule" aria-hidden="true" />
+        <span className="lg-lockup__name">SENTINEL</span>
       </div>
-
-      <div className="login-header">
-        <h2 className="login-title">Welcome Back</h2>
-        <p className="login-subtitle">Enter your credentials to access the risk console</p>
-      </div>
-    </>
-  );
-}
-
-interface EmailFieldProps {
-  email: string;
-  setEmail: React.Dispatch<React.SetStateAction<string>>;
-  error?: string | undefined;
-}
-
-function EmailField({ email, setEmail, error }: EmailFieldProps): React.JSX.Element {
-  return (
-    <div className="login-field">
-      <label htmlFor="email">Work Email</label>
-      <div className="login-input-icon-wrap">
-        <EnvelopeSimple size={18} className="login-input-icon" />
-        <input
-          id="email"
-          name="email"
-          type="email"
-          autoComplete="username"
-          placeholder="name@company.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          aria-invalid={error !== undefined}
-        />
-      </div>
-      {error && <p className="login-field__error">{error}</p>}
+      <p className="lg-welcome">
+        Welcome to <strong>Sentinel</strong>
+      </p>
+      <h2 className="lg-title">Sign in to the console</h2>
     </div>
   );
 }
 
-interface PasswordFieldProps {
-  password: string;
-  setPassword: React.Dispatch<React.SetStateAction<string>>;
-  showPassword: boolean;
-  setShowPassword: React.Dispatch<React.SetStateAction<boolean>>;
+interface FieldProps {
+  value: string;
+  onChange: (next: string) => void;
   error?: string | undefined;
 }
 
-function PasswordField({
-  password,
-  setPassword,
-  showPassword,
-  setShowPassword,
-  error,
-}: PasswordFieldProps): React.JSX.Element {
+function EmailField({ value, onChange, error }: FieldProps): React.JSX.Element {
   return (
-    <div className="login-field">
+    <div className="lg-field">
+      <label htmlFor="email">Email</label>
+      <input
+        id="email"
+        name="email"
+        type="email"
+        autoComplete="username"
+        placeholder="Enter your email"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-invalid={error !== undefined}
+      />
+      {error && <p className="lg-field__error">{error}</p>}
+    </div>
+  );
+}
+
+function PasswordField({ value, onChange, error }: FieldProps): React.JSX.Element {
+  const [shown, setShown] = useState(false);
+  return (
+    <div className="lg-field">
       <label htmlFor="password">Password</label>
-      <div className="login-input-icon-wrap">
-        <LockKey size={18} className="login-input-icon" />
+      <div className="lg-field__wrap">
         <input
           id="password"
           name="password"
-          type={showPassword ? 'text' : 'password'}
+          type={shown ? 'text' : 'password'}
           autoComplete="current-password"
-          placeholder="Enter password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Enter your password"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
           aria-invalid={error !== undefined}
         />
         <button
           type="button"
-          className="login-password-toggle"
-          onClick={() => setShowPassword((prev) => !prev)}
-          aria-label={showPassword ? 'Hide password' : 'Show password'}
+          className="lg-reveal"
+          onClick={() => setShown((prev) => !prev)}
+          aria-label={shown ? 'Hide password' : 'Show password'}
           tabIndex={-1}
         >
-          {showPassword ? <EyeSlash size={18} /> : <Eye size={18} />}
+          {shown ? <EyeSlash size={17} /> : <Eye size={17} />}
         </button>
       </div>
-      {error && <p className="login-field__error">{error}</p>}
+      {error && <p className="lg-field__error">{error}</p>}
     </div>
   );
 }
 
-interface LoginOptionsRowProps {
-  rememberMe: boolean;
-  setRememberMe: React.Dispatch<React.SetStateAction<boolean>>;
+function DemoAccess({ onFill }: { onFill: () => void }): React.JSX.Element {
+  return (
+    <div className="lg-demo">
+      <div className="lg-demo__head">
+        <span className="lg-demo__label">Demo credentials</span>
+        <button
+          type="button"
+          className="lg-demo__fill"
+          onClick={onFill}
+          aria-label="Auto-fill the demo credentials into the form"
+        >
+          <Plus size={12} weight="bold" />
+          Auto-fill
+        </button>
+      </div>
+      {/* A flat definition list on a two-column grid, so every value starts at the same x. The
+          previous shape justified each row to its own edges, which left the two values ending
+          flush right and beginning nowhere in particular. */}
+      <dl className="lg-demo__list">
+        <dt>Email</dt>
+        <dd>{DEMO_EMAIL}</dd>
+        <dt>Password</dt>
+        <dd>{DEMO_PASSWORD}</dd>
+      </dl>
+    </div>
+  );
 }
 
-function LoginOptionsRow({ rememberMe, setRememberMe }: LoginOptionsRowProps): React.JSX.Element {
+function LoginAside(): React.JSX.Element {
   return (
-    <div className="login-options-row">
-      <label className="login-remember">
-        <input
-          type="checkbox"
-          checked={rememberMe}
-          onChange={(e) => setRememberMe(e.target.checked)}
-        />
-        <span>Remember session</span>
-      </label>
-      <a
-        href="#forgot"
-        className="login-forgot-link"
-        onClick={(e) => {
-          e.preventDefault();
-          alert('Please contact your administrator to reset your password.');
-        }}
-      >
-        Forgot Password?
+    <div className="lg-aside">
+      <a className="lg-storefront" href={STOREFRONT_URL} target="_blank" rel="noreferrer">
+        <span className="lg-storefront__text">
+          <strong>Access the storefront</strong>
+          Simulate payments against the demo checkout
+        </span>
+        <span className="lg-storefront__go" aria-hidden="true">
+          →
+        </span>
       </a>
+      <p className="lg-legal">New account? Contact your administrator.</p>
     </div>
   );
 }
@@ -229,71 +180,49 @@ interface LoginFormProps {
   errorMessage?: string | undefined;
   isPending: boolean;
   email: string;
-  setEmail: React.Dispatch<React.SetStateAction<string>>;
+  setEmail: (next: string) => void;
   password: string;
-  setPassword: React.Dispatch<React.SetStateAction<string>>;
-  showPassword: boolean;
-  setShowPassword: React.Dispatch<React.SetStateAction<boolean>>;
-  rememberMe: boolean;
-  setRememberMe: React.Dispatch<React.SetStateAction<boolean>>;
+  setPassword: (next: string) => void;
   fieldErrors: FieldErrors;
 }
 
 function LoginForm(props: LoginFormProps): React.JSX.Element {
   const { onSubmit, isError, errorMessage, isPending, fieldErrors } = props;
   return (
-    <form className="login-form" onSubmit={onSubmit} noValidate>
+    <form className="lg-form" onSubmit={onSubmit} noValidate>
       {isError && (
-        <Callout tone="critical" title="Could not sign in">
-          <p role="alert">{errorMessage}</p>
-        </Callout>
+        <p className="lg-alert" role="alert">
+          {errorMessage}
+        </p>
       )}
 
-      <EmailField email={props.email} setEmail={props.setEmail} error={fieldErrors.email} />
-
+      <EmailField value={props.email} onChange={props.setEmail} error={fieldErrors.email} />
       <PasswordField
-        password={props.password}
-        setPassword={props.setPassword}
-        showPassword={props.showPassword}
-        setShowPassword={props.setShowPassword}
+        value={props.password}
+        onChange={props.setPassword}
         error={fieldErrors.password}
       />
 
-      <LoginOptionsRow rememberMe={props.rememberMe} setRememberMe={props.setRememberMe} />
-
-      <button type="submit" className="login-submit-btn" disabled={isPending}>
-        {isPending ? 'Signing In…' : 'Sign In'}
+      <button type="submit" className="lg-submit" disabled={isPending}>
+        {isPending ? (
+          'Signing in…'
+        ) : (
+          <>
+            Sign in
+            <span className="lg-submit__go" aria-hidden="true">
+              →
+            </span>
+          </>
+        )}
       </button>
+
+      <DemoAccess
+        onFill={() => {
+          props.setEmail(DEMO_EMAIL);
+          props.setPassword(DEMO_PASSWORD);
+        }}
+      />
     </form>
-  );
-}
-
-function LoginDemoBox(): React.JSX.Element {
-  return (
-    <div className="login-demo-box">
-      <span className="login-demo-box__label">Demo Analyst Credentials:</span>
-      <code>{DEMO_HINT}</code>
-    </div>
-  );
-}
-
-function LoginFooter(): React.JSX.Element {
-  return (
-    <div className="login-footer">
-      <p>
-        Need an account?{' '}
-        <a
-          href="#contact"
-          className="login-signup-link"
-          onClick={(e) => {
-            e.preventDefault();
-            alert('Please contact your administrator to create an account.');
-          }}
-        >
-          Contact administrator to create account
-        </a>
-      </p>
-    </div>
   );
 }
 
@@ -304,8 +233,6 @@ export function LoginPage(): React.JSX.Element {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
@@ -324,13 +251,11 @@ export function LoginPage(): React.JSX.Element {
   }
 
   return (
-    <main className="login-split-page">
-      <LoginMarketingPanel />
-
-      <div className="login-split-right">
-        <div className="login-split-right__content">
-          <LoginBrandHeader />
-
+    <main className="lg">
+      <LoginArtPanel />
+      <section className="lg-panel">
+        <div className="lg-panel__inner">
+          <LoginHead />
           <LoginForm
             onSubmit={handleSubmit}
             isError={loginMutation.isError}
@@ -340,18 +265,11 @@ export function LoginPage(): React.JSX.Element {
             setEmail={setEmail}
             password={password}
             setPassword={setPassword}
-            showPassword={showPassword}
-            setShowPassword={setShowPassword}
-            rememberMe={rememberMe}
-            setRememberMe={setRememberMe}
             fieldErrors={fieldErrors}
           />
-
-          <LoginDemoBox />
-
-          <LoginFooter />
+          <LoginAside />
         </div>
-      </div>
+      </section>
     </main>
   );
 }
