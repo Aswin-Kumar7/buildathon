@@ -1,9 +1,9 @@
 {
   "featureDefinitionVersion": "fdv-bfe27ae905dd",
   "metricsSnapshot": {
-    "prAuc": 0.940056,
-    "precision": 0.721485,
-    "recall": 0.971429
+    "prAuc": 0.991104,
+    "precision": 0.875399,
+    "recall": 0.978571
   },
   "onnxExported": false,
   "trainingDataHash": "sha256:b5f100ca3407d0cf",

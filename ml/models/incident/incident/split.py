@@ -23,13 +23,17 @@ class Split:
 
 
 def grouped_split(groups: np.ndarray, test_fraction: float = 0.25,
-                  val_fraction: float = 0.2) -> Split:
+                  val_fraction: float = 0.2, seed: int | None = None) -> Split:
+    """`seed` overrides the project seed for the stability check only, which re-splits the same
+    corpus several ways to report a margin with its spread. Left unset — the ordinary case, and the
+    one every published headline number comes from — this is the single seeded split."""
+    random_state = SEED if seed is None else seed
     idx = np.arange(len(groups))
 
-    outer = GroupShuffleSplit(n_splits=1, test_size=test_fraction, random_state=SEED)
+    outer = GroupShuffleSplit(n_splits=1, test_size=test_fraction, random_state=random_state)
     trainval, test = next(outer.split(idx, groups=groups))
 
-    inner = GroupShuffleSplit(n_splits=1, test_size=val_fraction, random_state=SEED)
+    inner = GroupShuffleSplit(n_splits=1, test_size=val_fraction, random_state=random_state)
     tr, val = next(inner.split(trainval, groups=groups[trainval]))
 
     return Split(train=trainval[tr], validation=trainval[val], test=test)

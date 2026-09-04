@@ -13,6 +13,7 @@ aggregate that hides both.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -128,6 +129,25 @@ def _bootstrap(
     }
 
 
+def wilson(successes: int, trials: int, z: float = 1.96) -> dict[str, float]:
+    """A 95% interval for a rate, by Wilson's score method.
+
+    A per-origin rate is a count over a handful of rows, and printed bare it overstates itself: an
+    origin with sixteen attacks that the model caught all of reads "recall 1.000", which looks like
+    certainty and is really "somewhere above 0.81". The normal approximation is worse than useless
+    here — at k = n it collapses to a zero-width interval and claims perfection outright. Wilson
+    stays inside [0, 1] and keeps a sensible width at the extremes, which is exactly where these
+    numbers live.
+    """
+    if trials <= 0:
+        return {"low": 0.0, "high": 0.0}
+    p = successes / trials
+    denominator = 1 + z * z / trials
+    centre = (p + z * z / (2 * trials)) / denominator
+    half = z * math.sqrt(p * (1 - p) / trials + z * z / (4 * trials * trials)) / denominator
+    return {"low": max(0.0, centre - half), "high": min(1.0, centre + half)}
+
+
 def per_origin(y: np.ndarray, risk: np.ndarray, origin: np.ndarray, threshold: float) -> list[dict]:
     """How the model does on each scenario family and composition — where it is right, where it isn't.
 
@@ -141,13 +161,25 @@ def per_origin(y: np.ndarray, risk: np.ndarray, origin: np.ndarray, threshold: f
         mask = origin == name
         yo, po = y[mask], predicted[mask]
         positives = int(yo.sum())
+        negatives = int(mask.sum()) - positives
+
+        # The denominator the origin's rate is actually measured over: caught-out-of-attacks for a
+        # positive origin, wrongly-flagged-out-of-benign for a negative one.
+        if positives:
+            flagged, denominator = int(np.sum(po[yo == 1])), positives
+        else:
+            flagged, denominator = int(np.sum(po[yo == 0])), negatives
+
         rows.append(
             {
                 "origin": name,
                 "n": int(mask.sum()),
                 "positive": positives > 0,
+                "flagged": flagged,
+                "denominator": denominator,
+                "interval": wilson(flagged, denominator),
                 "recall": float((po[yo == 1] == 1).mean()) if positives else None,
-                "false_positive_rate": float((po[yo == 0] == 1).mean()) if (mask.sum() - positives) else None,
+                "false_positive_rate": float((po[yo == 0] == 1).mean()) if negatives else None,
                 "mean_risk": float(risk[mask].mean()),
             }
         )

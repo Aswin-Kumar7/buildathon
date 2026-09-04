@@ -1,14 +1,17 @@
 # Card-testing risk model
 
-The one deployed model. A calibrated **binary logistic** that scores an entity's risk of being card
-testing / abuse — **P(abuse)** — trained and evaluated on the synthetic scenario corpus, and served
-in the request path. It is linear and temperature-scaled, so the API serves it directly as a few dot
-products — no native runtime — and its per-feature contributions are exact for a linear model.
+The one deployed model. A calibrated **gradient-boosted ensemble** (200 trees, temperature-scaled)
+that scores an entity's risk of being card testing or abuse — **P(abuse)** — trained and evaluated on
+the synthetic scenario corpus, and served in the request path.
+
+It is exported as plain node arrays that the API walks directly in TypeScript, so serving needs no
+Python and no native runtime. Per-feature contributions are computed by **median ablation**: hold one
+feature at its training median, score again, and report the difference. That is a measured number
+rather than a model coefficient, which a tree ensemble does not have.
 
 The number the model page reports is **this** model's, on a held-out split of the same corpus it was
-trained on. There is no separate benchmark model: the model you see precision/recall/PR-AUC for is
-the model the merchant actually runs. The IEEE-CIS work remains only as supporting research, never
-the product's headline.
+trained on. There is no separate benchmark model: the model you see precision, recall and PR-AUC for
+is the model the merchant actually runs.
 
 ```bash
 pip install -r requirements.txt
@@ -26,25 +29,41 @@ make check-metrics         # regenerate in memory and fail if metrics.json drift
   scenario the project authored; the label is the scenario's ground truth, not a confirmed
   chargeback. The path to real labels is the merchant's own confirmed incidents — see the retraining
   design. `make eval` writes that disclaimer into every artefact.
-- **A corpus with genuine overlap.** The eight committed families are trivially separable, so the
-  corpus is hardened with realistic boundary cases — a tester reusing a small card pool (dunning-
-  shaped), a benign batch walking many cards (enumeration-shaped), attacks masked inside real traffic
-  and inside an outage. The per-origin breakdown shows the model catches the obvious cases and
-  struggles exactly where card testing and a biller's dunning genuinely overlap.
-- **Grouped split.** Rows are grouped by scenario instance; a seed the model trained on never appears
-  in the test set, so the score measures generalisation, not memory.
+- **A corpus with genuine overlap.** The eleven committed families are not trivially separable: the
+  corpus is hardened with realistic boundary cases — a tester reusing a small card pool
+  (dunning-shaped), a benign batch walking many cards (enumeration-shaped), and attacks masked inside
+  ordinary traffic, inside a flash sale and inside an outage. The per-origin breakdown shows the
+  model catching the obvious cases and struggling exactly where card testing and a biller's dunning
+  genuinely overlap.
+- **Grouped split.** Rows are grouped by scenario instance, so a seed the model trained on never
+  appears in the test set and the score measures generalisation rather than memory.
+- **The leakage delta is published with its sign.** A careless row-wise split scores PR-AUC 0.907
+  with 474 entities appearing on both sides; the honest grouped split scores 0.991 with zero overlap.
+  The grouped score is the **higher** of the two, which is the opposite of the usual leakage story and
+  is why it is worth stating plainly: the row-wise split does not inflate the score here, it
+  fragments each scenario across the boundary and makes the task look harder than it is. Neither
+  number is flattering by accident — both are regenerated every run.
+- **Leakage canary.** The strongest single feature alone reaches PR-AUC 0.554 against the model's
+  0.991, a lift of 0.437. The corpus is not separable by any one column, so the score is coming from
+  the combination rather than a giveaway.
+- **Model ladder.** The served model is re-proved against a random forest (0.988) and a logistic
+  regression (0.940) on every run, and must win across five stability seeds. It does, by a mean
+  margin of 0.058. If it ever stopped winning, CI would say so.
 - **Cost-optimal operating point.** The block threshold minimises expected cost from declared
   false-negative and false-positive costs, not an abstract metric — reported with the three-way
   operating point (observe / review / contain-eligible) a team would actually staff.
 - **Calibration and intervals.** Every headline number carries a bootstrap confidence interval, and
   the reliability curve and Brier score show the probabilities mean what they say.
-- **Leakage delta.** The grouped-split score beside a careless row-wise one. Small on a single-
-  generator synthetic corpus, and honestly so — the dramatic leakage story belongs to the real-data
-  IEEE-CIS research benchmark, not here.
 
 ## Load-bearing, but leashed
 
 The model feeds the decision alongside the deterministic rules and arbitration: it can escalate a
 case the rules would have suppressed, hold back a containment it disputes, or raise a case the rules
 never opened. It never contains a shopper on its own — the strongest thing it can do is send a case
-to a person. When the artefact is absent, the request path runs on rules alone (`degraded:model`).
+to a person. Where arbitration positively names a benign cause (`healthy_traffic`, `retry_storm`,
+`outage`) the model may not escalate over it at all. When the artefact is absent, the request path
+runs on rules alone and the decision is marked `degraded:model`.
+
+That leash is measurable. On its own the model flags 39 of 1,045 benign entities, almost all of them
+dunning and retry traffic. Running the full pipeline over the same corpus, the system contains none
+of them — see [`METRICS.md`](../../../METRICS.md) at the repository root, regenerated by CI.

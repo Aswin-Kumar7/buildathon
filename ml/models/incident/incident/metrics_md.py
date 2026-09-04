@@ -13,14 +13,69 @@ def _interval(i: dict) -> str:
 
 
 def _per_origin(rows: list[dict]) -> str:
-    out = ["| Origin | Kind | n | Recall / FP-rate | Mean risk |", "|---|---|---|---|---|"]
+    out = [
+        "| Origin | Kind | n | Recall / FP-rate | Count | 95% CI | Mean risk |",
+        "|---|---|---|---|---|---|---|",
+    ]
     for r in rows:
         kind = "attack" if r["positive"] else "benign"
         score = (
             f"recall {r['recall']:.3f}" if r["positive"] else f"FP-rate {r['false_positive_rate']:.3f}"
         )
-        out.append(f"| {r['origin']} | {kind} | {r['n']} | {score} | {r['mean_risk']:.3f} |")
+        interval = f"{r['interval']['low']:.2f} – {r['interval']['high']:.2f}"
+        count = f"{r['flagged']}/{r['denominator']}"
+        out.append(
+            f"| {r['origin']} | {kind} | {r['n']} | {score} | {count} | {interval} | "
+            f"{r['mean_risk']:.3f} |"
+        )
     return "\n".join(out)
+
+
+def _signed_rupees(paise: int) -> str:
+    """A signed amount reads as -₹57,600, never ₹-57,600 — the sign belongs to the number, not
+    between the currency and its digits."""
+    return f"{'-' if paise < 0 else '+'}₹{abs(paise) / 100:,.0f}"
+
+
+def _ladder(rows: list[dict], stability: dict) -> str:
+    out = [
+        "| Model | PR-AUC | Precision | Recall | Brier | Threshold | Cost | vs served |",
+        "|---|---|---|---|---|---|---|---|",
+    ]
+    for r in rows:
+        served = " **(served)**" if r["served"] else ""
+        delta = "—" if r["served"] else f"{r['pr_auc_delta']:+.4f} PR-AUC, {_signed_rupees(r['cost_delta_paise'])}"
+        out.append(
+            f"| {r['model']}{served} | {r['pr_auc']:.4f} | {r['precision']:.4f} | {r['recall']:.4f} | "
+            f"{r['brier']:.4f} | {r['threshold']:.2f} | ₹{r['cost_paise'] / 100:,.0f} | {delta} |"
+        )
+    d = stability["pr_auc_delta"]
+    out.append("")
+    out.append(
+        f"Re-split {stability['n_seeds']} ways, the served model beat `{stability['compared_with']}` "
+        f"on **{stability['served_wins']} of {stability['n_seeds']}** groupings. Measured from the "
+        f"alternative's side, so negative means the served model is ahead: PR-AUC delta mean "
+        f"{d['mean']:+.4f} (sd {d['sd']:.4f}, range {d['min']:+.4f} to {d['max']:+.4f}), mean cost "
+        f"change {_signed_rupees(stability['mean_cost_delta_paise'])}."
+    )
+    return "\n".join(out)
+
+
+def _canary(c: dict) -> str:
+    rows = [
+        f"| {f['feature']} | {f['auc']:.3f} | {f['separation']:.3f} |"
+        for f in c["single_feature_auc"]
+    ]
+    table = "\n".join(["| Feature | AUC alone | Distance from chance |", "|---|---|---|", *rows])
+    b = c["one_rule_baseline"]
+    return (
+        f"{table}\n\n"
+        f"**One-rule baseline** — `{b['feature']} {b['direction']} {b['threshold']:.4f}`, the single "
+        f"threshold a person would write by hand, chosen on validation by the same cost sweep: "
+        f"precision {b['precision']:.3f}, recall {b['recall']:.3f}, PR-AUC **{b['pr_auc']:.3f}**, "
+        f"cost ₹{b['cost_paise'] / 100:,.0f}.\n\n"
+        f"{c['verdict']}"
+    )
 
 
 def _ablation(ladder: list[dict]) -> str:
@@ -64,6 +119,29 @@ obvious enumeration and the distributed case, and struggles exactly where card t
 aggressive dunning genuinely overlap — which is the real ambiguity, not a modelling artefact.
 
 {_per_origin(h["per_origin"])}
+
+A rate over a handful of rows overstates itself when printed bare, so each row carries the count it
+was computed from and a 95% Wilson interval. An origin reading "recall 1.000" on sixteen attacks is
+claiming *somewhere above 0.81*, not certainty — and two rows whose intervals overlap are not
+distinguishable by this test set however different their point estimates look.
+
+## Is this corpus hard enough to mean anything?
+
+A model scoring well on data the project generated itself proves nothing until the data is shown not
+to give the answer away. Every feature is scored alone below, and the strongest one is turned into
+the dumbest possible model — one threshold — so the distance between that and the trained model is
+what the model actually earns.
+
+{_canary(metrics["canary"])}
+
+## Model ladder
+
+Why the served model is the one it is. The same grouped split, the same cost model and the same
+threshold sweep, applied to the alternatives — a linear model that cannot represent an interaction at
+all, and a forest that averages independent trees rather than fitting residuals in sequence.
+Published whichever way it falls; the ladder is what promoted the ensemble in the first place.
+
+{_ladder(metrics["model_ladder"], metrics["model_ladder_stability"])}
 
 ## Ablation ladder
 

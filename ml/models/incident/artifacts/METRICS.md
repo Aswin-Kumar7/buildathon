@@ -8,12 +8,12 @@ deterministic from a fixed seed, so this file is a stable record rather than a s
 ## Headline
 
 The deployed model, on a held-out grouped split (1325 entities,
-280 abuse), at the cost-optimal block threshold **0.080**:
+280 abuse), at the cost-optimal block threshold **0.070**:
 
-- PR-AUC **0.940 (0.919–0.957)** (no-skill floor 0.211)
-- Precision 0.721 (0.672–0.767), Recall 0.971 (0.952–0.989), F1 0.828 (0.793–0.859)
-- ROC-AUC 0.981, Brier 0.044
-- Operating point: false-decline 0.100, block-eligible 0.285,
+- PR-AUC **0.991 (0.986–0.995)** (no-skill floor 0.211)
+- Precision 0.875 (0.836–0.909), Recall 0.979 (0.961–0.993), F1 0.924 (0.899–0.944)
+- ROC-AUC 0.997, Brier 0.017
+- Operating point: false-decline 0.037, block-eligible 0.236,
   review band 0.029 at a 0.030 analyst budget
 
 ## Where the model is right, and where it is not
@@ -23,28 +23,72 @@ for benign origins it is the false-positive rate (what share it wrongly flagged)
 obvious enumeration and the distributed case, and struggles exactly where card testing and a biller's
 aggressive dunning genuinely overlap — which is the real ambiguity, not a modelling artefact.
 
-| Origin | Kind | n | Recall / FP-rate | Mean risk |
-|---|---|---|---|---|
-| aggressive_dunning | benign | 31 | FP-rate 1.000 | 0.507 |
-| attack_card_reuse | attack | 42 | recall 1.000 | 0.711 |
-| attack_distributed | attack | 60 | recall 1.000 | 0.999 |
-| attack_loud | attack | 16 | recall 1.000 | 1.000 |
-| attack_low_amplitude | attack | 38 | recall 1.000 | 1.000 |
-| attack_partial_success | attack | 29 | recall 1.000 | 0.675 |
-| broken_integration | benign | 21 | FP-rate 0.000 | 0.002 |
-| customer_error | benign | 45 | FP-rate 0.000 | 0.002 |
-| flash_sale | benign | 54 | FP-rate 0.148 | 0.090 |
-| gateway_outage | benign | 90 | FP-rate 0.111 | 0.072 |
-| masked_in_outage | attack | 25 | recall 0.760 | 0.441 |
-| masked_in_outage_background | benign | 150 | FP-rate 0.000 | 0.019 |
-| masked_loud_in_dunning | attack | 11 | recall 1.000 | 0.896 |
-| masked_loud_in_dunning_background | benign | 165 | FP-rate 0.139 | 0.049 |
-| masked_loud_in_flash | attack | 13 | recall 1.000 | 0.952 |
-| masked_loud_in_flash_background | benign | 195 | FP-rate 0.015 | 0.015 |
-| masked_slow_in_normal | attack | 46 | recall 0.957 | 0.541 |
-| masked_slow_in_normal_background | benign | 180 | FP-rate 0.000 | 0.014 |
-| normal_traffic | benign | 81 | FP-rate 0.000 | 0.009 |
-| retry_storm | benign | 33 | FP-rate 0.909 | 0.324 |
+| Origin | Kind | n | Recall / FP-rate | Count | 95% CI | Mean risk |
+|---|---|---|---|---|---|---|
+| aggressive_dunning | benign | 31 | FP-rate 0.645 | 20/31 | 0.47 – 0.79 | 0.377 |
+| attack_card_reuse | attack | 42 | recall 0.881 | 37/42 | 0.75 – 0.95 | 0.698 |
+| attack_distributed | attack | 60 | recall 1.000 | 60/60 | 0.94 – 1.00 | 0.994 |
+| attack_loud | attack | 16 | recall 1.000 | 16/16 | 0.81 – 1.00 | 0.997 |
+| attack_low_amplitude | attack | 38 | recall 1.000 | 38/38 | 0.91 – 1.00 | 0.994 |
+| attack_partial_success | attack | 29 | recall 1.000 | 29/29 | 0.88 – 1.00 | 0.983 |
+| broken_integration | benign | 21 | FP-rate 0.000 | 0/21 | 0.00 – 0.15 | 0.007 |
+| customer_error | benign | 45 | FP-rate 0.000 | 0/45 | 0.00 – 0.08 | 0.004 |
+| flash_sale | benign | 54 | FP-rate 0.000 | 0/54 | 0.00 – 0.07 | 0.003 |
+| gateway_outage | benign | 90 | FP-rate 0.000 | 0/90 | 0.00 – 0.04 | 0.005 |
+| masked_in_outage | attack | 25 | recall 1.000 | 25/25 | 0.87 – 1.00 | 0.991 |
+| masked_in_outage_background | benign | 150 | FP-rate 0.000 | 0/150 | 0.00 – 0.02 | 0.003 |
+| masked_loud_in_dunning | attack | 11 | recall 0.909 | 10/11 | 0.62 – 0.98 | 0.824 |
+| masked_loud_in_dunning_background | benign | 165 | FP-rate 0.055 | 9/165 | 0.03 – 0.10 | 0.014 |
+| masked_loud_in_flash | attack | 13 | recall 1.000 | 13/13 | 0.77 – 1.00 | 0.971 |
+| masked_loud_in_flash_background | benign | 195 | FP-rate 0.000 | 0/195 | 0.00 – 0.02 | 0.002 |
+| masked_slow_in_normal | attack | 46 | recall 1.000 | 46/46 | 0.92 – 1.00 | 0.964 |
+| masked_slow_in_normal_background | benign | 180 | FP-rate 0.000 | 0/180 | 0.00 – 0.02 | 0.002 |
+| normal_traffic | benign | 81 | FP-rate 0.000 | 0/81 | 0.00 – 0.05 | 0.004 |
+| retry_storm | benign | 33 | FP-rate 0.303 | 10/33 | 0.17 – 0.47 | 0.195 |
+
+A rate over a handful of rows overstates itself when printed bare, so each row carries the count it
+was computed from and a 95% Wilson interval. An origin reading "recall 1.000" on sixteen attacks is
+claiming *somewhere above 0.81*, not certainty — and two rows whose intervals overlap are not
+distinguishable by this test set however different their point estimates look.
+
+## Is this corpus hard enough to mean anything?
+
+A model scoring well on data the project generated itself proves nothing until the data is shown not
+to give the answer away. Every feature is scored alone below, and the strongest one is turned into
+the dumbest possible model — one threshold — so the distance between that and the trained model is
+what the model actually earns.
+
+| Feature | AUC alone | Distance from chance |
+|---|---|---|
+| log_attempts | 0.900 | 0.400 |
+| burstiness | 0.883 | 0.383 |
+| small_amount_share | 0.704 | 0.204 |
+| cards_per_attempt | 0.383 | 0.117 |
+| log_failing_sessions | 0.386 | 0.114 |
+| infra_share | 0.426 | 0.074 |
+| failure_rate | 0.542 | 0.042 |
+| approval_rate | 0.458 | 0.042 |
+| recovery_rate | 0.472 | 0.028 |
+| top_session_failure_share | 0.485 | 0.015 |
+
+**One-rule baseline** — `log_attempts above 1.3863`, the single threshold a person would write by hand, chosen on validation by the same cost sweep: precision 0.614, recall 0.961, PR-AUC **0.554**, cost ₹190,200.
+
+One feature alone (log_attempts) reaches PR-AUC 0.553636; the model reaches 0.991104, a lift of 0.437468. The corpus is not separable by any single feature, so the model is earning its score from the combination rather than from a giveaway column.
+
+## Model ladder
+
+Why the served model is the one it is. The same grouped split, the same cost model and the same
+threshold sweep, applied to the alternatives — a linear model that cannot represent an interaction at
+all, and a forest that averages independent trees rather than fitting residuals in sequence.
+Published whichever way it falls; the ladder is what promoted the ensemble in the first place.
+
+| Model | PR-AUC | Precision | Recall | Brier | Threshold | Cost | vs served |
+|---|---|---|---|---|---|---|---|
+| hist-gradient-boosting-temperature **(served)** | 0.9911 | 0.8754 | 0.9786 | 0.0173 | 0.07 | ₹61,200 | — |
+| logistic-temperature | 0.9401 | 0.7215 | 0.9714 | 0.0439 | 0.08 | ₹124,000 | -0.0510 PR-AUC, +₹62,800 |
+| random-forest | 0.9882 | 0.8722 | 0.9750 | 0.0196 | 0.32 | ₹67,000 | -0.0029 PR-AUC, +₹5,800 |
+
+Re-split 5 ways, the served model beat `logistic-temperature` on **5 of 5** groupings. Measured from the alternative's side, so negative means the served model is ahead: PR-AUC delta mean -0.0581 (sd 0.0111, range -0.0782 to -0.0457), mean cost change +₹56,280.
 
 ## Ablation ladder
 
@@ -53,9 +97,9 @@ the model tell an outage's failures from a masked attack; drop them and that sep
 
 | Features | Count | PR-AUC |
 |---|---|---|
-| all features | 10 | 0.940 |
-| entity only (no traffic context) | 7 | 0.923 |
-| traffic context only | 3 | 0.304 |
+| all features | 10 | 0.991 |
+| entity only (no traffic context) | 7 | 0.973 |
+| traffic context only | 3 | 0.660 |
 
 ## Calibration (reliability)
 
@@ -64,20 +108,20 @@ cost-based decision rather than only a ranking.
 
 | Predicted | Observed |
 |---|---|
-| 0.000 | 0.000 |
-| 0.000 | 0.000 |
-| 0.000 | 0.000 |
-| 0.007 | 0.008 |
-| 0.016 | 0.000 |
-| 0.020 | 0.007 |
-| 0.034 | 0.031 |
-| 0.266 | 0.336 |
-| 0.756 | 0.742 |
-| 0.995 | 1.000 |
+| 0.002 | 0.000 |
+| 0.002 | 0.000 |
+| 0.002 | 0.000 |
+| 0.002 | 0.000 |
+| 0.003 | 0.000 |
+| 0.003 | 0.000 |
+| 0.005 | 0.000 |
+| 0.185 | 0.192 |
+| 0.963 | 0.931 |
+| 0.994 | 1.000 |
 
 ## Leakage delta
 
-Grouped-split PR-AUC 0.940 vs careless row-wise 0.907
-(delta -0.033). Small on a single-generator synthetic corpus, and honestly so — the
+Grouped-split PR-AUC 0.991 vs careless row-wise 0.907
+(delta -0.084). Small on a single-generator synthetic corpus, and honestly so — the
 grouped split still guarantees no scenario instance straddles train and test
 (0 shared groups).
