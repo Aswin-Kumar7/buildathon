@@ -12,7 +12,9 @@ export const DEMO_USERS = [
     email: 'analyst@sentinel.local',
     displayName: 'Demo Analyst',
     password: 'sentinel-demo',
-    role: 'analyst' as const,
+    // Admin, despite the name: this is the account a reviewer signs in with, and every control on
+    // the console — the kill switch included — should be reachable from it without a second login.
+    role: 'admin' as const,
   },
   {
     email: 'admin@sentinel.local',

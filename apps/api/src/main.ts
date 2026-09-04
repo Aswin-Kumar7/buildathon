@@ -66,7 +66,7 @@ async function bootstrap(): Promise<void> {
   const servingConsole = serveConsole(app);
   const port = resolvePort(env);
 
-  // 0.0.0.0, not localhost: Cloud Run routes to the container's external interface, and a
+  // 0.0.0.0, not localhost: the platform routes to the container's external interface, and a
   // server bound to the loopback address is unreachable and fails its health check.
   await app.listen(port, '0.0.0.0');
 

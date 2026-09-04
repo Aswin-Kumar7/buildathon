@@ -7,7 +7,6 @@
     "dev": "node --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local --import @swc-node/register/esm-register --watch src/main.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local dist/main.js",
-    "start:worker": "node --env-file-if-exists=../../.env --env-file-if-exists=../../.env.local dist/worker.js",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run",
@@ -16,7 +15,6 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.5.7",
     "@nestjs/common": "^11.0.1",
-    "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
     "@node-rs/argon2": "^2.1.0",

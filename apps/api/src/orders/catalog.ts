@@ -12,24 +12,28 @@ export const CATALOG: readonly CatalogItem[] = [
     name: 'Electric kettle',
     description: '1.5 litre, stainless steel',
     pricePaise: 149_900,
+    category: 'Brewing',
   },
   {
     sku: 'grinder-01',
     name: 'Coffee grinder',
     description: 'Conical burr, 40 settings',
     pricePaise: 349_900,
+    category: 'Brewing',
   },
   {
     sku: 'mug-01',
     name: 'Insulated mug',
     description: '350ml, keeps heat six hours',
     pricePaise: 49_900,
+    category: 'Drinkware',
   },
   {
     sku: 'filter-02',
     name: 'Filter papers',
     description: 'Pack of 100, unbleached',
     pricePaise: 19_900,
+    category: 'Supplies',
   },
 ] as const;
 

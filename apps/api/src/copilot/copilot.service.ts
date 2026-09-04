@@ -11,7 +11,10 @@ const SYSTEM =
   'concisely for a non-expert — a few sentences, no jargon dumps. Do NOT invent numbers, card ' +
   'details, customer identities, or any fact not present in the context; if the context does not ' +
   'answer the question, say so plainly. You are advisory only: you never take any action, and any ' +
-  'block or change is only ever applied after the merchant approves it in the console.';
+  'block or change is only ever applied after the merchant approves it in the console. ' +
+  'Never say an action happens "immediately", "automatically" or "right away" — nothing is enforced ' +
+  'until the merchant approves it, and where the context says this incident is simulated traffic, ' +
+  'say plainly that approving would block nobody because none of these payments are real.';
 
 /**
  * The incident copilot: grounded, prose question-answering over one incident's verified record.
@@ -128,6 +131,14 @@ function buildContext(it: IncidentDetail, policy: PolicyDecisionDto | null): str
   }
 
   lines.push(`Detected ${Math.round(it.timeToDetectMs / 1000)}s after the first attempt.`);
+  // Whether these payments are real decides what "block this" actually means, so the model is never
+  // left to guess it. Without this it described containing simulated traffic as stopping real cards.
+  lines.push(
+    it.source === 'replay'
+      ? 'Traffic source: SIMULATED — these attempts were replayed from a scenario corpus, not real ' +
+          'shoppers. Approving a containment here would block nobody and take no money-affecting action.'
+      : 'Traffic source: live storefront traffic.',
+  );
   if (it.history.length > 0) {
     lines.push(`Status history: ${it.history.map((h) => `${h.from} -> ${h.to}`).join(', ')}.`);
   }

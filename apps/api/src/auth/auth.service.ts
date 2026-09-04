@@ -213,20 +213,29 @@ export class AuthService {
     await this.handle.db.insert(loginAttempts).values({ email, succeeded });
   }
 
+  /**
+   * The role is re-applied on conflict, the password never is.
+   *
+   * This used to be `onConflictDoNothing`, which meant an account created once kept whatever role it
+   * was first given forever — changing a seeded role in code did nothing to a database that already
+   * had the row. Re-asserting the role makes the seed the source of truth for it. The password hash
+   * is deliberately left alone so re-seeding cannot silently reset a password someone has changed.
+   */
   async createUser(input: {
     email: string;
     displayName: string;
     password: string;
     role?: 'analyst' | 'admin';
   }): Promise<void> {
+    const role = input.role ?? 'analyst';
     await this.handle.db
       .insert(users)
       .values({
         email: input.email.trim().toLowerCase(),
         displayName: input.displayName,
         passwordHash: await this.hashPassword(input.password),
-        role: input.role ?? 'analyst',
+        role,
       })
-      .onConflictDoNothing();
+      .onConflictDoUpdate({ target: users.email, set: { role } });
   }
 }

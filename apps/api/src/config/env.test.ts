@@ -81,7 +81,7 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...minimal, NODE_ENV: 'production' })).toThrow();
   });
 
-  it('reads the port Cloud Run injects in preference to API_PORT', () => {
+  it('reads the port the platform injects in preference to API_PORT', () => {
     expect(resolvePort(loadEnv({ ...minimal, PORT: '8080', API_PORT: '3001' }))).toBe(8080);
     expect(resolvePort(loadEnv({ ...minimal, API_PORT: '3001' }))).toBe(3001);
   });

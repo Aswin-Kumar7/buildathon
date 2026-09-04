@@ -22,7 +22,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
   /**
-   * Cloud Run injects PORT and expects the container to listen on it. It wins over
+   * Container platforms inject PORT and expect the container to listen on it. It wins over
    * API_PORT, which stays for local development where 3001 is the convention.
    */
   PORT: z.coerce.number().int().positive().optional(),
@@ -41,6 +41,13 @@ const envSchema = z.object({
         .map((origin) => origin.trim())
         .filter((origin) => origin !== ''),
     ),
+
+  /**
+   * Public address of the storefront app, handed to the web client at runtime so the landing and
+   * sign-in pages can link to it without being rebuilt. Absent is fine: the client then uses its
+   * own build-time default.
+   */
+  STOREFRONT_URL: z.string().url().optional(),
 
   DATABASE_URL: z.string().optional(),
   SESSION_TTL_HOURS: z.coerce.number().int().positive().default(12),
@@ -154,7 +161,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
   return envSchemaResolved.parse(source);
 }
 
-/** Cloud Run's PORT wins; API_PORT is the local convention. */
+/** The platform's injected PORT wins; API_PORT is the local convention. */
 export function resolvePort(env: Env): number {
   return env.PORT ?? env.API_PORT;
 }

@@ -19,7 +19,6 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run --passWithNoTests",
-    "db:generate": "drizzle-kit generate",
     "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
@@ -29,7 +28,6 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
-    "drizzle-kit": "^0.31.6",
     "typescript": "^5.7.2",
     "vitest": "^3.2.4"
   },

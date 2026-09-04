@@ -75,116 +75,91 @@ export class PolicyWorkflowService implements OnModuleInit {
     return new Map(rows.map((row) => [row.id, row.name]));
   }
 
-  async create(source: string, actorId: string): Promise<PolicyVersion> {
+  /**
+   * Saves a policy and makes it live in one step.
+   *
+   * There is no draft/submit/approve/publish ladder any more: a save writes a new version, records
+   * it in the audit chain and activates it immediately. What replaces dual control is that the
+   * history is append-only and every version keeps its full source, so any earlier policy can be
+   * brought back with `revert` — recovery rather than prevention. The separate runtime setting
+   * "require approval before blocking" is untouched; that one still governs whether a *shopper* can
+   * be blocked without a person agreeing, which is a different question from who may edit policy.
+   */
+  async save(source: string, actorId: string): Promise<PolicyVersion> {
     const parsed = this.validate(source);
-    const latestResult = await this.handle.db.execute(sql`
+    const nextResult = await this.handle.db.execute(sql`
       SELECT COALESCE(MAX(version), ${this.policy.version}) + 1 AS next_version
       FROM sentinel.policy_versions
     `);
-    const latest = rowsOf<{ next_version: number }>(latestResult)[0];
+    const next = Number(rowsOf<{ next_version: number }>(nextResult)[0]?.next_version);
+    if (parsed.version !== next) throw new BadRequestException(`policy version must be ${next}`);
+
+    return this.commit(source, parsed, actorId, {
+      kind: 'policy.published',
+      payload: { version: parsed.version, hash: policyHash(parsed) },
+    });
+  }
+
+  /**
+   * Brings an earlier version back by writing it forward as a new one.
+   *
+   * The same shape as `git revert`: nothing in the history is edited or deleted, so the record of
+   * what was live and when stays true. Reverting to the version that is already live is refused
+   * rather than quietly writing an identical duplicate into the history.
+   */
+  async revert(id: string, actorId: string): Promise<PolicyVersion> {
+    const row = await this.require(id);
+    const restored = this.validate(row.source);
+    if (policyHash(restored) === this.policy.fingerprint) {
+      throw new ConflictException('that policy version is already the live one');
+    }
+    const nextResult = await this.handle.db.execute(sql`
+      SELECT COALESCE(MAX(version), ${this.policy.version}) + 1 AS next_version
+      FROM sentinel.policy_versions
+    `);
+    const next = Number(rowsOf<{ next_version: number }>(nextResult)[0]?.next_version);
+    // The document carries its own version number, so the restored source is renumbered forward.
+    const source = row.source.replace(/^version:\s*\d+/m, `version: ${next}`);
+    const parsed = this.validate(source);
+
+    return this.commit(source, parsed, actorId, {
+      kind: 'policy.reverted',
+      payload: {
+        version: parsed.version,
+        hash: policyHash(parsed),
+        revertedToVersion: row.version,
+        revertedToHash: row.hash,
+      },
+    });
+  }
+
+  /** Writes a version as live, activates it, and records it. Shared by save and revert. */
+  private async commit(
+    source: string,
+    parsed: Policy,
+    actorId: string,
+    entry: { kind: string; payload: Record<string, unknown> },
+  ): Promise<PolicyVersion> {
+    const hash = policyHash(parsed);
     const result = await this.handle.db.execute(sql`
-      INSERT INTO sentinel.policy_versions (version, hash, source, status, created_by)
-      VALUES (${parsed.version}, ${policyHash(parsed)}, ${source}, 'draft', ${actorId})
+      INSERT INTO sentinel.policy_versions (version, hash, source, status, created_by, published_at)
+      VALUES (${parsed.version}, ${hash}, ${source}, 'published', ${actorId}, now())
       RETURNING id, version, hash, status, created_by, approved_by, created_at, approved_at, published_at, source
     `);
     const row = rowsOf<WorkflowRow>(result)[0];
-    if (row === undefined) throw new ConflictException('policy draft could not be created');
-    // The document version is required to be the next repository version, not a stale copied value.
-    if (parsed.version !== Number(latest?.next_version)) {
-      await this.handle.db.execute(sql`DELETE FROM sentinel.policy_versions WHERE id = ${row.id}`);
-      throw new BadRequestException(`policy version must be ${Number(latest?.next_version)}`);
-    }
+    if (row === undefined) throw new ConflictException('policy could not be saved');
+
+    this.policy.activate(parsed);
     await this.audit.append({
       actorId,
-      kind: 'policy.draft_created',
+      kind: entry.kind,
       subjectType: 'policy_version',
       subjectId: row.id,
-      payload: { version: row.version, hash: row.hash },
+      payload: entry.payload,
       policyVersion: row.version,
       policyHash: row.hash,
     });
     return this.view(row);
-  }
-
-  async submit(id: string, actorId: string): Promise<PolicyVersion> {
-    const row = await this.require(id);
-    if (row.status !== 'draft')
-      throw new BadRequestException(`a ${row.status} policy cannot be submitted`);
-    await this.handle.db.execute(
-      sql`UPDATE sentinel.policy_versions SET status = 'pending_approval' WHERE id = ${id}`,
-    );
-    await this.audit.append({
-      actorId,
-      kind: 'policy.submitted',
-      subjectType: 'policy_version',
-      subjectId: id,
-      payload: { version: row.version },
-      policyVersion: row.version,
-      policyHash: row.hash,
-    });
-    return this.view({ ...row, status: 'pending_approval' });
-  }
-
-  async approve(id: string, actorId: string): Promise<PolicyVersion> {
-    const row = await this.require(id);
-    if (row.status !== 'pending_approval')
-      throw new BadRequestException(`a ${row.status} policy cannot be approved`);
-    if (row.created_by === actorId)
-      throw new BadRequestException('the author cannot approve their own policy');
-    await this.handle.db.execute(
-      sql`UPDATE sentinel.policy_versions SET status = 'approved', approved_by = ${actorId}, approved_at = now() WHERE id = ${id}`,
-    );
-    await this.audit.append({
-      actorId,
-      kind: 'policy.approved',
-      subjectType: 'policy_version',
-      subjectId: id,
-      payload: { version: row.version },
-      policyVersion: row.version,
-      policyHash: row.hash,
-    });
-    return this.view({ ...row, status: 'approved', approved_by: actorId, approved_at: new Date() });
-  }
-
-  async reject(id: string, actorId: string): Promise<PolicyVersion> {
-    const row = await this.require(id);
-    if (row.status !== 'pending_approval') {
-      throw new BadRequestException(`a ${row.status} policy cannot be rejected`);
-    }
-    await this.handle.db.execute(
-      sql`UPDATE sentinel.policy_versions SET status = 'rejected' WHERE id = ${id}`,
-    );
-    await this.audit.append({
-      actorId,
-      kind: 'policy.rejected',
-      subjectType: 'policy_version',
-      subjectId: id,
-      payload: { version: row.version },
-      policyVersion: row.version,
-      policyHash: row.hash,
-    });
-    return this.view({ ...row, status: 'rejected' });
-  }
-
-  async publish(id: string, actorId: string): Promise<PolicyVersion> {
-    const row = await this.require(id);
-    if (row.status !== 'approved')
-      throw new BadRequestException(`a ${row.status} policy cannot be published`);
-    const parsed = this.validate(row.source);
-    this.policy.activate(parsed);
-    await this.handle.db.execute(
-      sql`UPDATE sentinel.policy_versions SET status = 'published', published_at = now() WHERE id = ${id}`,
-    );
-    await this.audit.append({
-      actorId,
-      kind: 'policy.published',
-      subjectType: 'policy_version',
-      subjectId: id,
-      payload: { version: row.version },
-      policyVersion: row.version,
-      policyHash: row.hash,
-    });
-    return this.view({ ...row, status: 'published', published_at: new Date() });
   }
 
   private validate(source: string): Policy {
@@ -222,6 +197,28 @@ export class PolicyWorkflowService implements OnModuleInit {
       createdAt: millis(row.created_at)!,
       approvedAt: millis(row.approved_at),
       publishedAt: millis(row.published_at),
+      settings: PolicyWorkflowService.settingsOf(row.source),
     };
+  }
+
+  /**
+   * The handful of settings worth showing beside a version in history, so restoring is an informed
+   * choice rather than a leap. Parsed here rather than in the browser — the console never sees the
+   * YAML. A version whose stored source no longer parses reports null instead of a guess.
+   */
+  private static settingsOf(source: string): PolicyVersion['settings'] {
+    try {
+      const parsed = parsePolicy(source);
+      return {
+        stepUp: parsed.thresholds.stepUp,
+        contain: parsed.thresholds.contain,
+        defaultMinutes: parsed.containment.defaultMinutes,
+        maxMinutes: parsed.containment.maxMinutes,
+        containmentAlwaysNeedsApproval: parsed.approval.containmentAlwaysNeedsApproval,
+        dualApprovalAbovePaise: parsed.approval.dualApprovalAbovePaise,
+      };
+    } catch {
+      return null;
+    }
   }
 }

@@ -18,6 +18,12 @@ const ROW_STATUSES = new Set<AttemptRowStatus>([
   'pending',
 ]);
 
+/** Mirrors the local union in AttemptsService; contracts exports the schema, not the type. */
+type Severity = 'low' | 'medium' | 'high';
+
+/** `none` is a real choice here — the attempts that belong to no incident at all. */
+const ROW_SEVERITIES = new Set<Severity | 'none'>(['low', 'medium', 'high', 'none']);
+
 /**
  * Analyst-facing, so behind the session guard. Attempt history describes shoppers — even
  * pseudonymised, it is not something to serve to anyone who asks.
@@ -64,6 +70,10 @@ export class AttemptsController {
     @Query('source') source?: string,
     @Query('status') status?: string,
     @Query('method') method?: string,
+    @Query('q') q?: string,
+    @Query('severity') severity?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
     @Query('page') page?: string,
     @Query('pageSize') pageSize?: string,
   ): Promise<AttemptRowsResponse> {
@@ -73,9 +83,24 @@ export class AttemptsController {
       source: source === 'replay' || source === 'all' ? source : 'razorpay',
       status: ROW_STATUSES.has(status as AttemptRowStatus) ? (status as AttemptRowStatus) : 'all',
       method: method !== undefined && method !== '' ? method : 'all',
+      // Trimmed and lower-cased here so the matcher never has to think about casing, which is
+      // exactly where the client-side version of this went wrong.
+      q: (q ?? '').trim().toLowerCase(),
+      severity: ROW_SEVERITIES.has(severity as Severity | 'none')
+        ? (severity as Severity | 'none')
+        : 'all',
+      from: AttemptsController.boundary(from, 'start'),
+      to: AttemptsController.boundary(to, 'end'),
       page: pageNum,
       pageSize: size,
     });
+  }
+
+  /** A `YYYY-MM-DD` query bound as an epoch, or null when absent or unparseable. */
+  private static boundary(day: string | undefined, edge: 'start' | 'end'): number | null {
+    if (day === undefined || day === '') return null;
+    const parsed = Date.parse(`${day}T${edge === 'start' ? '00:00:00' : '23:59:59'}Z`);
+    return Number.isNaN(parsed) ? null : parsed;
   }
 
   /**

@@ -9,7 +9,7 @@ import { AppModule } from '../app.module.js';
 import { AuthService } from '../auth/auth.service.js';
 import { CSRF_HEADER, SESSION_COOKIE } from '../auth/session.guard.js';
 
-describe('policy workflow', () => {
+describe('policy save and revert', () => {
   let app: INestApplication;
   let analyst: { cookie: string; csrf: string };
   let admin: { cookie: string; csrf: string };
@@ -47,24 +47,72 @@ describe('policy workflow', () => {
 
   afterAll(async () => app.close());
 
-  it('requires a second admin-controlled approval before publishing a validated version', async () => {
-    const source = readFileSync(resolve(process.cwd(), '../../policy.yaml'), 'utf8').replace(
-      'version: 1',
-      'version: 2',
-    );
-    const draft = await post(analyst, '/api/policy/drafts', { source });
-    expect(draft.status).toBe(201);
-    const id = draft.body.version.id as string;
+  const live = async () =>
+    (await request(app.getHttpServer()).get('/api/policy').set('Cookie', admin.cookie)).body;
 
-    expect((await post(analyst, `/api/policy/versions/${id}/submit`)).status).toBe(201);
-    expect((await post(analyst, `/api/policy/versions/${id}/approve`)).status).toBe(403);
-    expect((await post(admin, `/api/policy/versions/${id}/approve`)).status).toBe(201);
-    const published = await post(admin, `/api/policy/versions/${id}/publish`);
-    expect(published.status).toBe(201);
-    expect(published.body.version.status).toBe('published');
-    expect(
-      (await request(app.getHttpServer()).get('/api/policy').set('Cookie', admin.cookie)).body
-        .version,
-    ).toBe(2);
+  /** The shipped policy at a given version, with a distinguishing containment threshold. */
+  const policyAt = (version: number, contain: number) =>
+    readFileSync(resolve(process.cwd(), '../../policy.yaml'), 'utf8')
+      .replace('version: 1', `version: ${version}`)
+      .replace('contain: 0.75', `contain: ${contain}`);
+
+  it('makes a saved policy live immediately, with no approval step', async () => {
+    const saved = await post(analyst, '/api/policy/save', { source: policyAt(2, 0.8) });
+
+    expect(saved.status).toBe(201);
+    expect(saved.body.version.status).toBe('published');
+    const now = await live();
+    expect(now.version).toBe(2);
+    expect(now.thresholds.contain).toBe(0.8);
+  });
+
+  it('refuses a version number that is not the next one', async () => {
+    // v2 is taken by the save above; re-sending it must not silently overwrite history.
+    expect((await post(analyst, '/api/policy/save', { source: policyAt(2, 0.85) })).status).toBe(
+      400,
+    );
+  });
+
+  it('restores an earlier version by writing it forward, leaving history intact', async () => {
+    const listBefore = await request(app.getHttpServer())
+      .get('/api/policy/versions')
+      .set('Cookie', admin.cookie);
+    const target = listBefore.body.versions.find(
+      (version: { version: number }) => version.version === 2,
+    );
+
+    // Move away from v2, so reverting to it is a real change with an observable difference.
+    expect((await post(analyst, '/api/policy/save', { source: policyAt(3, 0.9) })).status).toBe(
+      201,
+    );
+    expect((await live()).thresholds.contain).toBe(0.9);
+
+    const reverted = await post(analyst, `/api/policy/versions/${target.id}/revert`);
+    expect(reverted.status).toBe(201);
+    // Forward-only: a NEW version carrying the old settings, never an edit of the old row.
+    expect(reverted.body.version.version).toBe(4);
+    const now = await live();
+    expect(now.version).toBe(4);
+    expect(now.thresholds.contain).toBe(0.8);
+
+    const listAfter = await request(app.getHttpServer())
+      .get('/api/policy/versions')
+      .set('Cookie', admin.cookie);
+    expect(listAfter.body.versions.length).toBe(listBefore.body.versions.length + 2);
+    // The original row is untouched: reverting adds history, it never rewrites it.
+    const original = listAfter.body.versions.find(
+      (version: { id: string }) => version.id === target.id,
+    );
+    expect(original.hash).toBe(target.hash);
+    expect(original.version).toBe(2);
+  });
+
+  it('refuses to revert to the version that is already live', async () => {
+    const list = await request(app.getHttpServer())
+      .get('/api/policy/versions')
+      .set('Cookie', admin.cookie);
+    const current = (await live()).hash;
+    const same = list.body.versions.find((version: { hash: string }) => version.hash === current);
+    expect((await post(analyst, `/api/policy/versions/${same.id}/revert`)).status).toBe(409);
   });
 });

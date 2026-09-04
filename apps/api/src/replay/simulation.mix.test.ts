@@ -52,6 +52,10 @@ describe('simulation mix', () => {
       source: 'replay',
       status: 'all',
       method: 'all',
+      q: '',
+      severity: 'all',
+      from: null,
+      to: null,
       page: 1,
       pageSize: 200,
     });

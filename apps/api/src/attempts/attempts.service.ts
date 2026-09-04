@@ -41,6 +41,7 @@ type RowIncidentLink = {
   incidentId: string;
   incidentRef: string;
   title: string;
+  severity: Severity;
 };
 
 /** A short, stable display reference for an incident — a formatting of its real id, not a new id. */
@@ -586,6 +587,7 @@ export class AttemptsService {
         paymentId,
         at: resolved.firstSeenAt.toISOString(),
         amountPaise: resolved.amountPaise,
+        method: resolved.method,
         cardNetwork: resolved.cardNetwork,
         cardFingerprint: cardId !== null && cardId !== '' ? cardToken(cardId) : null,
         status: AttemptsService.displayStatus(resolved.status, false),
@@ -685,6 +687,12 @@ export class AttemptsService {
     source: 'razorpay' | 'replay' | 'all';
     status: AttemptRowStatus | 'all';
     method: string;
+    /** Free text over order id, payment id and incident reference. Already lower-cased. */
+    q: string;
+    /** The severity of the incident a row belongs to; `none` means rows in no incident at all. */
+    severity: Severity | 'all' | 'none';
+    from: number | null;
+    to: number | null;
     page: number;
     pageSize: number;
   }): Promise<AttemptRowsResponse> {
@@ -752,6 +760,7 @@ export class AttemptsService {
         lastActivityAt: incidents.lastActivityAt,
         evidence: incidents.evidence,
         arbitration: incidents.arbitration,
+        severity: incidents.severity,
       })
       .from(incidents)
       .where(source === 'all' ? undefined : eq(incidents.source, source));
@@ -777,6 +786,7 @@ export class AttemptsService {
           incidentId: match.id,
           incidentRef: incidentRef(match.id),
           title: AttemptsService.titleOf(match),
+          severity: match.severity as Severity,
         });
       }
     }
@@ -847,6 +857,7 @@ export class AttemptsService {
       incidentId: link?.incidentId ?? null,
       incidentRef: link?.incidentRef ?? null,
       incidentTitle: link?.title ?? null,
+      incidentSeverity: link?.severity ?? null,
       at: attempt.firstSeenAt,
     }));
   }
@@ -876,11 +887,43 @@ export class AttemptsService {
 
   private static matches(
     row: AttemptRow,
-    input: { status: AttemptRowStatus | 'all'; method: string },
+    input: {
+      status: AttemptRowStatus | 'all';
+      method: string;
+      q: string;
+      severity: Severity | 'all' | 'none';
+      from: number | null;
+      to: number | null;
+    },
   ): boolean {
     if (input.status !== 'all' && row.status !== input.status) return false;
     if (input.method !== 'all' && row.method !== input.method) return false;
-    return true;
+    if (!AttemptsService.matchesSeverity(row, input.severity)) return false;
+    if (!AttemptsService.matchesQuery(row, input.q)) return false;
+    return AttemptsService.withinWindow(row, input.from, input.to);
+  }
+
+  /** `all` accepts everything, `none` only rows outside any incident, else an exact severity. */
+  private static matchesSeverity(row: AttemptRow, severity: Severity | 'all' | 'none'): boolean {
+    if (severity === 'all') return true;
+    if (severity === 'none') return row.incidentSeverity === null;
+    return row.incidentSeverity === severity;
+  }
+
+  /** Free text over the two ids an analyst pastes, plus the incident reference they quote. */
+  private static matchesQuery(row: AttemptRow, q: string): boolean {
+    if (q === '') return true;
+    return (
+      row.paymentId.toLowerCase().includes(q) ||
+      row.orderId.toLowerCase().includes(q) ||
+      (row.incidentRef?.toLowerCase().includes(q) ?? false)
+    );
+  }
+
+  private static withinWindow(row: AttemptRow, from: number | null, to: number | null): boolean {
+    if (from === null && to === null) return true;
+    const at = Date.parse(row.at);
+    return (from === null || at >= from) && (to === null || at <= to);
   }
 
   /** Resolves payment orders connected to one incident entity and activity window. */

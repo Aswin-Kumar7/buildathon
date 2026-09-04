@@ -93,7 +93,7 @@ export class OverviewService {
       safe: Math.max(assessed - failures, 0),
       risk,
       riskLevel,
-      riskTrend: this.trend(trendRows, start, window),
+      riskTrend: this.trend(current, trendRows, start, window),
       topRiskReasons: reasonRows,
       recentIncidents,
     };
@@ -157,31 +157,47 @@ export class OverviewService {
       );
   }
 
+  /**
+   * The time series behind the overview chart.
+   *
+   * Every series here used to come from the incidents table: `events` counted incidents while the
+   * chart labelled it "attempts", and `failures` was never written at all, so the client invented a
+   * blocked count from the incident count to have something red to draw. Attempts now come from the
+   * attempt rows and incidents are their own series, so each line means what its name says.
+   */
   private trend(
-    rows: Awaited<ReturnType<OverviewService['riskRows']>>,
+    attemptRows: { firstSeenAt: string; status: string }[],
+    incidentRows: Awaited<ReturnType<OverviewService['riskRows']>>,
     start: Date,
     window: Window,
   ) {
     const bucketMs = window === '7d' || window === '30d' ? 24 * 60 * 60_000 : 60 * 60_000;
-    const buckets = new Map<number, { events: number; failures: number; risk: number }>();
-    for (const row of rows) {
-      const at = Math.floor(row.detectedAt.getTime() / bucketMs) * bucketMs;
-      const bucket = buckets.get(at) ?? { events: 0, failures: 0, risk: 0 };
+    const empty = () => ({ events: 0, failures: 0, incidents: 0, risk: 0 });
+    const buckets = new Map<number, ReturnType<typeof empty>>();
+    const at = (ms: number): ReturnType<typeof empty> => {
+      const key = Math.floor(ms / bucketMs) * bucketMs;
+      const bucket = buckets.get(key) ?? empty();
+      buckets.set(key, bucket);
+      return bucket;
+    };
+
+    for (const attempt of attemptRows) {
+      const bucket = at(Date.parse(attempt.firstSeenAt));
       bucket.events += 1;
-      bucket.risk = Math.max(bucket.risk, row.score);
-      buckets.set(at, bucket);
+      if (attempt.status === 'failed') bucket.failures += 1;
     }
+    for (const incident of incidentRows) {
+      const bucket = at(incident.detectedAt.getTime());
+      bucket.incidents += 1;
+      bucket.risk = Math.max(bucket.risk, incident.score);
+    }
+
     const first = Math.floor(start.getTime() / bucketMs) * bucketMs;
     const last = Math.floor(Date.now() / bucketMs) * bucketMs;
     const result = [];
-    for (let at = first; at <= last; at += bucketMs) {
-      const bucket = buckets.get(at) ?? { events: 0, failures: 0, risk: 0 };
-      result.push({
-        at: new Date(at).toISOString(),
-        events: bucket.events,
-        failures: bucket.failures,
-        risk: bucket.risk,
-      });
+    for (let key = first; key <= last; key += bucketMs) {
+      const bucket = buckets.get(key) ?? empty();
+      result.push({ at: new Date(key).toISOString(), ...bucket });
     }
     return result.slice(-48);
   }
