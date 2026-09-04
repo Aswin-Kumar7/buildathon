@@ -9,11 +9,6 @@
  * how much of the budget the wait already spent.
  */
 
-/** A deadline `budgetMs` from now. The clock is passed in so callers on a virtual clock stay honest. */
-export function deadlineFromNow(budgetMs: number, now: () => number = Date.now): number {
-  return now() + budgetMs;
-}
-
 /** Whether the deadline has already passed — the check a worker makes before starting queued work. */
 export function isExpired(deadline: number, now: () => number = Date.now): boolean {
   return now() >= deadline;

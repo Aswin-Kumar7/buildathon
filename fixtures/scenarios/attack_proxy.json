@@ -1,0 +1,4811 @@
+{
+  "family": "attack_proxy",
+  "seed": 1010,
+  "specHash": "dec6f7ac0b561dde",
+  "generatedFrom": {
+    "family": "attack_proxy",
+    "title": "Enumeration behind one proxy",
+    "narrative": "The same card-testing run spread across many short browser sessions that all exit through a single proxy or NAT, so no one session looks busy but the network does.",
+    "classification": "attack",
+    "correlation": "Not the session — the network. Many small sessions, one shared address, many distinct cards across it.",
+    "recommendedAction": "Contain by network: the correlation that holds here is the shared address, not any one session.",
+    "difficulty": "Defeats a per-session threshold by construction — every session is too small on its own. Only a network-level view sees the spread, which is what separates it from a burst on one machine.",
+    "seed": 1010,
+    "windowMinutes": [
+      10,
+      22
+    ],
+    "orders": [
+      55,
+      95
+    ],
+    "approvalRate": [
+      0.02,
+      0.06
+    ],
+    "distinctSessions": [
+      18,
+      26
+    ],
+    "distinctNetworks": [
+      1,
+      1
+    ],
+    "amountPaise": [
+      100,
+      2500
+    ]
+  },
+  "labels": {
+    "classification": "attack",
+    "correlation": "Not the session — the network. Many small sessions, one shared address, many distinct cards across it.",
+    "recommendedAction": "Contain by network: the correlation that holds here is the shared address, not any one session."
+  },
+  "startedAt": "2026-03-01T09:00:00.000Z",
+  "endedAt": "2026-03-01T09:14:57.103Z",
+  "checkouts": [
+    {
+      "razorpayOrderId": "order_SIMRXGPDJ85CGQED7",
+      "clientSessionId": "sess_SIMLC8SVNQCWV4HLGEKT5F3",
+      "deviceId": "dev_SIMXMLMXBCG58ZZ73A8MA42",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 1750,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:00:11.998Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMPY32UBQDKA4JJU",
+      "clientSessionId": "sess_SIMNL8C9UH4F9FK25QXRXA5",
+      "deviceId": "dev_SIM7CZS2Y52SSJYK5YAMZFC",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 1784,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:00:39.036Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMBQYW6RJNQTJKTA",
+      "clientSessionId": "sess_SIMMMUCV893Y9RQQNE8Z8EU",
+      "deviceId": "dev_SIMLJHFAHZ47KACT7UEGZQA",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "chrome",
+      "amountPaise": 1349,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:00:42.417Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM5UC5TC5NW4NERA",
+      "clientSessionId": "sess_SIMRMRVU4BRRCD43ZT27RAU",
+      "deviceId": "dev_SIMCV7FGFR43KX8APMASBV4",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "firefox",
+      "amountPaise": 1748,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:00:47.421Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMYVBQ9Q57DV2VN6",
+      "clientSessionId": "sess_SIMNRZP7BYAPVF6G22UXFAX",
+      "deviceId": "dev_SIMBEWF7F6R9FRRDEA3FWTV",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 1199,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:01:06.201Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMRDUPWGED5K6AJA",
+      "clientSessionId": "sess_SIMAC2DJQ6VVZ7GB6W8UA7N",
+      "deviceId": "dev_SIMYKJJ4XN2SWSFYVDE29US",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "firefox",
+      "amountPaise": 402,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:01:08.092Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMD9XVDDYZBUBZHH",
+      "clientSessionId": "sess_SIMW6U3UNMFNNAN8DB3PB7Y",
+      "deviceId": "dev_SIM85P27BDLRBHSQCYHAXZA",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "firefox",
+      "amountPaise": 2225,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:01:10.365Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMH4PDZQUGQSWZ68",
+      "clientSessionId": "sess_SIMJRN7Y2UMUX5WW8BNRJBJ",
+      "deviceId": "dev_SIMGKXU75QRUJR5MK8K77FG",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "chrome",
+      "amountPaise": 1851,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:01:15.907Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMXEBMSL9TNTRB84",
+      "clientSessionId": "sess_SIM8VS44RH4S5PDTPS8AGZF",
+      "deviceId": "dev_SIMKC39LSHEM4N6CQGTG757",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "ios",
+      "amountPaise": 1738,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:01:31.861Z"
+    },
+    {
+      "razorpayOrderId": "order_SIME7XXC4SC4KK5L8",
+      "clientSessionId": "sess_SIMYRBFTX5LWCWLS94M7G6M",
+      "deviceId": "dev_SIMDVKLJ997CB6XSTJJWDBL",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "edge",
+      "amountPaise": 1985,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:01:37.929Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM7CVTBFW8J2QQ9M",
+      "clientSessionId": "sess_SIMY842Q56W37KRYCHTJPAR",
+      "deviceId": "dev_SIMSES8UKNSRJVDVNX37DFU",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 2340,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:01:44.829Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMP7T89NJ2P8DDW8",
+      "clientSessionId": "sess_SIMUSYQPWV4YGS89TN3URXN",
+      "deviceId": "dev_SIMYB3F6CMMZYDAK4LPHF4Z",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 1102,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:01:49.393Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMC6VRG58EWSVZF3",
+      "clientSessionId": "sess_SIMZU39767LJ2FTKDARGU9B",
+      "deviceId": "dev_SIMHVDAFMURWSSLRKD47TFC",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 2188,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:01:52.271Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMC4VXQULW5LWTNN",
+      "clientSessionId": "sess_SIMJMXW5BY4UJ7ZK8QT48G4",
+      "deviceId": "dev_SIMFXXYXRFKWWDTK95WL76J",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "edge",
+      "amountPaise": 575,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:02:00.164Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMJBQR2PGCN2YFDP",
+      "clientSessionId": "sess_SIMSNPR7A57GABHBFTLVG3X",
+      "deviceId": "dev_SIMFAQDFWPK5GBVWE4AS2EJ",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 2337,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:02:00.176Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM5MTWDZ2JKDWBU5",
+      "clientSessionId": "sess_SIMFYACAUKQSG2ECHDPRFPP",
+      "deviceId": "dev_SIM5XJXPZD6GQ5N86UPLJY9",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 1117,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:02:16.115Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMGAUU8877NF94SJ",
+      "clientSessionId": "sess_SIMMJDF7C2D2LY2K43HEL8B",
+      "deviceId": "dev_SIM3WLJ2VMA9L9AK4G6WDN7",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 217,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:02:16.747Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMUFGNVDR37T5RPX",
+      "clientSessionId": "sess_SIMED3H44MK43EDGSJ5ZQCK",
+      "deviceId": "dev_SIMY9HJK9LS3CHU4VNPXN84",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "edge",
+      "amountPaise": 1079,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:02:27.164Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMWGKDPKE7DPV9QY",
+      "clientSessionId": "sess_SIMVQR8YHCAAFLFATAUHUQW",
+      "deviceId": "dev_SIME265NCM7BSU9AUNTN74Q",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "firefox",
+      "amountPaise": 1609,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:02:29.244Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM2M3W26JPT7KNKU",
+      "clientSessionId": "sess_SIMZB2HFMTMJ2QK9Q9SN4YD",
+      "deviceId": "dev_SIM8YLLHR6FU6WXB6CFUT9N",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "chrome",
+      "amountPaise": 2182,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:02:30.053Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM8F2QK7VYZ9GKFA",
+      "clientSessionId": "sess_SIMRWJNWZZYK9MXTE5P826G",
+      "deviceId": "dev_SIM5CQ2DZK89YT2RHBCP8RX",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 368,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:02:40.495Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMV6WWL7X2UU6THP",
+      "clientSessionId": "sess_SIMLC8SVNQCWV4HLGEKT5F3",
+      "deviceId": "dev_SIMXMLMXBCG58ZZ73A8MA42",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 306,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:02:43.295Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMVGPMNEKYGLAHZ6",
+      "clientSessionId": "sess_SIMNL8C9UH4F9FK25QXRXA5",
+      "deviceId": "dev_SIM7CZS2Y52SSJYK5YAMZFC",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 966,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:02:43.535Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMDQSX86MJEV62VC",
+      "clientSessionId": "sess_SIMMMUCV893Y9RQQNE8Z8EU",
+      "deviceId": "dev_SIMLJHFAHZ47KACT7UEGZQA",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "chrome",
+      "amountPaise": 1975,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:02:58.805Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMQA7H5YFHFZ8HJT",
+      "clientSessionId": "sess_SIMRMRVU4BRRCD43ZT27RAU",
+      "deviceId": "dev_SIMCV7FGFR43KX8APMASBV4",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "firefox",
+      "amountPaise": 1220,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:03:08.450Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMEGACJG48QXL6BL",
+      "clientSessionId": "sess_SIMNRZP7BYAPVF6G22UXFAX",
+      "deviceId": "dev_SIMBEWF7F6R9FRRDEA3FWTV",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 205,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:03:13.142Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMM2CHYTZAGT9F3J",
+      "clientSessionId": "sess_SIMAC2DJQ6VVZ7GB6W8UA7N",
+      "deviceId": "dev_SIMYKJJ4XN2SWSFYVDE29US",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "firefox",
+      "amountPaise": 583,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:03:13.450Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM9TTEENHBT8Z3MC",
+      "clientSessionId": "sess_SIMW6U3UNMFNNAN8DB3PB7Y",
+      "deviceId": "dev_SIM85P27BDLRBHSQCYHAXZA",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "firefox",
+      "amountPaise": 2135,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:03:20.556Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMS4TZHCXMMLHPMM",
+      "clientSessionId": "sess_SIMJRN7Y2UMUX5WW8BNRJBJ",
+      "deviceId": "dev_SIMGKXU75QRUJR5MK8K77FG",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "chrome",
+      "amountPaise": 1885,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:03:25.549Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMMHSXAYK4V3A2WG",
+      "clientSessionId": "sess_SIM8VS44RH4S5PDTPS8AGZF",
+      "deviceId": "dev_SIMKC39LSHEM4N6CQGTG757",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "ios",
+      "amountPaise": 2323,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:04:05.451Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMKXCEUWH94X8FS5",
+      "clientSessionId": "sess_SIMYRBFTX5LWCWLS94M7G6M",
+      "deviceId": "dev_SIMDVKLJ997CB6XSTJJWDBL",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "edge",
+      "amountPaise": 1074,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:04:17.822Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM48U575L75N5DQB",
+      "clientSessionId": "sess_SIMY842Q56W37KRYCHTJPAR",
+      "deviceId": "dev_SIMSES8UKNSRJVDVNX37DFU",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 1301,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:04:26.638Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMMNBRY67Y9JP5UK",
+      "clientSessionId": "sess_SIMUSYQPWV4YGS89TN3URXN",
+      "deviceId": "dev_SIMYB3F6CMMZYDAK4LPHF4Z",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 764,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:04:38.212Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM332783G89R7ANX",
+      "clientSessionId": "sess_SIMZU39767LJ2FTKDARGU9B",
+      "deviceId": "dev_SIMHVDAFMURWSSLRKD47TFC",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 1386,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:04:44.906Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMHF3Y4WRGCC4QBU",
+      "clientSessionId": "sess_SIMJMXW5BY4UJ7ZK8QT48G4",
+      "deviceId": "dev_SIMFXXYXRFKWWDTK95WL76J",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "edge",
+      "amountPaise": 879,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:04:49.209Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMG4277LUQ8BF526",
+      "clientSessionId": "sess_SIMSNPR7A57GABHBFTLVG3X",
+      "deviceId": "dev_SIMFAQDFWPK5GBVWE4AS2EJ",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 2016,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:04:54.643Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMKGDNR29PVYAA59",
+      "clientSessionId": "sess_SIMFYACAUKQSG2ECHDPRFPP",
+      "deviceId": "dev_SIM5XJXPZD6GQ5N86UPLJY9",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 1046,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:04:58.806Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMJ6XQVWHKTU2UE9",
+      "clientSessionId": "sess_SIMMJDF7C2D2LY2K43HEL8B",
+      "deviceId": "dev_SIM3WLJ2VMA9L9AK4G6WDN7",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 1020,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:04:59.179Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM532CXAQFPZQG97",
+      "clientSessionId": "sess_SIMED3H44MK43EDGSJ5ZQCK",
+      "deviceId": "dev_SIMY9HJK9LS3CHU4VNPXN84",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "edge",
+      "amountPaise": 2173,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:05:24.292Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMBY3QL7DX4255V9",
+      "clientSessionId": "sess_SIMVQR8YHCAAFLFATAUHUQW",
+      "deviceId": "dev_SIME265NCM7BSU9AUNTN74Q",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "firefox",
+      "amountPaise": 1296,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:05:24.833Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMN3GP2JLZ8BX3XK",
+      "clientSessionId": "sess_SIMZB2HFMTMJ2QK9Q9SN4YD",
+      "deviceId": "dev_SIM8YLLHR6FU6WXB6CFUT9N",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "chrome",
+      "amountPaise": 1297,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:05:47.461Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM3Y76ZJ636NE3UA",
+      "clientSessionId": "sess_SIMRWJNWZZYK9MXTE5P826G",
+      "deviceId": "dev_SIM5CQ2DZK89YT2RHBCP8RX",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 1822,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:06:06.300Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMTMWUG696E684YR",
+      "clientSessionId": "sess_SIMLC8SVNQCWV4HLGEKT5F3",
+      "deviceId": "dev_SIMXMLMXBCG58ZZ73A8MA42",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 2133,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:06:21.315Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMPKBMSYZKAEEL98",
+      "clientSessionId": "sess_SIMNL8C9UH4F9FK25QXRXA5",
+      "deviceId": "dev_SIM7CZS2Y52SSJYK5YAMZFC",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 1071,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:06:27.654Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMWKTWLBL4QAJ4T7",
+      "clientSessionId": "sess_SIMMMUCV893Y9RQQNE8Z8EU",
+      "deviceId": "dev_SIMLJHFAHZ47KACT7UEGZQA",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "chrome",
+      "amountPaise": 2326,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:06:42.333Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMBSGJCDTD2G7X4C",
+      "clientSessionId": "sess_SIMRMRVU4BRRCD43ZT27RAU",
+      "deviceId": "dev_SIMCV7FGFR43KX8APMASBV4",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "firefox",
+      "amountPaise": 209,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:06:53.820Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM49GXX5QEFMBMPG",
+      "clientSessionId": "sess_SIMNRZP7BYAPVF6G22UXFAX",
+      "deviceId": "dev_SIMBEWF7F6R9FRRDEA3FWTV",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 1174,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:07:41.718Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMEYPXADGX2DNAWP",
+      "clientSessionId": "sess_SIMAC2DJQ6VVZ7GB6W8UA7N",
+      "deviceId": "dev_SIMYKJJ4XN2SWSFYVDE29US",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "firefox",
+      "amountPaise": 1762,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:07:44.730Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMMPRE2ZMTDNRRCP",
+      "clientSessionId": "sess_SIMW6U3UNMFNNAN8DB3PB7Y",
+      "deviceId": "dev_SIM85P27BDLRBHSQCYHAXZA",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "firefox",
+      "amountPaise": 205,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:07:47.777Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMQ7TJA9ZSVLQEB3",
+      "clientSessionId": "sess_SIMJRN7Y2UMUX5WW8BNRJBJ",
+      "deviceId": "dev_SIMGKXU75QRUJR5MK8K77FG",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "chrome",
+      "amountPaise": 1845,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:07:49.898Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMBFBH7C3M5SCX5L",
+      "clientSessionId": "sess_SIM8VS44RH4S5PDTPS8AGZF",
+      "deviceId": "dev_SIMKC39LSHEM4N6CQGTG757",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "ios",
+      "amountPaise": 2067,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:07:55.280Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMDU2XKP9CB579BR",
+      "clientSessionId": "sess_SIMYRBFTX5LWCWLS94M7G6M",
+      "deviceId": "dev_SIMDVKLJ997CB6XSTJJWDBL",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "edge",
+      "amountPaise": 1511,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:08:09.494Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMDZ9Q8LPTHPVRNS",
+      "clientSessionId": "sess_SIMY842Q56W37KRYCHTJPAR",
+      "deviceId": "dev_SIMSES8UKNSRJVDVNX37DFU",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 2431,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:08:11.842Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMGGJKSSW6DGW8LP",
+      "clientSessionId": "sess_SIMUSYQPWV4YGS89TN3URXN",
+      "deviceId": "dev_SIMYB3F6CMMZYDAK4LPHF4Z",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 1198,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:08:20.326Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM6D3NFF7BBTJ9NC",
+      "clientSessionId": "sess_SIMZU39767LJ2FTKDARGU9B",
+      "deviceId": "dev_SIMHVDAFMURWSSLRKD47TFC",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 1768,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:08:34.479Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMQFKG4AGPT9DTED",
+      "clientSessionId": "sess_SIMJMXW5BY4UJ7ZK8QT48G4",
+      "deviceId": "dev_SIMFXXYXRFKWWDTK95WL76J",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "edge",
+      "amountPaise": 529,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:08:41.916Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM3ARWTXMHWHYQP4",
+      "clientSessionId": "sess_SIMSNPR7A57GABHBFTLVG3X",
+      "deviceId": "dev_SIMFAQDFWPK5GBVWE4AS2EJ",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 2039,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:08:44.832Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMG5NGSMQ7ERPPAP",
+      "clientSessionId": "sess_SIMFYACAUKQSG2ECHDPRFPP",
+      "deviceId": "dev_SIM5XJXPZD6GQ5N86UPLJY9",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 1678,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:09:19.400Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMW4LY29X46XK2U7",
+      "clientSessionId": "sess_SIMMJDF7C2D2LY2K43HEL8B",
+      "deviceId": "dev_SIM3WLJ2VMA9L9AK4G6WDN7",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 938,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:09:23.653Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMZZMH58V6XT7A4K",
+      "clientSessionId": "sess_SIMED3H44MK43EDGSJ5ZQCK",
+      "deviceId": "dev_SIMY9HJK9LS3CHU4VNPXN84",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "edge",
+      "amountPaise": 1251,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:09:24.896Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM7YBBV6CPL3LCFA",
+      "clientSessionId": "sess_SIMVQR8YHCAAFLFATAUHUQW",
+      "deviceId": "dev_SIME265NCM7BSU9AUNTN74Q",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "firefox",
+      "amountPaise": 408,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:09:46.939Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMT7Y5MHVUJ5EKS3",
+      "clientSessionId": "sess_SIMZB2HFMTMJ2QK9Q9SN4YD",
+      "deviceId": "dev_SIM8YLLHR6FU6WXB6CFUT9N",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "chrome",
+      "amountPaise": 1504,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:10:03.667Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMRWZQKHQZN4NBFY",
+      "clientSessionId": "sess_SIMRWJNWZZYK9MXTE5P826G",
+      "deviceId": "dev_SIM5CQ2DZK89YT2RHBCP8RX",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 945,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:10:09.095Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMEBU97YSAHBJRN2",
+      "clientSessionId": "sess_SIMLC8SVNQCWV4HLGEKT5F3",
+      "deviceId": "dev_SIMXMLMXBCG58ZZ73A8MA42",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 1629,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:10:24.357Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMDKD2WU687H9WDX",
+      "clientSessionId": "sess_SIMNL8C9UH4F9FK25QXRXA5",
+      "deviceId": "dev_SIM7CZS2Y52SSJYK5YAMZFC",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 267,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:10:38.166Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMKUCMAHJJ34V2NJ",
+      "clientSessionId": "sess_SIMMMUCV893Y9RQQNE8Z8EU",
+      "deviceId": "dev_SIMLJHFAHZ47KACT7UEGZQA",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "chrome",
+      "amountPaise": 1950,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:10:53.507Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM66VEHSU8Q47YNB",
+      "clientSessionId": "sess_SIMRMRVU4BRRCD43ZT27RAU",
+      "deviceId": "dev_SIMCV7FGFR43KX8APMASBV4",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "firefox",
+      "amountPaise": 1198,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:10:57.390Z"
+    },
+    {
+      "razorpayOrderId": "order_SIML5N7QU2376S5AB",
+      "clientSessionId": "sess_SIMNRZP7BYAPVF6G22UXFAX",
+      "deviceId": "dev_SIMBEWF7F6R9FRRDEA3FWTV",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 1332,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:10:59.935Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMBZ87KCSL7HXGF2",
+      "clientSessionId": "sess_SIMAC2DJQ6VVZ7GB6W8UA7N",
+      "deviceId": "dev_SIMYKJJ4XN2SWSFYVDE29US",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "firefox",
+      "amountPaise": 646,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:11:12.719Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMJKRVGR9QH9CS7Q",
+      "clientSessionId": "sess_SIMW6U3UNMFNNAN8DB3PB7Y",
+      "deviceId": "dev_SIM85P27BDLRBHSQCYHAXZA",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "firefox",
+      "amountPaise": 458,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:11:13.236Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM5ZCEK8XDFWYCZY",
+      "clientSessionId": "sess_SIMJRN7Y2UMUX5WW8BNRJBJ",
+      "deviceId": "dev_SIMGKXU75QRUJR5MK8K77FG",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "chrome",
+      "amountPaise": 1212,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:11:14.426Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMKCD8K2W8FQ9BGP",
+      "clientSessionId": "sess_SIM8VS44RH4S5PDTPS8AGZF",
+      "deviceId": "dev_SIMKC39LSHEM4N6CQGTG757",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "ios",
+      "amountPaise": 1532,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:11:22.488Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM67LQAPGNPEMXDN",
+      "clientSessionId": "sess_SIMYRBFTX5LWCWLS94M7G6M",
+      "deviceId": "dev_SIMDVKLJ997CB6XSTJJWDBL",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "edge",
+      "amountPaise": 1682,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:11:23.965Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMSLG7FBY6ZNBRFQ",
+      "clientSessionId": "sess_SIMY842Q56W37KRYCHTJPAR",
+      "deviceId": "dev_SIMSES8UKNSRJVDVNX37DFU",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 612,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:11:28.890Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMZ2QHV2UGBGWRFK",
+      "clientSessionId": "sess_SIMUSYQPWV4YGS89TN3URXN",
+      "deviceId": "dev_SIMYB3F6CMMZYDAK4LPHF4Z",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 1201,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:11:34.851Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM3YTNC5CA9CMNQB",
+      "clientSessionId": "sess_SIMZU39767LJ2FTKDARGU9B",
+      "deviceId": "dev_SIMHVDAFMURWSSLRKD47TFC",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 307,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:11:50.682Z"
+    },
+    {
+      "razorpayOrderId": "order_SIM99JNRA4C869HX7",
+      "clientSessionId": "sess_SIMJMXW5BY4UJ7ZK8QT48G4",
+      "deviceId": "dev_SIMFXXYXRFKWWDTK95WL76J",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "edge",
+      "amountPaise": 2082,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:11:58.943Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMHADGSW4ZX4SYK6",
+      "clientSessionId": "sess_SIMSNPR7A57GABHBFTLVG3X",
+      "deviceId": "dev_SIMFAQDFWPK5GBVWE4AS2EJ",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 1440,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:12:14.826Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMFTPYA65VL4XKZ5",
+      "clientSessionId": "sess_SIMFYACAUKQSG2ECHDPRFPP",
+      "deviceId": "dev_SIM5XJXPZD6GQ5N86UPLJY9",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 2440,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:12:28.963Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMMY765EJMQRQBBM",
+      "clientSessionId": "sess_SIMMJDF7C2D2LY2K43HEL8B",
+      "deviceId": "dev_SIM3WLJ2VMA9L9AK4G6WDN7",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 1065,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:12:30.910Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMM628ADUMHXYCQM",
+      "clientSessionId": "sess_SIMED3H44MK43EDGSJ5ZQCK",
+      "deviceId": "dev_SIMY9HJK9LS3CHU4VNPXN84",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "edge",
+      "amountPaise": 573,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:12:54.526Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMXLHRPR89KP8KML",
+      "clientSessionId": "sess_SIMVQR8YHCAAFLFATAUHUQW",
+      "deviceId": "dev_SIME265NCM7BSU9AUNTN74Q",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "firefox",
+      "amountPaise": 734,
+      "itemCount": 2,
+      "createdAt": "2026-03-01T09:13:16.482Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMRBJGMFM6RCB998",
+      "clientSessionId": "sess_SIMZB2HFMTMJ2QK9Q9SN4YD",
+      "deviceId": "dev_SIM8YLLHR6FU6WXB6CFUT9N",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "chrome",
+      "amountPaise": 1202,
+      "itemCount": 3,
+      "createdAt": "2026-03-01T09:13:47.222Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMHQKNYTVCHW7ZWB",
+      "clientSessionId": "sess_SIMRWJNWZZYK9MXTE5P826G",
+      "deviceId": "dev_SIM5CQ2DZK89YT2RHBCP8RX",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 349,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:14:38.085Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMU4T3P7VL69QTTP",
+      "clientSessionId": "sess_SIMLC8SVNQCWV4HLGEKT5F3",
+      "deviceId": "dev_SIMXMLMXBCG58ZZ73A8MA42",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "android",
+      "amountPaise": 651,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:14:42.200Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMGX4VKCHF22TAFT",
+      "clientSessionId": "sess_SIMNL8C9UH4F9FK25QXRXA5",
+      "deviceId": "dev_SIM7CZS2Y52SSJYK5YAMZFC",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "safari",
+      "amountPaise": 461,
+      "itemCount": 1,
+      "createdAt": "2026-03-01T09:14:45.782Z"
+    },
+    {
+      "razorpayOrderId": "order_SIMZP8JHYDQQFMXRQ",
+      "clientSessionId": "sess_SIMMMUCV893Y9RQQNE8Z8EU",
+      "deviceId": "dev_SIMLJHFAHZ47KACT7UEGZQA",
+      "ip": "198.51.100.1",
+      "userAgentFamily": "chrome",
+      "amountPaise": 249,
+      "itemCount": 4,
+      "createdAt": "2026-03-01T09:14:57.103Z"
+    }
+  ],
+  "events": [
+    {
+      "razorpayEventId": "evt_SIM723UZFSWF2L3CV",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355650,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMV9ZWYG5UYE46VV",
+              "entity": "payment",
+              "amount": 1750,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMRXGPDJ85CGQED7",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355650,
+              "card_id": "card_SIMP2L9AL7HURSU",
+              "card": {
+                "id": "card_SIMP2L9AL7HURSU",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMAQ4WS7WQ56UMHR",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355685,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMETKCB6NSYX23GF",
+              "entity": "payment",
+              "amount": 1784,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMPY32UBQDKA4JJU",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355685,
+              "card_id": "card_SIMRPAENE24TZSB",
+              "card": {
+                "id": "card_SIMRPAENE24TZSB",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMNMANME32Z4V5PB",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355667,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM2UW763JA9LDA8D",
+              "entity": "payment",
+              "amount": 1349,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMBQYW6RJNQTJKTA",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355667,
+              "card_id": "card_SIMVGLHXQTPFBVT",
+              "card": {
+                "id": "card_SIMVGLHXQTPFBVT",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMTPQRSXZBLPXV55",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355710,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM9NLWR3T3SXNN46",
+              "entity": "payment",
+              "amount": 1748,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIM5UC5TC5NW4NERA",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355710,
+              "card_id": "card_SIMVJE33A9GSF3R",
+              "card": {
+                "id": "card_SIMVJE33A9GSF3R",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMT48AVHZKB4P4V9",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355713,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMTRJTZCCW3N6SA6",
+              "entity": "payment",
+              "amount": 1199,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMYVBQ9Q57DV2VN6",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355713,
+              "card_id": "card_SIMUUVNQP32C6F9",
+              "card": {
+                "id": "card_SIMUUVNQP32C6F9",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMNBHJBM2KNX859N",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355680,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMGCBXKNSG7XKPX5",
+              "entity": "payment",
+              "amount": 402,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMRDUPWGED5K6AJA",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355680,
+              "card_id": "card_SIMS8H9XDFDJKWF",
+              "card": {
+                "id": "card_SIMS8H9XDFDJKWF",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMDKNCTA8AHUK44A",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355711,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM2F87Q38JNEPKQW",
+              "entity": "payment",
+              "amount": 2225,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMD9XVDDYZBUBZHH",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355711,
+              "card_id": "card_SIM993HG5KSBXQK",
+              "card": {
+                "id": "card_SIM993HG5KSBXQK",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMEEF7U7Z3VFH4J4",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355724,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMGVL49P5VAENDWB",
+              "entity": "payment",
+              "amount": 1851,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMH4PDZQUGQSWZ68",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355724,
+              "card_id": "card_SIM34GK6RDMW5G5",
+              "card": {
+                "id": "card_SIM34GK6RDMW5G5",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMHTZ8PPCBBXY86K",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355711,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM8JHQ3LWDGZ3KQ8",
+              "entity": "payment",
+              "amount": 1738,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMXEBMSL9TNTRB84",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355711,
+              "card_id": "card_SIM83BV2N3NHKYR",
+              "card": {
+                "id": "card_SIM83BV2N3NHKYR",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMELC5D74UDF8LBM",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355725,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMMFHB45W4RXJ4VZ",
+              "entity": "payment",
+              "amount": 1985,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIME7XXC4SC4KK5L8",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355725,
+              "card_id": "card_SIMFVVULQBJFUAH",
+              "card": {
+                "id": "card_SIMFVVULQBJFUAH",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMBJ8PMYWPU2S4HP",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355712,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMZU2BS6S39RU963",
+              "entity": "payment",
+              "amount": 2340,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIM7CVTBFW8J2QQ9M",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355712,
+              "card_id": "card_SIMFR3HKNJ46S87",
+              "card": {
+                "id": "card_SIMFR3HKNJ46S87",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMRWCPGM3SKFFCTH",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355735,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIML7JUSMKYAAJ5A9",
+              "entity": "payment",
+              "amount": 1102,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMP7T89NJ2P8DDW8",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355735,
+              "card_id": "card_SIMULHHSJ8XMLTY",
+              "card": {
+                "id": "card_SIMULHHSJ8XMLTY",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMS9BNUV8QWA5PPV",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355735,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMYYAFRZQ3SXQGRH",
+              "entity": "payment",
+              "amount": 2188,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMC6VRG58EWSVZF3",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355735,
+              "card_id": "card_SIMVHBBASMPUTGS",
+              "card": {
+                "id": "card_SIMVHBBASMPUTGS",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMKNGDQDB6PCLYBY",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355749,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMMCYR8CT9PKLUDN",
+              "entity": "payment",
+              "amount": 575,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMC4VXQULW5LWTNN",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355749,
+              "card_id": "card_SIM2DP7YUDZLZGV",
+              "card": {
+                "id": "card_SIM2DP7YUDZLZGV",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMLB3YD7VM485FDD",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355739,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMGAK8QT3ZXGHHVF",
+              "entity": "payment",
+              "amount": 2337,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMJBQR2PGCN2YFDP",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355739,
+              "card_id": "card_SIMP6QCYUN8URRF",
+              "card": {
+                "id": "card_SIMP6QCYUN8URRF",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM77Y8XJGNYH4SN6",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355762,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMD7P7R8WJ3C6C9P",
+              "entity": "payment",
+              "amount": 1117,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIM5MTWDZ2JKDWBU5",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355762,
+              "card_id": "card_SIM3JY86P4PVPY4",
+              "card": {
+                "id": "card_SIM3JY86P4PVPY4",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM8WUBTJDHVWXR8R",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355777,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIME6E3C8UAM7G2UC",
+              "entity": "payment",
+              "amount": 217,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMGAUU8877NF94SJ",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355777,
+              "card_id": "card_SIMB8BJMGHUUY9F",
+              "card": {
+                "id": "card_SIMB8BJMGHUUY9F",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMHP46YFYMEPKQEG",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355773,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMJ34BCBFR2CHVHT",
+              "entity": "payment",
+              "amount": 1079,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMUFGNVDR37T5RPX",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355773,
+              "card_id": "card_SIM2HY9XX3RW5S3",
+              "card": {
+                "id": "card_SIM2HY9XX3RW5S3",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMDHLFNA5ZP5LPLP",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355791,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMN7DE6XNG235KDY",
+              "entity": "payment",
+              "amount": 1609,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMWGKDPKE7DPV9QY",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355791,
+              "card_id": "card_SIM2GKGJPGQRAXB",
+              "card": {
+                "id": "card_SIM2GKGJPGQRAXB",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMZYTDZ9Y6SVBK35",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355776,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMVDWDTBZWKQ4QNN",
+              "entity": "payment",
+              "amount": 2182,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIM2M3W26JPT7KNKU",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355776,
+              "card_id": "card_SIM422JNNXFX6CN",
+              "card": {
+                "id": "card_SIM422JNNXFX6CN",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM6G4LWJVXPTJCGB",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355788,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMELWQ64CW3V3GT9",
+              "entity": "payment",
+              "amount": 368,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIM8F2QK7VYZ9GKFA",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355788,
+              "card_id": "card_SIMRWEDZSTVDWQU",
+              "card": {
+                "id": "card_SIMRWEDZSTVDWQU",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMWXGCANN77LNSFE",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355803,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMNAW3YSZHB442FR",
+              "entity": "payment",
+              "amount": 306,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMV6WWL7X2UU6THP",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355803,
+              "card_id": "card_SIMS6MPSBH86Q2D",
+              "card": {
+                "id": "card_SIMS6MPSBH86Q2D",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMFYTHKLJQ8ZCX2R",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355810,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMVX3E3TYUBCNNHT",
+              "entity": "payment",
+              "amount": 966,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMVGPMNEKYGLAHZ6",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355810,
+              "card_id": "card_SIM5RDD3XTZJEBQ",
+              "card": {
+                "id": "card_SIM5RDD3XTZJEBQ",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMME93XH3CNVU8FR",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355808,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMJK96GZJZEW3KZ5",
+              "entity": "payment",
+              "amount": 1975,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMDQSX86MJEV62VC",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355808,
+              "card_id": "card_SIMD9QSJVLLGD6R",
+              "card": {
+                "id": "card_SIMD9QSJVLLGD6R",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMKZBU4Q4D9JH3H8",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355802,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMWPDQWZDPQ2H9K9",
+              "entity": "payment",
+              "amount": 1220,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMQA7H5YFHFZ8HJT",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355802,
+              "card_id": "card_SIMUVKHSHHLG77V",
+              "card": {
+                "id": "card_SIMUVKHSHHLG77V",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMHHP28Z9T5JGF8X",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355814,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMDEC2QRX833E5JR",
+              "entity": "payment",
+              "amount": 205,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMEGACJG48QXL6BL",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355814,
+              "card_id": "card_SIMM2J645HMVW5B",
+              "card": {
+                "id": "card_SIMM2J645HMVW5B",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM6LX5BB9KYGMMMJ",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355833,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM2KJJ556BT4Q5KH",
+              "entity": "payment",
+              "amount": 583,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMM2CHYTZAGT9F3J",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355833,
+              "card_id": "card_SIMDYC3KADY83XH",
+              "card": {
+                "id": "card_SIMDYC3KADY83XH",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMKSXKGNWYEPSUTF",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355828,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM59CG96SKKEASBD",
+              "entity": "payment",
+              "amount": 2135,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIM9TTEENHBT8Z3MC",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355828,
+              "card_id": "card_SIM8ZA8KNWKHTYP",
+              "card": {
+                "id": "card_SIM8ZA8KNWKHTYP",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMGPMHDL3NC5LGPN",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355852,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMFN3PYRV2GR2SU7",
+              "entity": "payment",
+              "amount": 1885,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMS4TZHCXMMLHPMM",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355852,
+              "card_id": "card_SIMV3BKWZ83D7G9",
+              "card": {
+                "id": "card_SIMV3BKWZ83D7G9",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM6TTZHQU6WDFEG4",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355864,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMMU2SU3SJW6PZKA",
+              "entity": "payment",
+              "amount": 2323,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMMHSXAYK4V3A2WG",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355864,
+              "card_id": "card_SIMKDYZL44BUA8A",
+              "card": {
+                "id": "card_SIMKDYZL44BUA8A",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMJXUADCZ77VG9BJ",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355891,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM5A94HTTPDRGCRN",
+              "entity": "payment",
+              "amount": 1074,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMKXCEUWH94X8FS5",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355891,
+              "card_id": "card_SIMZ3M9W2D95NUE",
+              "card": {
+                "id": "card_SIMZ3M9W2D95NUE",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMP3VS7UXLPXPSFV",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355884,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMCWXPJ3EGRFJUS2",
+              "entity": "payment",
+              "amount": 1301,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIM48U575L75N5DQB",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355884,
+              "card_id": "card_SIMZN6UL28QMVTC",
+              "card": {
+                "id": "card_SIMZN6UL28QMVTC",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMQLLJED4846L492",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355894,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMTNUVYFUL6YA345",
+              "entity": "payment",
+              "amount": 764,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMMNBRY67Y9JP5UK",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355894,
+              "card_id": "card_SIM89AP8S2YT6W6",
+              "card": {
+                "id": "card_SIM89AP8S2YT6W6",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM9UWH247C5YARMU",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355912,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMRHD9B928WCD78H",
+              "entity": "payment",
+              "amount": 1386,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIM332783G89R7ANX",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355912,
+              "card_id": "card_SIMND4URXD6EQVV",
+              "card": {
+                "id": "card_SIMND4URXD6EQVV",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM2XW5PJQQ8L2Z8T",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355914,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMSDZ2BBCRDXWEK2",
+              "entity": "payment",
+              "amount": 879,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMHF3Y4WRGCC4QBU",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355914,
+              "card_id": "card_SIM7FUUURHJBFNS",
+              "card": {
+                "id": "card_SIM7FUUURHJBFNS",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMRBBCLDVA7KV7SU",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355925,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMX7W7EQQD5L39Q2",
+              "entity": "payment",
+              "amount": 2016,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMG4277LUQ8BF526",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355925,
+              "card_id": "card_SIMNUR6YYRVXTHY",
+              "card": {
+                "id": "card_SIMNUR6YYRVXTHY",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMNR2FRCSJBFXWPT",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355921,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMTAJ8RNKUZK6A9Z",
+              "entity": "payment",
+              "amount": 1046,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMKGDNR29PVYAA59",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355921,
+              "card_id": "card_SIMR8HCPAKMTTUY",
+              "card": {
+                "id": "card_SIMR8HCPAKMTTUY",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM7RGUQCFX55JNZE",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355916,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM64JT8U4JRCM3ZT",
+              "entity": "payment",
+              "amount": 1020,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMJ6XQVWHKTU2UE9",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355916,
+              "card_id": "card_SIMFNNQRLB4W8E8",
+              "card": {
+                "id": "card_SIMFNNQRLB4W8E8",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMXW5VCVQW62M39G",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.authorized",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355929,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM9WMQKNPT6ZLW55",
+              "entity": "payment",
+              "amount": 2173,
+              "currency": "INR",
+              "status": "authorized",
+              "order_id": "order_SIM532CXAQFPZQG97",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355929,
+              "card_id": "card_SIMJ62J9BJAK6U8",
+              "card": {
+                "id": "card_SIMJ62J9BJAK6U8",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMSYA2NCXLJY72HH",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.captured",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355932,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM9WMQKNPT6ZLW55",
+              "entity": "payment",
+              "amount": 2173,
+              "currency": "INR",
+              "status": "captured",
+              "order_id": "order_SIM532CXAQFPZQG97",
+              "method": "card",
+              "captured": true,
+              "created_at": 1772355932,
+              "card_id": "card_SIMJ62J9BJAK6U8",
+              "card": {
+                "id": "card_SIMJ62J9BJAK6U8",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMQLKCRYLDPCD7RF",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "order.paid",
+        "contains": [
+          "order",
+          "payment"
+        ],
+        "created_at": 1772355932,
+        "payload": {
+          "order": {
+            "entity": {
+              "id": "order_SIM532CXAQFPZQG97",
+              "entity": "order",
+              "amount": 2173,
+              "amount_paid": 2173,
+              "currency": "INR",
+              "status": "paid",
+              "created_at": 1772355932
+            }
+          },
+          "payment": {
+            "entity": {
+              "id": "pay_SIM9WMQKNPT6ZLW55",
+              "entity": "payment",
+              "amount": 2173,
+              "currency": "INR",
+              "status": "captured",
+              "order_id": "order_SIM532CXAQFPZQG97",
+              "method": "card",
+              "captured": true,
+              "created_at": 1772355932,
+              "card_id": "card_SIMJ62J9BJAK6U8",
+              "card": {
+                "id": "card_SIMJ62J9BJAK6U8",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMYGVDJSFSU3ZXWF",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772355973,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMUAF5P8L62QSNLB",
+              "entity": "payment",
+              "amount": 1296,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMBY3QL7DX4255V9",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772355973,
+              "card_id": "card_SIME4E99T7GYYU9",
+              "card": {
+                "id": "card_SIME4E99T7GYYU9",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM223DP2NC5HM7DJ",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356000,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM9KJVUZ8YHQXQPC",
+              "entity": "payment",
+              "amount": 1297,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMN3GP2JLZ8BX3XK",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356000,
+              "card_id": "card_SIM433YHAGUAG8Z",
+              "card": {
+                "id": "card_SIM433YHAGUAG8Z",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMKM68U62ZJNDH34",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356008,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMXJR3M9J8CXW38H",
+              "entity": "payment",
+              "amount": 1822,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIM3Y76ZJ636NE3UA",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356008,
+              "card_id": "card_SIM6M33GY9WUHQT",
+              "card": {
+                "id": "card_SIM6M33GY9WUHQT",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMBUBS2NVVLMY4QM",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356026,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMVFP3HTMY67ALNR",
+              "entity": "payment",
+              "amount": 2133,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMTMWUG696E684YR",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356026,
+              "card_id": "card_SIMA5Q9MVAK8BMM",
+              "card": {
+                "id": "card_SIMA5Q9MVAK8BMM",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM9S6E9SY73YM6T7",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356017,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMQCH62NJ8KT7PQP",
+              "entity": "payment",
+              "amount": 1071,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMPKBMSYZKAEEL98",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356017,
+              "card_id": "card_SIMP8CXGRWVAVFR",
+              "card": {
+                "id": "card_SIMP8CXGRWVAVFR",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM8E9QK4MA5S4ZJR",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356029,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMKDE84ZS4463PLB",
+              "entity": "payment",
+              "amount": 2326,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMWKTWLBL4QAJ4T7",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356029,
+              "card_id": "card_SIM5DG7AE5WE8R7",
+              "card": {
+                "id": "card_SIM5DG7AE5WE8R7",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMJA2QCEUGZJJE79",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356049,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMYKZTTNG5D9HV64",
+              "entity": "payment",
+              "amount": 209,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMBSGJCDTD2G7X4C",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356049,
+              "card_id": "card_SIM4BLH42U7GB3P",
+              "card": {
+                "id": "card_SIM4BLH42U7GB3P",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMNRZUFLXMYVCWVP",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356114,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMNKGD57NK3WXS26",
+              "entity": "payment",
+              "amount": 1174,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIM49GXX5QEFMBMPG",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356114,
+              "card_id": "card_SIMVLGJLC4C8C3W",
+              "card": {
+                "id": "card_SIMVLGJLC4C8C3W",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMTVDCA5EKMH4MPB",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356088,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMJ2ZNVWQZJBN52H",
+              "entity": "payment",
+              "amount": 1762,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMEYPXADGX2DNAWP",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356088,
+              "card_id": "card_SIMZA9SVNEU4RWY",
+              "card": {
+                "id": "card_SIMZA9SVNEU4RWY",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIML4BLHYR6Y2EV48",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356094,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM82AMJQYHT56EW2",
+              "entity": "payment",
+              "amount": 205,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMMPRE2ZMTDNRRCP",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356094,
+              "card_id": "card_SIMKGU47ZYVSSDX",
+              "card": {
+                "id": "card_SIMKGU47ZYVSSDX",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMKEYACBPEM8UX8J",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356080,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMBVT26MAK5BN9DJ",
+              "entity": "payment",
+              "amount": 1845,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMQ7TJA9ZSVLQEB3",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356080,
+              "card_id": "card_SIMNFA4T5DTT7RP",
+              "card": {
+                "id": "card_SIMNFA4T5DTT7RP",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMBYNFHNLQJ37YAZ",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356090,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMQEFBXFQDP8B9QY",
+              "entity": "payment",
+              "amount": 2067,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMBFBH7C3M5SCX5L",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356090,
+              "card_id": "card_SIMHDUPQ6FZHBQT",
+              "card": {
+                "id": "card_SIMHDUPQ6FZHBQT",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM4G674FSV8EMRVV",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356116,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM6TG4QACSMR36AH",
+              "entity": "payment",
+              "amount": 1511,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMDU2XKP9CB579BR",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356116,
+              "card_id": "card_SIMRKRL66XL6QT9",
+              "card": {
+                "id": "card_SIMRKRL66XL6QT9",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM2GXKN9HZG6U8JM",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356116,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIML5NJH69FC43BM5",
+              "entity": "payment",
+              "amount": 2431,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMDZ9Q8LPTHPVRNS",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356116,
+              "card_id": "card_SIMHLDN7BW2GHVQ",
+              "card": {
+                "id": "card_SIMHLDN7BW2GHVQ",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM24VR8NSQM4FQLL",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356128,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMXVU3QE98G4JWB5",
+              "entity": "payment",
+              "amount": 1198,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMGGJKSSW6DGW8LP",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356128,
+              "card_id": "card_SIM74A6NS42JDYA",
+              "card": {
+                "id": "card_SIM74A6NS42JDYA",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMV8ZQMBZSJ2KKM3",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.authorized",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356116,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM84VVP2HGDQ9DA6",
+              "entity": "payment",
+              "amount": 1768,
+              "currency": "INR",
+              "status": "authorized",
+              "order_id": "order_SIM6D3NFF7BBTJ9NC",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356116,
+              "card_id": "card_SIM43GDJMXRZNYH",
+              "card": {
+                "id": "card_SIM43GDJMXRZNYH",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMFQFM8EAGRJZV9L",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.captured",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356120,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM84VVP2HGDQ9DA6",
+              "entity": "payment",
+              "amount": 1768,
+              "currency": "INR",
+              "status": "captured",
+              "order_id": "order_SIM6D3NFF7BBTJ9NC",
+              "method": "card",
+              "captured": true,
+              "created_at": 1772356120,
+              "card_id": "card_SIM43GDJMXRZNYH",
+              "card": {
+                "id": "card_SIM43GDJMXRZNYH",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMUS9E9NQJX3BXCT",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "order.paid",
+        "contains": [
+          "order",
+          "payment"
+        ],
+        "created_at": 1772356121,
+        "payload": {
+          "order": {
+            "entity": {
+              "id": "order_SIM6D3NFF7BBTJ9NC",
+              "entity": "order",
+              "amount": 1768,
+              "amount_paid": 1768,
+              "currency": "INR",
+              "status": "paid",
+              "created_at": 1772356121
+            }
+          },
+          "payment": {
+            "entity": {
+              "id": "pay_SIM84VVP2HGDQ9DA6",
+              "entity": "payment",
+              "amount": 1768,
+              "currency": "INR",
+              "status": "captured",
+              "order_id": "order_SIM6D3NFF7BBTJ9NC",
+              "method": "card",
+              "captured": true,
+              "created_at": 1772356121,
+              "card_id": "card_SIM43GDJMXRZNYH",
+              "card": {
+                "id": "card_SIM43GDJMXRZNYH",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM965LUFA6JNPEF4",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.authorized",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356132,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM5X4CVC6Z28B4CA",
+              "entity": "payment",
+              "amount": 529,
+              "currency": "INR",
+              "status": "authorized",
+              "order_id": "order_SIMQFKG4AGPT9DTED",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356132,
+              "card_id": "card_SIMQXARU4TT3VW7",
+              "card": {
+                "id": "card_SIMQXARU4TT3VW7",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMAQQ2HYVFLTNN5L",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.captured",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356134,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM5X4CVC6Z28B4CA",
+              "entity": "payment",
+              "amount": 529,
+              "currency": "INR",
+              "status": "captured",
+              "order_id": "order_SIMQFKG4AGPT9DTED",
+              "method": "card",
+              "captured": true,
+              "created_at": 1772356134,
+              "card_id": "card_SIMQXARU4TT3VW7",
+              "card": {
+                "id": "card_SIMQXARU4TT3VW7",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMT32H5JUDY73VNE",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "order.paid",
+        "contains": [
+          "order",
+          "payment"
+        ],
+        "created_at": 1772356134,
+        "payload": {
+          "order": {
+            "entity": {
+              "id": "order_SIMQFKG4AGPT9DTED",
+              "entity": "order",
+              "amount": 529,
+              "amount_paid": 529,
+              "currency": "INR",
+              "status": "paid",
+              "created_at": 1772356134
+            }
+          },
+          "payment": {
+            "entity": {
+              "id": "pay_SIM5X4CVC6Z28B4CA",
+              "entity": "payment",
+              "amount": 529,
+              "currency": "INR",
+              "status": "captured",
+              "order_id": "order_SIMQFKG4AGPT9DTED",
+              "method": "card",
+              "captured": true,
+              "created_at": 1772356134,
+              "card_id": "card_SIMQXARU4TT3VW7",
+              "card": {
+                "id": "card_SIMQXARU4TT3VW7",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMH6R9Q8GBLKGS3Q",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356144,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMFNHDGDRGKM7YCC",
+              "entity": "payment",
+              "amount": 2039,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIM3ARWTXMHWHYQP4",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356144,
+              "card_id": "card_SIM2U29DEDFNQBY",
+              "card": {
+                "id": "card_SIM2U29DEDFNQBY",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM4D29488EHCQ92V",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356198,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM3YBDUEQ84GGUVS",
+              "entity": "payment",
+              "amount": 1678,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMG5NGSMQ7ERPPAP",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356198,
+              "card_id": "card_SIML9JJMK5FWFHY",
+              "card": {
+                "id": "card_SIML9JJMK5FWFHY",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMM7JLWXCEP7PCUD",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356200,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMVTTFQMYDRZH96X",
+              "entity": "payment",
+              "amount": 938,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMW4LY29X46XK2U7",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356200,
+              "card_id": "card_SIMFH5YDEYE8JN8",
+              "card": {
+                "id": "card_SIMFH5YDEYE8JN8",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMBCCXWJMGS46P96",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356204,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMT8QW8NZ7EYPPGT",
+              "entity": "payment",
+              "amount": 1251,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMZZMH58V6XT7A4K",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356204,
+              "card_id": "card_SIMQFRGBPMEE8QD",
+              "card": {
+                "id": "card_SIMQFRGBPMEE8QD",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMFE68QCV6VKXP42",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356208,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMLS6JT2UUCZXNEE",
+              "entity": "payment",
+              "amount": 408,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIM7YBBV6CPL3LCFA",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356208,
+              "card_id": "card_SIMNNJHTUVJMAA5",
+              "card": {
+                "id": "card_SIMNNJHTUVJMAA5",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMA9VM9XD3RQ4Y86",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356240,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMG3SPQ5G3GELMQC",
+              "entity": "payment",
+              "amount": 1504,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMT7Y5MHVUJ5EKS3",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356240,
+              "card_id": "card_SIMW556KS5GZ4UT",
+              "card": {
+                "id": "card_SIMW556KS5GZ4UT",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMK3D2R6CRZEMEB3",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356260,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIME4BBLGJTDYBFM9",
+              "entity": "payment",
+              "amount": 945,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMRWZQKHQZN4NBFY",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356260,
+              "card_id": "card_SIM8X6RTE8Q5Q85",
+              "card": {
+                "id": "card_SIM8X6RTE8Q5Q85",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMSZGVY3HEBB3JDY",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356261,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMNM37BKRUJ8ERNM",
+              "entity": "payment",
+              "amount": 1629,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMEBU97YSAHBJRN2",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356261,
+              "card_id": "card_SIMX5R2AK5AH965",
+              "card": {
+                "id": "card_SIMX5R2AK5AH965",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMRJ4SQY6QUJLEUV",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356256,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM9QQRQEN2V9G8XQ",
+              "entity": "payment",
+              "amount": 267,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMDKD2WU687H9WDX",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356256,
+              "card_id": "card_SIMFD765N8X9QBW",
+              "card": {
+                "id": "card_SIMFD765N8X9QBW",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMCLHSV6ST64L8F9",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356286,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM34QD2MPXW4LS5F",
+              "entity": "payment",
+              "amount": 1950,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMKUCMAHJJ34V2NJ",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356286,
+              "card_id": "card_SIMMY8MDFXXNAQ4",
+              "card": {
+                "id": "card_SIMMY8MDFXXNAQ4",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMX97L2CWRSXPHQR",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356301,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMNMQLSAAX9HNYGE",
+              "entity": "payment",
+              "amount": 1198,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIM66VEHSU8Q47YNB",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356301,
+              "card_id": "card_SIMHUFY4QURCX95",
+              "card": {
+                "id": "card_SIMHUFY4QURCX95",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM2EAQCFPNLKTCHR",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356303,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMR69GU8FWBUF6SC",
+              "entity": "payment",
+              "amount": 1332,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIML5N7QU2376S5AB",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356303,
+              "card_id": "card_SIMAJ9ZWJK7DYRF",
+              "card": {
+                "id": "card_SIMAJ9ZWJK7DYRF",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMMJCT7MFV9LQRBT",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356296,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMUGJTJTM4LYB25N",
+              "entity": "payment",
+              "amount": 646,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMBZ87KCSL7HXGF2",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356296,
+              "card_id": "card_SIMCVGPEVLBEKUE",
+              "card": {
+                "id": "card_SIMCVGPEVLBEKUE",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMQAFEBWB7HGZY5X",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356323,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM2T5B8UKUKGZVPJ",
+              "entity": "payment",
+              "amount": 458,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMJKRVGR9QH9CS7Q",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356323,
+              "card_id": "card_SIMQLGN9JX52DW2",
+              "card": {
+                "id": "card_SIMQLGN9JX52DW2",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMR594MFQYFELFCP",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.authorized",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356292,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMUPUQY2S545GK7V",
+              "entity": "payment",
+              "amount": 1212,
+              "currency": "INR",
+              "status": "authorized",
+              "order_id": "order_SIM5ZCEK8XDFWYCZY",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356292,
+              "card_id": "card_SIMWLLQ578H6SVY",
+              "card": {
+                "id": "card_SIMWLLQ578H6SVY",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM7Z525NK9R4GVUX",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.captured",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356294,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMUPUQY2S545GK7V",
+              "entity": "payment",
+              "amount": 1212,
+              "currency": "INR",
+              "status": "captured",
+              "order_id": "order_SIM5ZCEK8XDFWYCZY",
+              "method": "card",
+              "captured": true,
+              "created_at": 1772356294,
+              "card_id": "card_SIMWLLQ578H6SVY",
+              "card": {
+                "id": "card_SIMWLLQ578H6SVY",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMUUX2X4AHTVJQ2M",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "order.paid",
+        "contains": [
+          "order",
+          "payment"
+        ],
+        "created_at": 1772356295,
+        "payload": {
+          "order": {
+            "entity": {
+              "id": "order_SIM5ZCEK8XDFWYCZY",
+              "entity": "order",
+              "amount": 1212,
+              "amount_paid": 1212,
+              "currency": "INR",
+              "status": "paid",
+              "created_at": 1772356295
+            }
+          },
+          "payment": {
+            "entity": {
+              "id": "pay_SIMUPUQY2S545GK7V",
+              "entity": "payment",
+              "amount": 1212,
+              "currency": "INR",
+              "status": "captured",
+              "order_id": "order_SIM5ZCEK8XDFWYCZY",
+              "method": "card",
+              "captured": true,
+              "created_at": 1772356295,
+              "card_id": "card_SIMWLLQ578H6SVY",
+              "card": {
+                "id": "card_SIMWLLQ578H6SVY",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMK5DADMXY8RFACQ",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356298,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM4B4FJFYBJ2SZDE",
+              "entity": "payment",
+              "amount": 1532,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMKCD8K2W8FQ9BGP",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356298,
+              "card_id": "card_SIMVL2G6SUJQ6Z9",
+              "card": {
+                "id": "card_SIMVL2G6SUJQ6Z9",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM37XKGZCDCENTS7",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356325,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMATC8UVUBZT3YAZ",
+              "entity": "payment",
+              "amount": 1682,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIM67LQAPGNPEMXDN",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356325,
+              "card_id": "card_SIMQYDBADJX47TW",
+              "card": {
+                "id": "card_SIMQYDBADJX47TW",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM38QLFNKBQBWNP3",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356351,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMSRCU4C2QWD94ZN",
+              "entity": "payment",
+              "amount": 612,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMSLG7FBY6ZNBRFQ",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356351,
+              "card_id": "card_SIM547Q9MUCJUBP",
+              "card": {
+                "id": "card_SIM547Q9MUCJUBP",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMRNDLTJT7JKHU79",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356339,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMUBSB38BAE5CE7H",
+              "entity": "payment",
+              "amount": 1201,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMZ2QHV2UGBGWRFK",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356339,
+              "card_id": "card_SIMTLPS5GT9YJUF",
+              "card": {
+                "id": "card_SIMTLPS5GT9YJUF",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM46JLCCQJ7VR3XV",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356339,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMY8BRUBPBUBUDJ4",
+              "entity": "payment",
+              "amount": 307,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIM3YTNC5CA9CMNQB",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356339,
+              "card_id": "card_SIMX8SWDBBKQ9H9",
+              "card": {
+                "id": "card_SIMX8SWDBBKQ9H9",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMZW656EXGNGCX5M",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356373,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM7CSW7MC9NUTFSF",
+              "entity": "payment",
+              "amount": 2082,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIM99JNRA4C869HX7",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356373,
+              "card_id": "card_SIMC488EG3HGKY4",
+              "card": {
+                "id": "card_SIMC488EG3HGKY4",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMWSQJSJ7CERGJCW",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356394,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMTYERGSJWB8GFP7",
+              "entity": "payment",
+              "amount": 1440,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMHADGSW4ZX4SYK6",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356394,
+              "card_id": "card_SIM24A9FZGNLY8W",
+              "card": {
+                "id": "card_SIM24A9FZGNLY8W",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMNCNYHUNYGTNLR2",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356384,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMEBJZ9A3YVLAH44",
+              "entity": "payment",
+              "amount": 2440,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMFTPYA65VL4XKZ5",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356384,
+              "card_id": "card_SIMLZTSNGJ989PV",
+              "card": {
+                "id": "card_SIMLZTSNGJ989PV",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMZ98HH5RWRLP75S",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356400,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMT4V6LDGA9EK2W8",
+              "entity": "payment",
+              "amount": 1065,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMMY765EJMQRQBBM",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356400,
+              "card_id": "card_SIMYAX2DDV4SVN9",
+              "card": {
+                "id": "card_SIMYAX2DDV4SVN9",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMP32YMWXWY8LHPQ",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356428,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMH9FRSBLEDRZVNK",
+              "entity": "payment",
+              "amount": 573,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMM628ADUMHXYCQM",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356428,
+              "card_id": "card_SIME6XWYRFMSW6V",
+              "card": {
+                "id": "card_SIME6XWYRFMSW6V",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMTM6QW9ZWAPYSD5",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356449,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMWUFQMZFBM49KJD",
+              "entity": "payment",
+              "amount": 734,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMXLHRPR89KP8KML",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356449,
+              "card_id": "card_SIM58TJV8ZFPBD9",
+              "card": {
+                "id": "card_SIM58TJV8ZFPBD9",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMQKDXMKLRZGB5Y8",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356454,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMS9XWKJCB49FNCG",
+              "entity": "payment",
+              "amount": 1202,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMRBJGMFM6RCB998",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356454,
+              "card_id": "card_SIMEW7JCWZ9QXGQ",
+              "card": {
+                "id": "card_SIMEW7JCWZ9QXGQ",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "payment_failed",
+              "error_step": "payment_authentication",
+              "error_source": "customer",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM9BFGDJ5G4SS28W",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356510,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMB8RKTHVPA8V9KL",
+              "entity": "payment",
+              "amount": 349,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMHQKNYTVCHW7ZWB",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356510,
+              "card_id": "card_SIMD9KHDDCL8FQ2",
+              "card": {
+                "id": "card_SIMD9KHDDCL8FQ2",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIM7Z45UT2WDHPSAP",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356520,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMLRZVVYZSD8HXEY",
+              "entity": "payment",
+              "amount": 651,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMU4T3P7VL69QTTP",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356520,
+              "card_id": "card_SIM289SG6FALAW9",
+              "card": {
+                "id": "card_SIM289SG6FALAW9",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMPTFSLT7CXNLL6T",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356537,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIM2MJZX9NLRCZSAN",
+              "entity": "payment",
+              "amount": 461,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMGX4VKCHF22TAFT",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356537,
+              "card_id": "card_SIMN6GY93M532CP",
+              "card": {
+                "id": "card_SIMN6GY93M532CP",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "card_declined",
+              "error_step": "payment_authorization",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    },
+    {
+      "razorpayEventId": "evt_SIMN4TESLUQTELAWK",
+      "body": {
+        "entity": "event",
+        "account_id": "acc_SIMULATED",
+        "event": "payment.failed",
+        "contains": [
+          "payment"
+        ],
+        "created_at": 1772356520,
+        "payload": {
+          "payment": {
+            "entity": {
+              "id": "pay_SIMQWUPXTTTKK75F3",
+              "entity": "payment",
+              "amount": 249,
+              "currency": "INR",
+              "status": "failed",
+              "order_id": "order_SIMZP8JHYDQQFMXRQ",
+              "method": "card",
+              "captured": false,
+              "created_at": 1772356520,
+              "card_id": "card_SIMXYPWUFYTPEWZ",
+              "card": {
+                "id": "card_SIMXYPWUFYTPEWZ",
+                "entity": "card",
+                "network": "Visa",
+                "type": "credit",
+                "issuer": "SIMB",
+                "international": false
+              },
+              "error_code": "BAD_REQUEST_ERROR",
+              "error_reason": "invalid_card",
+              "error_step": "payment_initiation",
+              "error_source": "bank",
+              "error_description": "Simulated decline from the scenario corpus."
+            }
+          }
+        }
+      }
+    }
+  ],
+  "counts": {
+    "orders": 87,
+    "events": 95,
+    "captured": 4,
+    "failed": 83,
+    "distinctSessions": 21,
+    "distinctNetworks": 1
+  }
+}

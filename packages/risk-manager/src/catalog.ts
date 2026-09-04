@@ -215,12 +215,6 @@ export const ACTION_LABEL: Record<RiskAction, string> = {
   monitor: 'Continue monitoring',
 };
 
-export const ACTION_DESCRIPTION: Record<RiskAction, string> = {
-  contain: 'Apply containment to block further suspicious activity.',
-  review: 'Send this incident to a person for review.',
-  monitor: 'Keep watching; take no customer-impacting action.',
-};
-
 /** A single grounded summary line for the recommendation. */
 export function rationaleLine(facts: RiskFacts, action: RiskAction): string {
   const entity = ENTITY_SHORT[facts.entityKind];

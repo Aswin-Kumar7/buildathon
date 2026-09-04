@@ -227,7 +227,7 @@ export interface FeatureVector {
   distinctCardsLongSpan: number | null;
 }
 
-function keyOf(observation: Observation, kind: EntityKind): string | null {
+export function keyOf(observation: Observation, kind: EntityKind): string | null {
   if (kind === 'session') return observation.sessionPseudonym;
   if (kind === 'device') return observation.devicePseudonym;
   return observation.ipPseudonym;

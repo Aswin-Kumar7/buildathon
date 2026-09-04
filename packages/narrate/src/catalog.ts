@@ -251,10 +251,6 @@ export const CATALOG: readonly Claim[] = [
 /** Every claim id in the catalog, frozen. The fact guard treats anything outside this as unknown. */
 export const CLAIM_IDS: ReadonlySet<string> = new Set(CATALOG.map((c) => c.id));
 
-export function claimById(id: string): Claim | undefined {
-  return CATALOG.find((c) => c.id === id);
-}
-
 function capitalize(text: string): string {
   return text.length === 0 ? text : text[0]!.toUpperCase() + text.slice(1);
 }

@@ -27,7 +27,6 @@
  */
 
 import type { FeatureVector } from './features.js';
-import type { Evidence } from './rules.js';
 import type { TrafficContext } from './traffic.js';
 import { THRESHOLDS, type Thresholds } from './thresholds.js';
 
@@ -450,14 +449,3 @@ export const counterfactualFor = (hypothesis: Hypothesis): Counterfactual => ({
   ifWrongToAct: COST[hypothesis].act,
   ifWrongToWait: COST[hypothesis].wait,
 });
-
-/** Evidence rows for the winning explanation, so it renders beside the rule evidence. */
-export function expectationsAsEvidence(fit: HypothesisFit): Evidence[] {
-  return fit.expectations.map((e) => ({
-    rule: fit.hypothesis as unknown as Evidence['rule'],
-    code: e.code,
-    observed: e.observed,
-    threshold: e.expected,
-    weight: e.met ? e.weight : 0,
-  }));
-}

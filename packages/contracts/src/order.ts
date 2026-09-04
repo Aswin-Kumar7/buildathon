@@ -5,6 +5,13 @@ export const catalogItemSchema = z.object({
   name: z.string().min(1),
   description: z.string().min(1),
   pricePaise: z.number().int().positive(),
+  /**
+   * What shelf the item sits on, so the shop can group it.
+   *
+   * It lives here rather than in the storefront because a category invented in the client would
+   * be a label with nothing behind it — the shop would be filtering on a fact only it believed.
+   */
+  category: z.string().min(1),
 });
 export type CatalogItem = z.infer<typeof catalogItemSchema>;
 

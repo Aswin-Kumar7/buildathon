@@ -23,11 +23,27 @@ export const policyVersionSchema = z.object({
   createdAt: z.number().int(),
   approvedAt: z.number().int().nullable(),
   publishedAt: z.number().int().nullable(),
+  /**
+   * The settings this version actually holds, so history can show what restoring it would do.
+   * Parsed from the stored source on the server — null if that source no longer parses, which is
+   * said plainly rather than guessed at.
+   */
+  settings: z
+    .object({
+      stepUp: z.number(),
+      contain: z.number(),
+      defaultMinutes: z.number().int(),
+      maxMinutes: z.number().int(),
+      containmentAlwaysNeedsApproval: z.boolean(),
+      dualApprovalAbovePaise: z.number().int(),
+    })
+    .nullable()
+    .default(null),
 });
 export type PolicyVersion = z.infer<typeof policyVersionSchema>;
 
 export const policyVersionListResponseSchema = z.object({ versions: z.array(policyVersionSchema) });
 export type PolicyVersionListResponse = z.infer<typeof policyVersionListResponseSchema>;
 
-export const policyDraftRequestSchema = z.object({ source: z.string().min(1).max(20_000) });
-export const policyIdRequestSchema = z.object({ id: z.string().uuid() });
+/** The body of a policy save: the whole document, as YAML source. */
+export const policySaveRequestSchema = z.object({ source: z.string().min(1).max(20_000) });

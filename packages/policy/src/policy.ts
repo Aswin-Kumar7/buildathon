@@ -11,6 +11,7 @@
  */
 
 import { parse } from 'yaml';
+import { fnv1aHex } from '@sentinel/detect';
 
 export interface Thresholds {
   stepUp: number;
@@ -218,12 +219,7 @@ export function policyHash(policy: Policy): string {
     .map((key) => `${key}=${JSON.stringify(flat[key])}`)
     .join(';');
 
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < canonical.length; i += 1) {
-    hash ^= canonical.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, '0');
+  return fnv1aHex(canonical);
 }
 
 function flatten(value: unknown, prefix = ''): Record<string, unknown> {

@@ -11,6 +11,8 @@
  * Standard error is 1.04 / sqrt(2^precision): about 1.6% at precision 12, in 4 KB.
  */
 
+import { fnv1a32 } from './fnv.js';
+
 const PRECISION = 12;
 const REGISTERS = 1 << PRECISION;
 
@@ -25,11 +27,7 @@ const REGISTERS = 1 << PRECISION;
  * the same registers.
  */
 function hash(value: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < value.length; i += 1) {
-    h ^= value.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
+  let h = fnv1a32(value);
 
   // Avalanche: spreads the influence of every input bit across all thirty-two output bits.
   h ^= h >>> 16;

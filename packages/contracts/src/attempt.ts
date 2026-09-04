@@ -143,6 +143,14 @@ export const attemptRowSchema = z.object({
   incidentRef: z.string().nullable(),
   /** The incident's human title (e.g. "Coordinated card testing"), or null when part of none. */
   incidentTitle: z.string().nullable(),
+  /**
+   * The severity of the incident this attempt belongs to, or null when it belongs to none.
+   *
+   * This is not a risk score for the attempt — there is no such thing, and inventing one is what
+   * this table deliberately refuses to do. It is the incident's own severity, carried onto its
+   * attempts so the table can be filtered by it honestly.
+   */
+  incidentSeverity: z.enum(['low', 'medium', 'high']).nullable(),
   at: z.string().datetime(),
 });
 export type AttemptRow = z.infer<typeof attemptRowSchema>;
@@ -259,6 +267,8 @@ export const attemptDeviceRecentSchema = z.object({
   paymentId: z.string(),
   at: z.string().datetime(),
   amountPaise: z.number().int().nullable(),
+  /** Card / UPI / netbanking / wallet, so the row can show the method's own mark. */
+  method: z.string().nullable(),
   cardNetwork: z.string().nullable(),
   cardFingerprint: z.string().nullable(),
   status: attemptRowStatusSchema,

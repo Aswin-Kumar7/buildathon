@@ -65,6 +65,4 @@ export const ACTIONS: Record<Action, ActionShape> = {
 /** Actions the shopper would notice, which is the set the safety rules are written about. */
 export const CUSTOMER_IMPACTING: readonly Action[] = ['step_up', 'contain'];
 
-export const impactOf = (action: Action): Impact => ACTIONS[action].impact;
-
 export const isCustomerImpacting = (action: Action): boolean => CUSTOMER_IMPACTING.includes(action);

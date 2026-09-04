@@ -113,6 +113,48 @@
         "distinctSessions": 37,
         "distinctNetworks": 29
       }
+    },
+    {
+      "family": "attack_carding",
+      "seed": 1009,
+      "specHash": "8fe356cf04f67cf3",
+      "classification": "attack",
+      "counts": {
+        "orders": 75,
+        "events": 85,
+        "captured": 5,
+        "failed": 70,
+        "distinctSessions": 1,
+        "distinctNetworks": 1
+      }
+    },
+    {
+      "family": "attack_proxy",
+      "seed": 1010,
+      "specHash": "dec6f7ac0b561dde",
+      "classification": "attack",
+      "counts": {
+        "orders": 87,
+        "events": 95,
+        "captured": 4,
+        "failed": 83,
+        "distinctSessions": 21,
+        "distinctNetworks": 1
+      }
+    },
+    {
+      "family": "attack_partial",
+      "seed": 1011,
+      "specHash": "09e457077454db07",
+      "classification": "attack",
+      "counts": {
+        "orders": 69,
+        "events": 127,
+        "captured": 29,
+        "failed": 40,
+        "distinctSessions": 1,
+        "distinctNetworks": 1
+      }
     }
   ]
 }

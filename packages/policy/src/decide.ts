@@ -271,7 +271,3 @@ export function decide({
     expiresAfterMinutes: shape.expires ? policy.containment.defaultMinutes : null,
   };
 }
-
-/** Probability the winning explanation is an attack, for the console's uncertainty display. */
-export const attackProbability = (arbitration: Arbitration): number =>
-  arbitration.fits.find((fit) => fit.hypothesis === 'attack')?.probability ?? 0;
