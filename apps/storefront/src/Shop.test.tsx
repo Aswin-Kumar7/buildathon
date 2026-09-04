@@ -1,14 +1,35 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Shop } from './Shop.js';
 
 const catalog = {
   items: [
-    { sku: 'mug-01', name: 'Insulated mug', description: '350ml', pricePaise: 49_900 },
-    { sku: 'filter-02', name: 'Filter papers', description: 'Pack of 100', pricePaise: 19_900 },
+    {
+      sku: 'mug-01',
+      name: 'Insulated mug',
+      description: '350ml',
+      pricePaise: 49_900,
+      category: 'Drinkware',
+    },
+    {
+      sku: 'filter-02',
+      name: 'Filter papers',
+      description: 'Pack of 100',
+      pricePaise: 19_900,
+      category: 'Supplies',
+    },
   ],
 };
+
+/** The full shop section, where every catalogue item appears exactly once. */
+function shopSection(): HTMLElement {
+  return screen.getByRole('region', { name: 'Shop' });
+}
+
+async function findInShop(text: string): Promise<HTMLElement> {
+  return within(shopSection()).findByText(text);
+}
 
 const openCheckout = vi.hoisted(() => vi.fn());
 vi.mock('./checkout.js', () => ({ openCheckout }));
@@ -52,33 +73,37 @@ describe('Shop', () => {
   it('renders the catalogue from the api', async () => {
     stubFetch();
     render(<Shop />);
-    expect(await screen.findByText('Insulated mug')).toBeInTheDocument();
-    expect(screen.getByText('Filter papers')).toBeInTheDocument();
+    expect(await findInShop('Insulated mug')).toBeInTheDocument();
+    expect(within(shopSection()).getByText('Filter papers')).toBeInTheDocument();
   });
 
   it('formats prices in rupees from paise', async () => {
     stubFetch();
     render(<Shop />);
-    expect(await screen.findByText('₹499.00')).toBeInTheDocument();
+    expect(await within(shopSection()).findByText('₹499.00')).toBeInTheDocument();
   });
 
   it('cannot check out with an empty cart', async () => {
     stubFetch();
     render(<Shop />);
-    await screen.findByText('Insulated mug');
+    await findInShop('Insulated mug');
+    await userEvent.click(screen.getByRole('button', { name: /see cart/i }));
     expect(screen.getByRole('button', { name: 'Pay with Razorpay' })).toBeDisabled();
   });
 
   it('totals the cart as items are added', async () => {
     stubFetch();
     render(<Shop />);
-    await screen.findByText('Insulated mug');
+    await findInShop('Insulated mug');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Add Insulated mug to cart' }));
+    await userEvent.click(
+      within(shopSection()).getByRole('button', { name: 'Add Insulated mug to cart' }),
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Add one Insulated mug' }));
 
-    // Two mugs at ₹499 — the checkout total reflects it.
-    expect(screen.getByRole('button', { name: 'Pay with Razorpay' })).toHaveTextContent('₹998.00');
+    // Two mugs at ₹499 — the cart total reflects it. Named, because the line total for the
+    // same two mugs reads ₹998.00 as well.
+    expect(screen.getByLabelText('Cart total')).toHaveTextContent('₹998.00');
   });
 
   it('never sends an amount to the server', async () => {
@@ -97,8 +122,10 @@ describe('Shop', () => {
     });
 
     render(<Shop />);
-    await screen.findByText('Insulated mug');
-    await userEvent.click(screen.getByRole('button', { name: 'Add Insulated mug to cart' }));
+    await findInShop('Insulated mug');
+    await userEvent.click(
+      within(shopSection()).getByRole('button', { name: 'Add Insulated mug to cart' }),
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Pay with Razorpay' }));
 
     await waitFor(() => expect(captured).toBeDefined());
@@ -126,8 +153,10 @@ describe('Shop', () => {
     });
 
     render(<Shop />);
-    await screen.findByText('Insulated mug');
-    await userEvent.click(screen.getByRole('button', { name: 'Add Insulated mug to cart' }));
+    await findInShop('Insulated mug');
+    await userEvent.click(
+      within(shopSection()).getByRole('button', { name: 'Add Insulated mug to cart' }),
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Pay with Razorpay' }));
 
     await waitFor(() => expect(captured.clientSessionId).toBeDefined());
@@ -137,8 +166,10 @@ describe('Shop', () => {
   it('reports a captured payment', async () => {
     stubFetch();
     render(<Shop />);
-    await screen.findByText('Insulated mug');
-    await userEvent.click(screen.getByRole('button', { name: 'Add Insulated mug to cart' }));
+    await findInShop('Insulated mug');
+    await userEvent.click(
+      within(shopSection()).getByRole('button', { name: 'Add Insulated mug to cart' }),
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Pay with Razorpay' }));
 
     expect(await screen.findByText(/pay_TEST/)).toBeInTheDocument();
@@ -149,11 +180,13 @@ describe('Shop', () => {
     openCheckout.mockResolvedValue({ kind: 'dismissed' });
 
     render(<Shop />);
-    await screen.findByText('Insulated mug');
-    await userEvent.click(screen.getByRole('button', { name: 'Add Insulated mug to cart' }));
+    await findInShop('Insulated mug');
+    await userEvent.click(
+      within(shopSection()).getByRole('button', { name: 'Add Insulated mug to cart' }),
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Pay with Razorpay' }));
 
-    expect(await screen.findByText(/never paid/i)).toBeInTheDocument();
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(/closed the payment window/i);
   });
 
   it('surfaces a declined payment', async () => {
@@ -161,11 +194,13 @@ describe('Shop', () => {
     openCheckout.mockResolvedValue({ kind: 'failed', reason: 'insufficient funds' });
 
     render(<Shop />);
-    await screen.findByText('Insulated mug');
-    await userEvent.click(screen.getByRole('button', { name: 'Add Insulated mug to cart' }));
+    await findInShop('Insulated mug');
+    await userEvent.click(
+      within(shopSection()).getByRole('button', { name: 'Add Insulated mug to cart' }),
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Pay with Razorpay' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('insufficient funds');
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('insufficient funds');
   });
 
   it('surfaces a rejected order without opening checkout', async () => {
@@ -178,11 +213,13 @@ describe('Shop', () => {
     );
 
     render(<Shop />);
-    await screen.findByText('Insulated mug');
-    await userEvent.click(screen.getByRole('button', { name: 'Add Insulated mug to cart' }));
+    await findInShop('Insulated mug');
+    await userEvent.click(
+      within(shopSection()).getByRole('button', { name: 'Add Insulated mug to cart' }),
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Pay with Razorpay' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Unknown item: ghost');
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent('Unknown item: ghost');
     expect(openCheckout).not.toHaveBeenCalled();
   });
 });

@@ -24,7 +24,7 @@ const PORT = Number(process.env.PORT ?? 5174);
  * Vite would happily substitute this at build time, and that was the first design — but it
  * makes the shop's image depend on an address that only exists after the API is deployed,
  * which means a repository cannot simply build and deploy itself. As an environment
- * variable it is one `gcloud run services update` away, with no rebuild.
+ * variable it is one `az containerapp update` away, with no rebuild.
  *
  * Empty means same-origin, which is what the Vite dev proxy provides locally.
  */

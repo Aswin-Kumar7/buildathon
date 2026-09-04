@@ -19,8 +19,3 @@ export function getClientSessionId(): string {
   sessionStorage.setItem(STORAGE_KEY, fresh);
   return fresh;
 }
-
-export function resetClientSessionId(): string {
-  sessionStorage.removeItem(STORAGE_KEY);
-  return getClientSessionId();
-}
