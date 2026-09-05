@@ -35,6 +35,13 @@
   padding: 21px 20px 18px;
 }
 
+.shell__razorpay-logo {
+  display: block;
+  height: 18px;
+  width: auto;
+  margin-top: -1px;
+}
+
 .shell__buildathon-text {
   font-size: 12px;
   font-weight: 500;

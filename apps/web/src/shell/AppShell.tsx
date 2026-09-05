@@ -21,6 +21,7 @@ import {
 } from '@phosphor-icons/react';
 import { EnforcementBanner } from './EnforcementBanner.js';
 import { SimDockProvider } from './SimulationDock.js';
+import razorpayLogo from '../assets/razorpay-logo.svg';
 import './AppShell.css';
 
 interface NavItem {
@@ -177,6 +178,7 @@ function Sidebar({ onNavigate }: { onNavigate: () => void }): React.JSX.Element 
     <aside className="shell__nav" aria-label="Console navigation">
       {/* Brand Top Header */}
       <div className="shell__brand-top">
+        <img src={razorpayLogo} alt="Razorpay" className="shell__razorpay-logo" />
         <span className="shell__buildathon-text">buildathon</span>
       </div>
 

@@ -166,6 +166,13 @@
   gap: 0.6rem;
   margin-bottom: 1.5rem;
 }
+.lg-lockup img {
+  height: 1.35rem;
+  width: auto;
+  /* white.png is a white wordmark for the dark art panel opposite. Filtering it to black reuses
+     the one asset here instead of shipping a second copy that could drift from it. */
+  filter: brightness(0) saturate(100%);
+}
 .lg-lockup__name {
   transform: translateY(0.19em);
   font-family: 'Space Grotesk', 'Inter Tight', system-ui, sans-serif;
