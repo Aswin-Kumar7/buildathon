@@ -264,10 +264,22 @@ describe('replay', () => {
  * never reach this guard — it would be asserting on the wrong refusal.
  */
 describe('replay in production', () => {
-  it('is refused outright', () => {
+  it('is refused by default', () => {
     // A deployment whose numbers are cited as evidence must not be able to accept invented
     // traffic, whatever anyone types into a console.
     expect(() => assertReplayAllowed('production')).toThrow(/production/i);
+    expect(() => assertReplayAllowed('production', false)).toThrow(/production/i);
+  });
+
+  it('names the way out rather than just refusing', () => {
+    // Somebody hitting this on the hosted demo should learn what to set, not just that they lost.
+    expect(() => assertReplayAllowed('production')).toThrow(/ALLOW_REPLAY_IN_PRODUCTION/);
+  });
+
+  it('runs in production only when a deployment opts in by name', () => {
+    // The demo instance sets this. It is deliberately not inferred from anything else, so no
+    // combination of other settings can switch it on by accident.
+    expect(() => assertReplayAllowed('production', true)).not.toThrow();
   });
 
   it('is allowed everywhere else', () => {

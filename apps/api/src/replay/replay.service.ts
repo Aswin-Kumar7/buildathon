@@ -27,11 +27,17 @@ import type { EvaluateResponse } from '@sentinel/contracts';
  * booting an application. Booting one under NODE_ENV=production is not even possible without
  * a real database, because the environment schema refuses to start without one, so a test
  * that went that route would be testing the wrong guard.
+ *
+ * The default stays closed. A merchant's deployment must not be able to accept invented traffic
+ * whatever anyone types into a console, because its own figures would stop meaning anything
+ * afterwards. The hosted demo is the one place that reasoning does not apply — nothing cites its
+ * database, and every published number comes from CI running the corpus in a separate process —
+ * so it opts in by name, rather than the rule quietly being dropped for everybody.
  */
-export function assertReplayAllowed(nodeEnv: string): void {
-  if (nodeEnv === 'production') {
+export function assertReplayAllowed(nodeEnv: string, allowInProduction = false): void {
+  if (nodeEnv === 'production' && !allowInProduction) {
     throw new ForbiddenException(
-      'Replay is disabled in production. Synthetic events must never enter a deployment whose numbers are cited as evidence.',
+      'Replay is disabled in production. Synthetic events must never enter a deployment whose numbers are cited as evidence. A demo instance can opt in with ALLOW_REPLAY_IN_PRODUCTION.',
     );
   }
 }
@@ -124,7 +130,7 @@ export class ReplayService {
    * the historical case the feature-freshness and window-anchoring behaviour is defined against.
    */
   async replay(family: ScenarioFamily, rebase = false): Promise<ReplayResult> {
-    assertReplayAllowed(this.env.NODE_ENV);
+    assertReplayAllowed(this.env.NODE_ENV, this.env.ALLOW_REPLAY_IN_PRODUCTION);
 
     const scenario = await this.load(family);
     const key = this.env.PAYLOAD_KEY_V1;
@@ -231,7 +237,7 @@ export class ReplayService {
    * way to clear a scenario would be to guess at identifier prefixes.
    */
   async clear(): Promise<{ removed: number }> {
-    assertReplayAllowed(this.env.NODE_ENV);
+    assertReplayAllowed(this.env.NODE_ENV, this.env.ALLOW_REPLAY_IN_PRODUCTION);
 
     const removedIncidents = await this.handle.db
       .delete(incidents)
@@ -261,7 +267,7 @@ export class ReplayService {
    * own incidents while the other scenarios stay. Scoped by source AND family.
    */
   async clearFamily(family: string): Promise<{ removed: number }> {
-    assertReplayAllowed(this.env.NODE_ENV);
+    assertReplayAllowed(this.env.NODE_ENV, this.env.ALLOW_REPLAY_IN_PRODUCTION);
 
     const removedIncidents = await this.handle.db
       .delete(incidents)
@@ -290,7 +296,7 @@ export class ReplayService {
    * cited as evidence.
    */
   async resetAll(): Promise<{ removed: number }> {
-    assertReplayAllowed(this.env.NODE_ENV);
+    assertReplayAllowed(this.env.NODE_ENV, this.env.ALLOW_REPLAY_IN_PRODUCTION);
 
     const removedIncidents = await this.handle.db.delete(incidents).returning();
     const removedCanonical = await this.handle.db.delete(canonicalEvents).returning();

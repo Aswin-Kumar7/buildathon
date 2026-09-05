@@ -187,7 +187,7 @@ pnpm check     # the whole gate, exactly as CI runs it
 
 |            |   Count |                                         |
 | :--------- | ------: | :-------------------------------------- |
-| Unit       | **800** | Across all 13 workspaces                |
+| Unit       | **802** | Across all 13 workspaces                |
 | End-to-end |  **28** | Playwright, against a real server       |
 | ML         |  **29** | pytest, including cross-language parity |
 

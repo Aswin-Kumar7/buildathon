@@ -54,7 +54,7 @@ behaviour.
 
 ```bash
 pnpm check          # every CI gate, exactly as the pipeline runs them
-pnpm test:unit      # 800 unit tests
+pnpm test:unit      # 802 unit tests
 pnpm test:e2e       # 28 Playwright specs against a real server
 pnpm metrics        # regenerate METRICS.md from the corpus
 pnpm audit:verify   # walk the audit hash chain

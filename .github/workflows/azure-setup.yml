@@ -175,6 +175,12 @@ jobs:
       # already-built image; the console then falls back to same-origin and every storefront
       # link points at the API. Set here, the console reads it back from /api/meta instead.
       #
+      # ALLOW_REPLAY_IN_PRODUCTION is set because this is the demo, not a merchant. Replay is
+      # refused under NODE_ENV=production by default, and should stay refused for anyone running
+      # this for real — invented traffic in the same database as real traffic makes their own
+      # figures unquotable. Nothing cites this instance's database; the published numbers come
+      # from CI running the corpus in a separate process.
+      #
       # RISK_MANAGER_MODE and GROQ_API_KEY are both required, and both are set here. The key on
       # its own used to bind the live provider, which meant a workspace left on mode=local with a
       # key lying around called the model while the settings page reported AI as off. The mode
@@ -203,6 +209,7 @@ jobs:
               PORT="${APP_PORT}" \
               TRUST_PROXY=true \
               SEED_DEMO_USERS=true \
+              ALLOW_REPLAY_IN_PRODUCTION=true \
               INBOX_DRAIN_INTERVAL_MS=5000 \
               WEB_ORIGIN="${API_URL},${SHOP_URL}" \
               STOREFRONT_URL="${SHOP_URL}" \

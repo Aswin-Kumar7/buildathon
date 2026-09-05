@@ -381,7 +381,7 @@ export class SimulationService {
   }
 
   async start(family?: ScenarioFamily): Promise<{ running: boolean; total: number }> {
-    assertReplayAllowed(this.env.NODE_ENV);
+    assertReplayAllowed(this.env.NODE_ENV, this.env.ALLOW_REPLAY_IN_PRODUCTION);
     if (this.active) return { running: true, total: this.total };
     // A chosen scenario streams just that behaviour; without one, the full mixed campaign runs. Either
     // way the transactions take the real pipeline — the detector decides what, if anything, they become.
@@ -450,7 +450,7 @@ export class SimulationService {
    * without waiting out three minutes of real time.
    */
   async streamAll(): Promise<{ emitted: number }> {
-    assertReplayAllowed(this.env.NODE_ENV);
+    assertReplayAllowed(this.env.NODE_ENV, this.env.ALLOW_REPLAY_IN_PRODUCTION);
     await this.buildQueue();
     const transactions = [...this.queue];
     this.queue = [];
