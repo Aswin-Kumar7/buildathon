@@ -175,6 +175,12 @@ jobs:
       # already-built image; the console then falls back to same-origin and every storefront
       # link points at the API. Set here, the console reads it back from /api/meta instead.
       #
+      # RISK_MANAGER_MODE and GROQ_API_KEY are both required, and both are set here. The key on
+      # its own used to bind the live provider, which meant a workspace left on mode=local with a
+      # key lying around called the model while the settings page reported AI as off. The mode
+      # decides now, so the two cannot disagree. Without either, the risk manager still returns a
+      # full recommendation from its deterministic tiers; only the copilot goes quiet.
+      #
       # INBOX_DRAIN_INTERVAL_MS is 5000 rather than the local 1000: Container Apps bills a
       # replica at the active rate whenever it exceeds 0.01 vCPU or receives more than 1 KB/s,
       # and a drain waking every second keeps tripping that. Five seconds keeps the replica
@@ -187,6 +193,7 @@ jobs:
           RAZORPAY_KEY_ID: ${{ secrets.APP_RAZORPAY_KEY_ID }}
           RAZORPAY_KEY_SECRET: ${{ secrets.APP_RAZORPAY_KEY_SECRET }}
           RAZORPAY_WEBHOOK_SECRET: ${{ secrets.APP_RAZORPAY_WEBHOOK_SECRET }}
+          GROQ_API_KEY: ${{ secrets.APP_GROQ_API_KEY }}
         run: |
           az containerapp update \
             --name "${API_APP}" \
@@ -205,6 +212,8 @@ jobs:
               RAZORPAY_KEY_ID="${RAZORPAY_KEY_ID}" \
               RAZORPAY_KEY_SECRET="${RAZORPAY_KEY_SECRET}" \
               RAZORPAY_WEBHOOK_SECRET="${RAZORPAY_WEBHOOK_SECRET}" \
+              RISK_MANAGER_MODE=live \
+              GROQ_API_KEY="${GROQ_API_KEY}" \
             --output none
 
       - name: Configure the storefront
