@@ -32,6 +32,14 @@ export type MetaModel = z.infer<typeof metaModelSchema>;
 
 export const metaSchema = z.object({
   name: z.literal('Sentinel'),
+  /**
+   * Where the merchant storefront is served from, resolved at request time rather than baked into
+   * the web bundle. Vite inlines `import.meta.env` at build time, so a deployment that sets the
+   * storefront's address on the running container had no way to reach the already-built page — it
+   * fell back to a same-origin link and sent people to the API instead. Null when unconfigured,
+   * which means the caller keeps its own build-time default.
+   */
+  storefrontUrl: z.string().url().nullable(),
   claim: z.string().min(1),
   version: z.string().min(1),
   commit: z.string().min(1),

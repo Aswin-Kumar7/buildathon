@@ -1,0 +1,181 @@
+/* The cold-start notice.
+ *
+ * Dark on purpose. It appears over the landing page, which is near-black, and over the login
+ * page, which is white — a dark card behind a dark scrim reads as an overlay on both, where a
+ * white card on white would just look like the page moved. Tokens are literal rather than
+ * `var(--lp-*)` because those are only defined inside the landing tree. */
+
+.sfw-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(4 6 12 / 66%);
+  backdrop-filter: blur(8px) saturate(120%);
+  animation: sfw-fade 160ms ease-out;
+}
+
+.sfw-card {
+  width: min(100%, 420px);
+  padding: 24px 24px 20px;
+  border: 1px solid rgb(255 255 255 / 9%);
+  border-radius: 18px;
+  /* A cool wash from the top edge, so the card picks up the product's blue instead of sitting
+     on the page as a flat grey rectangle. */
+  background: radial-gradient(120% 100% at 50% 0%, rgb(22 104 255 / 16%), transparent 62%), #0b0f18;
+  box-shadow: 0 30px 80px rgb(2 5 12 / 60%);
+  color: #f3f5fa;
+  font-family: 'Inter Tight', system-ui, sans-serif;
+  animation: sfw-rise 220ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.sfw-eyebrow {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  padding: 5px 11px 5px 9px;
+  border: 1px solid rgb(22 104 255 / 34%);
+  border-radius: 999px;
+  background: rgb(22 104 255 / 12%);
+  color: #7fb0ff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sfw-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3b82ff;
+  animation: sfw-pulse 1.4s ease-in-out infinite;
+}
+
+.sfw-title {
+  margin: 14px 0 8px;
+  color: #f3f5fa;
+  font-family: 'Space Grotesk', 'Inter Tight', system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.sfw-body {
+  margin: 0;
+  color: #8b93a6;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Ten seconds is the claim, so the bar takes ten seconds. It starts with the wake request, not
+   with the click on the button, which is the whole reason the notice opens first. */
+.sfw-track {
+  height: 3px;
+  margin: 18px 0 18px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 8%);
+  overflow: hidden;
+}
+
+.sfw-fill {
+  width: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1668ff, #7fb0ff);
+  animation: sfw-fill 10s linear forwards;
+}
+
+.sfw-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.sfw-btn {
+  padding: 10px 18px;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 120ms ease;
+}
+
+.sfw-btn:active {
+  transform: translateY(1px);
+}
+
+.sfw-btn:focus-visible {
+  outline: 2px solid #7fb0ff;
+  outline-offset: 2px;
+}
+
+.sfw-btn--ghost {
+  border: 1px solid rgb(255 255 255 / 14%);
+  background: transparent;
+  color: #a8b0c2;
+}
+
+.sfw-btn--ghost:hover {
+  border-color: rgb(255 255 255 / 26%);
+  color: #e6eaf3;
+}
+
+.sfw-btn--go {
+  border: 1px solid transparent;
+  background: linear-gradient(180deg, #2b74ff, #0a3fd4);
+  box-shadow: 0 6px 18px rgb(10 63 212 / 40%);
+  color: #fff;
+}
+
+.sfw-btn--go:hover {
+  background: linear-gradient(180deg, #3d80ff, #0d47e4);
+}
+
+@keyframes sfw-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sfw-rise {
+  from {
+    transform: translateY(10px) scale(0.98);
+    opacity: 0;
+  }
+}
+
+@keyframes sfw-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes sfw-fill {
+  to {
+    width: 100%;
+  }
+}
+
+/* Nothing here carries meaning that the movement is required to read, so it all stops. The bar
+   goes straight to full rather than disappearing, because an empty track would read as stuck. */
+@media (prefers-reduced-motion: reduce) {
+  .sfw-scrim,
+  .sfw-card,
+  .sfw-dot {
+    animation: none;
+  }
+
+  .sfw-fill {
+    width: 100%;
+    animation: none;
+  }
+}

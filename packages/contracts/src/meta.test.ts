@@ -12,6 +12,7 @@ const layer = {
 
 const valid = {
   name: 'Sentinel' as const,
+  storefrontUrl: 'https://shop.example.com/',
   claim: 'Detects suspicious failed-payment clusters.',
   version: '0.1.0',
   commit: 'abc1234',
@@ -36,5 +37,15 @@ describe('metaSchema', () => {
 
   it('rejects a negative slice number', () => {
     expect(() => metaSchema.parse({ ...valid, slice: { number: -1, name: 'x' } })).toThrow();
+  });
+
+  it('accepts no configured storefront, so a deployment may leave it unset', () => {
+    expect(metaSchema.parse({ ...valid, storefrontUrl: null }).storefrontUrl).toBeNull();
+  });
+
+  it('rejects a storefront address that is not a url', () => {
+    // The web client renders this straight into an href, so a bare hostname or a stray path
+    // fragment has to fail here rather than produce a link that resolves against the API.
+    expect(() => metaSchema.parse({ ...valid, storefrontUrl: 'shop.example.com' })).toThrow();
   });
 });

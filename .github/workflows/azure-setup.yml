@@ -170,6 +170,11 @@ jobs:
       # address. Without it every request looks like it came from the ingress, the IP
       # pseudonym collapses to one constant, and per-network velocity silently stops working.
       #
+      # STOREFRONT_URL has to be set here, at runtime, not as a build variable. Vite inlines
+      # import.meta.env when the bundle is built, so a build-time value never reaches an
+      # already-built image; the console then falls back to same-origin and every storefront
+      # link points at the API. Set here, the console reads it back from /api/meta instead.
+      #
       # INBOX_DRAIN_INTERVAL_MS is 5000 rather than the local 1000: Container Apps bills a
       # replica at the active rate whenever it exceeds 0.01 vCPU or receives more than 1 KB/s,
       # and a drain waking every second keeps tripping that. Five seconds keeps the replica
@@ -193,6 +198,7 @@ jobs:
               SEED_DEMO_USERS=true \
               INBOX_DRAIN_INTERVAL_MS=5000 \
               WEB_ORIGIN="${API_URL},${SHOP_URL}" \
+              STOREFRONT_URL="${SHOP_URL}" \
               DATABASE_URL="${DATABASE_URL}" \
               PSEUDONYM_KEY_V1="${PSEUDONYM_KEY_V1}" \
               PAYLOAD_KEY_V1="${PAYLOAD_KEY_V1}" \

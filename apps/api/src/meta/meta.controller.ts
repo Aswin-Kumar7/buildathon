@@ -60,6 +60,7 @@ export class MetaController {
       claim: CLAIM,
       version: process.env.APP_VERSION ?? '0.1.0',
       commit: process.env.GIT_COMMIT ?? 'dev',
+      storefrontUrl: process.env.STOREFRONT_URL ?? null,
       slice: { number: 1, name: 'Landing page' },
       evidenceLayers: EVIDENCE,
       model,
