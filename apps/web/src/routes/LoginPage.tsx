@@ -64,6 +64,7 @@ function LoginHead(): React.JSX.Element {
           rather than swapped for a second file. */}
       <div className="lg-lockup">
         <img src={razorpayLogo} alt="Razorpay" />
+        <span className="lg-lockup__rule" aria-hidden="true" />
         <span className="lg-lockup__name">SENTINEL</span>
       </div>
       <p className="lg-welcome">

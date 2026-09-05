@@ -173,6 +173,11 @@
      the one asset here instead of shipping a second copy that could drift from it. */
   filter: brightness(0) saturate(100%);
 }
+.lg-lockup__rule {
+  width: 1px;
+  height: 1.15rem;
+  background: #d7dbe3;
+}
 .lg-lockup__name {
   transform: translateY(0.19em);
   font-family: 'Space Grotesk', 'Inter Tight', system-ui, sans-serif;
