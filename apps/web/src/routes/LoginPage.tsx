@@ -58,11 +58,9 @@ function LoginArtPanel(): React.JSX.Element {
 function LoginHead(): React.JSX.Element {
   return (
     <div className="lg-head">
-      {/* The shipped asset is the full wordmark, so it gets a wordmark slot rather than being
-          squeezed into a square icon tile. */}
+      {/* The Razorpay wordmark ships as a white asset, so on this white panel it rendered as
+          nothing. It stays on the art panel opposite, where there is a dark ground to sit on. */}
       <div className="lg-lockup">
-        <img src={razorpayLogo} alt="Razorpay" />
-        <span className="lg-lockup__rule" aria-hidden="true" />
         <span className="lg-lockup__name">SENTINEL</span>
       </div>
       <p className="lg-welcome">

@@ -1,11 +1,14 @@
+import { useEffect } from 'react';
 import {
   createRootRoute,
   createRoute,
   createRouter,
   Outlet,
   redirect,
+  useRouterState,
 } from '@tanstack/react-router';
 import { QueryClient } from '@tanstack/react-query';
+import { titleFor } from './title.js';
 import { fetchMe } from './auth/api.js';
 import { SESSION_KEY } from './auth/useSession.js';
 import { Landing } from './landing/Landing.js';
@@ -28,7 +31,21 @@ export const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false } },
 });
 
-const rootRoute = createRootRoute({ component: Outlet });
+/**
+ * The tab title, set in one place rather than by each page.
+ *
+ * Every route renders through here, so a page cannot forget to name itself, and a page that only
+ * changes its URL params (an incident id, say) still gets the right title without re-mounting.
+ */
+function Root(): React.JSX.Element {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  useEffect(() => {
+    document.title = titleFor(pathname);
+  }, [pathname]);
+  return <Outlet />;
+}
+
+const rootRoute = createRootRoute({ component: Root });
 
 const landingRoute = createRoute({
   getParentRoute: () => rootRoute,

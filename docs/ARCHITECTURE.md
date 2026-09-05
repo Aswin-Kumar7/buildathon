@@ -11,7 +11,7 @@ Razorpay Buildathon 2026 · Track 02, AI Risk Manager
 | **Detection latency** | ~2s — 1s drain tick + 1s evaluation debounce. ~6s on the deployed container, whose drain tick is 5s |
 | **Decision tiers** | 11 deterministic rules · EWMA/CUSUM change detection · calibrated GBDT |
 | **Model authority** | May raise a review. May never contain |
-| **Verification** | 8 blocking CI gates · 784 unit · 28 e2e · 29 ML tests |
+| **Verification** | 8 blocking CI gates · 800 unit · 28 e2e · 29 ML tests |
 
 Every figure here comes from a file in this repository; §9 gives the command that checks each one.
 Where a component exists but is not wired into the live path, it says so.

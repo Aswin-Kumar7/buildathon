@@ -10,7 +10,7 @@ or something innocent that looks like one, and shows every number behind the ans
 **No shopper is ever blocked on a model's word alone.**
 
 [![CI](https://img.shields.io/badge/CI-8%20blocking%20gates-2f81f7?labelColor=0d1117&style=flat-square&logo=githubactions&logoColor=white)](.github/workflows/verify.yml)
-[![Tests](https://img.shields.io/badge/tests-784%20%C2%B7%2028%20e2e%20%C2%B7%2029%20ml-3fb950?labelColor=0d1117&style=flat-square&logo=vitest&logoColor=white)](#6--verification)
+[![Tests](https://img.shields.io/badge/tests-800%20%C2%B7%2028%20e2e%20%C2%B7%2029%20ml-3fb950?labelColor=0d1117&style=flat-square&logo=vitest&logoColor=white)](#6--verification)
 [![PR-AUC](https://img.shields.io/badge/PR--AUC-0.991-a371f7?labelColor=0d1117&style=flat-square&logo=scikitlearn&logoColor=white)](#4--what-it-measures)
 [![Deployed](https://img.shields.io/badge/deployed-Azure%20Container%20Apps-0078d4?labelColor=0d1117&style=flat-square&logo=docker&logoColor=white)](#5--architecture)
 [![License](https://img.shields.io/badge/license-MIT-8b949e?labelColor=0d1117&style=flat-square&logo=opensourceinitiative&logoColor=white)](LICENSE)
@@ -286,7 +286,7 @@ pnpm check     # the whole gate, exactly as CI runs it
 
 |            |   Count |                                         |
 | :--------- | ------: | :-------------------------------------- |
-| Unit       | **784** | Across all 13 workspaces                |
+| Unit       | **800** | Across all 13 workspaces                |
 | End-to-end |  **28** | Playwright, against a real server       |
 | ML         |  **29** | pytest, including cross-language parity |
 
