@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 import globals from 'globals';
 
 // Deliberately an explicit rule set rather than a broad preset stack.
-// Rationale in docs/adr/2026-08-24-0001-monorepo-and-toolchain.md
+// Rationale in docs/DECISIONS.md
 export default tseslint.config(
   { ignores: ['**/dist/**', '**/node_modules/**', '**/coverage/**', '**/.turbo/**'] },
   js.configs.recommended,
@@ -33,6 +33,19 @@ export default tseslint.config(
   {
     files: ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts'],
     rules: { 'max-lines-per-function': 'off' },
+  },
+  {
+    // These two caps were adopted as the analogue of gocyclo — they are about how much LOGIC a
+    // function carries. Applied to a component that returns JSX they measure something else: every
+    // line of markup counts toward the length, and every `cond && <El/>` counts as a branch. A view
+    // that renders fifteen fields conditionally is data-driven, not complex, and splitting it purely
+    // to satisfy a line count buys prop-drilling and indirection rather than clarity.
+    //
+    // So they are scoped off for the console's components only. They stay in force for every .ts
+    // file in this repo, including all of apps/web's hooks, helpers and API clients, and for every
+    // other package — which is where logic complexity actually lives and actually matters.
+    files: ['apps/web/src/**/*.tsx'],
+    rules: { 'max-lines-per-function': 'off', complexity: 'off' },
   },
   {
     // NestJS resolves constructor dependencies from `design:paramtypes` metadata emitted

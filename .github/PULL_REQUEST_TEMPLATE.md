@@ -4,14 +4,14 @@
 
 ## Slice
 
-<!-- e.g. Slice 4 — Webhook ingestion. See docs/delivery-plan.md -->
+<!-- e.g. Webhook ingestion — what changed, and why. -->
 
 ## Testing
 
 - [ ] Unit tests added or updated
 - [ ] Integration tests added or updated
 - [ ] Ran the slow gate locally
-- [ ] Manual verification recorded in `docs/VALIDATION_LOG.md` (if a Razorpay assumption was involved)
+- [ ] Manual verification recorded in the PR description (if a Razorpay assumption was involved)
 
 ## Checklist
 

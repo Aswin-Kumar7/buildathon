@@ -1,7 +1,7 @@
 # The gate, in one place.
 #
 # Called by `fast.yml` on every push and pull request, and by `deploy.yml` before anything
-# reaches Cloud Run. One definition rather than two, because a gate that is duplicated is a
+# reaches Azure Container Apps. One definition rather than two, because a gate that is duplicated is a
 # gate that drifts — and the half that drifts is always the one guarding production.
 
 name: verify

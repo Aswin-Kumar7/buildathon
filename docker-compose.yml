@@ -1,5 +1,8 @@
 # Local development dependencies. Nothing here is a production topology;
 # the reference production architecture is in the architecture plan §6.7.
+#
+# Only Postgres. Redis, MinIO and Mailpit were provisioned here for a while, but no code ever
+# connected to them — no client library is imported and no environment variable names them.
 services:
   postgres:
     image: postgres:16-alpine
@@ -15,28 +18,5 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine
-    ports: ['6379:6379']
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: sentinel
-      MINIO_ROOT_PASSWORD: sentinel123
-    ports: ['9000:9000', '9001:9001']
-    volumes: ['miniodata:/data']
-
-  mailpit:
-    image: axllent/mailpit:latest
-    ports: ['1025:1025', '8025:8025']
-
 volumes:
   pgdata:
-  miniodata:

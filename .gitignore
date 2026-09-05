@@ -19,7 +19,7 @@ test-results/
 .env.*
 !.env.example
 
-# data — never commit restricted datasets (see docs/DATA_CARD.md)
+# data — never commit restricted datasets
 data/raw/
 data/interim/
 *.csv
@@ -41,7 +41,11 @@ __pycache__/
 .vscode/*
 !.vscode/extensions.json
 
-docs/
+# Working notes and planning artefacts stay local; the documentation set ships. Listed as
+# ignore-then-unignore rather than a bare `docs/` because that blanket rule meant every document
+# written here was invisible to anyone who cloned the repo, including the ADRs.
+docs/dump/
+docs/**/*.draft.md
 
 # Service-account keys and anything else shaped like a private key. These arrive as a
 # download with a project-shaped filename and are easy to drop into a repository while
@@ -59,7 +63,6 @@ project-*-*.json
 
 # The IEEE-CIS competition data is never committed — the rules forbid redistribution. The
 # generated artefacts (metrics.json, model_card.md) ARE committed; only the raw data is ignored.
-ml/models/transaction_risk/data/
 
 # Model B's training data IS ours — the scenario corpus rendered to a table by
 # ml/models/incident/export_training.mjs, deterministic from fixed seeds and free of any restricted
@@ -70,6 +73,5 @@ ml/models/transaction_risk/data/
 __pycache__/
 *.pyc
 .pytest_cache/
-ml/models/transaction_risk/artifacts/metrics.synthetic.json
 
 scratch/

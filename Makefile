@@ -1,7 +1,7 @@
 .PHONY: help up down dev check test clean
 
 help:
-	@echo "up      - start local dependencies (postgres, redis, minio, mailpit)"
+	@echo "up      - start local dependencies (postgres)"
 	@echo "down    - stop local dependencies"
 	@echo "dev     - run api and web in watch mode"
 	@echo "check   - the fast gate: lint, typecheck, unit tests, format, data guard"

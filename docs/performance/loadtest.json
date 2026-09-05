@@ -165,10 +165,7 @@
             "p999": 2.0705999999772757,
             "max": 2.6142999999865424
           },
-          "shedding": [
-            "SHEDDABLE_PLUS",
-            "SHEDDABLE"
-          ],
+          "shedding": ["SHEDDABLE_PLUS", "SHEDDABLE"],
           "shed": {
             "CRITICAL_PLUS": 0,
             "CRITICAL": 0,

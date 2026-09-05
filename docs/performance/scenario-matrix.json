@@ -2,13 +2,13 @@
   "kind": "scenario-matrix",
   "synthetic": true,
   "generatedNote": "Synthetic, seed-deterministic scenarios from @sentinel/corpus. No live traffic, no database, no clock.",
-  "thresholdHash": "675bfee0",
+  "thresholdHash": "54027eb9",
   "window": {
     "windowMinutes": 600,
     "halfLifeMinutes": 5
   },
-  "familiesTotal": 8,
-  "familiesPassed": 8,
+  "familiesTotal": 11,
+  "familiesPassed": 11,
   "results": [
     {
       "family": "normal_traffic",
@@ -221,9 +221,7 @@
       "margin": 0.466,
       "decision": "contain",
       "abstained": false,
-      "reasons": [
-        "attack_clearly_best_supported"
-      ],
+      "reasons": ["attack_clearly_best_supported"],
       "incidentRaised": true,
       "incidentsRaised": 1,
       "incidentsOpened": 1,
@@ -268,9 +266,7 @@
       "margin": 0.466,
       "decision": "contain",
       "abstained": false,
-      "reasons": [
-        "attack_clearly_best_supported"
-      ],
+      "reasons": ["attack_clearly_best_supported"],
       "incidentRaised": true,
       "incidentsRaised": 4,
       "incidentsOpened": 4,
@@ -315,9 +311,7 @@
       "margin": 0.375,
       "decision": "contain",
       "abstained": false,
-      "reasons": [
-        "attack_clearly_best_supported"
-      ],
+      "reasons": ["attack_clearly_best_supported"],
       "incidentRaised": true,
       "incidentsRaised": 1,
       "incidentsOpened": 1,
@@ -338,6 +332,141 @@
         "activeSessions": 37,
         "topSessionFailureShare": 0.041,
         "distinctCards": 78
+      },
+      "pass": true
+    },
+    {
+      "family": "attack_carding",
+      "title": "Carding — buying with stolen cards",
+      "classification": "attack",
+      "recommendedAction": "Contain it. The loss here is real goods shipped against a stolen card, not one inconvenienced shopper.",
+      "seed": 1009,
+      "specHash": "8fe356cf04f67cf3",
+      "counts": {
+        "orders": 75,
+        "events": 85,
+        "captured": 5,
+        "failed": 70,
+        "distinctSessions": 1,
+        "distinctNetworks": 1
+      },
+      "asOf": 1772356722000,
+      "best": "attack",
+      "runnerUp": "retry_storm",
+      "margin": 0.346,
+      "decision": "contain",
+      "abstained": false,
+      "reasons": ["attack_clearly_best_supported"],
+      "incidentRaised": true,
+      "incidentsRaised": 1,
+      "incidentsOpened": 1,
+      "driver": {
+        "entityKind": "session",
+        "fromOpenedIncident": true,
+        "attempts": 75,
+        "failures": 70,
+        "distinctCards": 75,
+        "approvalRate": 0.067
+      },
+      "traffic": {
+        "attempts": 75,
+        "failures": 70,
+        "approvalRate": 0.067,
+        "infrastructureFailureShare": 0,
+        "failingSessions": 1,
+        "activeSessions": 1,
+        "topSessionFailureShare": 1,
+        "distinctCards": 75
+      },
+      "pass": true
+    },
+    {
+      "family": "attack_proxy",
+      "title": "Enumeration behind one proxy",
+      "classification": "attack",
+      "recommendedAction": "Contain by network: the correlation that holds here is the shared address, not any one session.",
+      "seed": 1010,
+      "specHash": "dec6f7ac0b561dde",
+      "counts": {
+        "orders": 87,
+        "events": 95,
+        "captured": 4,
+        "failed": 83,
+        "distinctSessions": 21,
+        "distinctNetworks": 1
+      },
+      "asOf": 1772356538000,
+      "best": "attack",
+      "runnerUp": "retry_storm",
+      "margin": 0.466,
+      "decision": "contain",
+      "abstained": false,
+      "reasons": ["attack_clearly_best_supported"],
+      "incidentRaised": true,
+      "incidentsRaised": 1,
+      "incidentsOpened": 1,
+      "driver": {
+        "entityKind": "network",
+        "fromOpenedIncident": true,
+        "attempts": 87,
+        "failures": 83,
+        "distinctCards": 87,
+        "approvalRate": 0.046
+      },
+      "traffic": {
+        "attempts": 87,
+        "failures": 83,
+        "approvalRate": 0.046,
+        "infrastructureFailureShare": 0,
+        "failingSessions": 21,
+        "activeSessions": 21,
+        "topSessionFailureShare": 0.06,
+        "distinctCards": 87
+      },
+      "pass": true
+    },
+    {
+      "family": "attack_partial",
+      "title": "Testing a part-valid card list",
+      "classification": "attack",
+      "recommendedAction": "Review, then contain — the working cards make it live, but the higher approval leaves a shorter window of certainty.",
+      "seed": 1011,
+      "specHash": "09e457077454db07",
+      "counts": {
+        "orders": 69,
+        "events": 127,
+        "captured": 29,
+        "failed": 40,
+        "distinctSessions": 1,
+        "distinctNetworks": 1
+      },
+      "asOf": 1772357022000,
+      "best": "attack",
+      "runnerUp": "retry_storm",
+      "margin": 0.204,
+      "decision": "review",
+      "abstained": false,
+      "reasons": ["attack_best_but_weakly_supported"],
+      "incidentRaised": true,
+      "incidentsRaised": 1,
+      "incidentsOpened": 1,
+      "driver": {
+        "entityKind": "session",
+        "fromOpenedIncident": true,
+        "attempts": 69,
+        "failures": 40,
+        "distinctCards": 69,
+        "approvalRate": 0.42
+      },
+      "traffic": {
+        "attempts": 69,
+        "failures": 40,
+        "approvalRate": 0.42,
+        "infrastructureFailureShare": 0,
+        "failingSessions": 1,
+        "activeSessions": 1,
+        "topSessionFailureShare": 1,
+        "distinctCards": 69
       },
       "pass": true
     }
