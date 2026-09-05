@@ -10,20 +10,30 @@
  * is part of the deliverable.
  *
  * The system font stack renders instantly and never depends on a font host being reachable — the one
- * webfont (Inter) is an optional enhancement layered on top, never required for the layout to hold.
+ * webfont (Instrument Sans) is an optional enhancement layered on top, never required for the
+ * layout to hold.
+ *
+ * That webfont is imported here and nowhere else. It used to be pulled in again by four separate
+ * route stylesheets while this file asked for Outfit, so the console shipped two competing body
+ * faces: page chrome rendered in Instrument Sans, while anything styled through these tokens
+ * (`body`, every @sentinel/ui component) asked for Outfit and silently fell back to system-ui,
+ * because Outfit was never actually applied to visible text. One import, one face.
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap');
 
 :root {
   color-scheme: light;
 
   /* ── neutrals: cool slate, white-first ─────────────────────────────────── */
-  --s-bg: #f5f7fb; /* app canvas */
-  --s-bg-2: #eef1f7; /* recessed areas */
+  /* The canvas sat four steps below the cards on it, which read as grey rather than as a ground
+     and left every white panel looking dulled. It is now a step and a half below white: the cards
+     still separate — they carry a hairline border of their own — but the page reads as light. */
+  --s-bg: #f9fafd; /* app canvas */
+  --s-bg-2: #f2f5fa; /* recessed areas */
   --s-surface: #ffffff; /* cards, panels */
-  --s-surface-2: #f6f8fc; /* subtle fills, table stripes, inputs */
-  --s-surface-3: #eef2f8; /* hover fills */
+  --s-surface-2: #fafbfe; /* subtle fills, table stripes, inputs */
+  --s-surface-3: #f3f6fb; /* hover fills */
   --s-line: #e6eaf2; /* hairline borders */
   --s-line-2: #d3dae7; /* stronger borders, dividers */
   --s-ink: #0d1526; /* primary text */
@@ -63,7 +73,9 @@
   --s-focus: #0b72e7;
 
   /* ── type: comfortable, highly legible scale ────────────────────────────── */
-  --s-font: 'Outfit', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --s-font:
+    'Instrument Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
   --s-mono: ui-monospace, 'Cascadia Code', 'SF Mono', 'JetBrains Mono', Consolas, monospace;
   --s-text-xs: 0.875rem; /* 14px */
   --s-text-sm: 0.9375rem; /* 15px */
@@ -93,6 +105,14 @@
   --s-radius-lg: 14px;
   --s-radius-xl: 20px;
   --s-radius-full: 999px;
+
+  /*
+   * Status chips, labels and badges — a soft rounded rectangle, never a lozenge. Every non-
+   * interactive label in the console uses this one radius so a status reads as the same object
+   * whichever screen it appears on. `--s-radius-full` stays for things that are genuinely circular:
+   * severity dots, avatars, notification counters.
+   */
+  --s-radius-pill: 7px;
 
   /* ── elevation: a soft, layered ramp ───────────────────────────────────── */
   --s-shadow-xs: 0 1px 2px rgb(13 21 38 / 6%);

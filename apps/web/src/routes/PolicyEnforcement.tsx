@@ -38,15 +38,6 @@ export function EnforcementCard(): React.JSX.Element {
         <div className="pol-enf-card__info">
           <div className="pol-enf-card__heading-row">
             <h2 className="pol-enf-card__title">Kill switch</h2>
-            <span
-              className={`pol-enf-card__pill pol-enf-card__pill--${stopped ? 'paused' : 'live'}`}
-            >
-              <span className="pol-enf-card__pill-dot" />
-              <span>
-                {state.isPending ? 'Checking…' : stopped ? 'Sentinel stopped' : 'Enforcing'}
-              </span>
-              {!stopped && !state.isPending && <span className="pol-sr-only">Sentinel active</span>}
-            </span>
             <span className="pol-enf-card__badge">Emergency stop</span>
           </div>
           <p className="pol-enf-card__desc">

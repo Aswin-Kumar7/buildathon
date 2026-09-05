@@ -1,5 +1,12 @@
-import { Card } from '@sentinel/ui';
-import { Lightning } from '@phosphor-icons/react';
+import {
+  Lightning,
+  Sparkle,
+  LockSimple,
+  CheckCircle,
+  CreditCard,
+  WarningCircle,
+  Laptop,
+} from '@phosphor-icons/react';
 import type { RiskAction, RiskRecommendation } from '@sentinel/contracts';
 import type { QueryState } from './IncidentActionsAudit.js';
 
@@ -16,86 +23,12 @@ const ACTION_TONE: Record<RiskAction, string> = {
   monitor: 'neutral',
 };
 
-function CardHeaderTitle({
-  icon,
-  text,
-  badgeTone,
-}: {
-  icon: React.ReactNode;
-  text: string;
-  badgeTone: string;
-}): React.JSX.Element {
-  return (
-    <div className="ad-card-head-inner">
-      <span className={`ad-card-badge ad-card-badge--${badgeTone}`}>{icon}</span>
-      <span>{text}</span>
-    </div>
-  );
-}
-
-const box = {
-  width: 16,
-  height: 16,
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  'aria-hidden': true,
-} as const;
-const Sparkle = (): React.JSX.Element => (
-  <svg {...box}>
-    <path
-      d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5 10.1 7.6z"
-      fill="currentColor"
-    />
-  </svg>
-);
-const Shield = (): React.JSX.Element => (
-  <svg {...box}>
-    <path
-      d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"
-      stroke="currentColor"
-      strokeWidth="1.8"
-    />
-  </svg>
-);
-const Eye = (): React.JSX.Element => (
-  <svg {...box}>
-    <path
-      d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"
-      stroke="currentColor"
-      strokeWidth="1.8"
-    />
-    <circle cx="12" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.8" />
-  </svg>
-);
-const Reasons = (): React.JSX.Element => (
-  <svg {...box}>
-    <path
-      d="M4 6h16M4 12h16M4 18h10"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-    />
-  </svg>
-);
-const Arrow = (): React.JSX.Element => (
-  <svg {...box}>
-    <path
-      d="M5 12h14M13 6l6 6-6 6"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
-const Lock = (): React.JSX.Element => (
-  <svg {...box}>
-    <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="1.7" />
-    <path d="M8 11V8a4 4 0 018 0v3" stroke="currentColor" strokeWidth="1.7" />
-  </svg>
-);
 const actionIcon = (action: RiskAction): React.JSX.Element =>
-  action === 'contain' ? <Shield /> : <Eye />;
+  action === 'contain' ? (
+    <Lightning size={16} color="oklch(0.48 0.15 22)" />
+  ) : (
+    <Sparkle size={16} color="oklch(0.46 0.12 258)" />
+  );
 
 export function AiRecommendationCard({
   state,
@@ -111,26 +44,136 @@ export function AiRecommendationCard({
   onTakeAction: () => void;
 }): React.JSX.Element {
   return (
-    <Card
-      title={<CardHeaderTitle icon={<Lightning />} text="Recommended action" badgeTone="purple" />}
-      subtitle="What Sentinel suggests you do about this incident, and why"
-      actions={
-        recommendation !== null ? (
-          <div className="aa-rec__chips">
-            <span className="aa-chip">{SOURCE_LABEL[recommendation.source]}</span>
-            <span className="aa-chip aa-chip--muted">{recommendation.reasoningVersion}</span>
-          </div>
-        ) : undefined
-      }
+    <section
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: '12px',
+        background: 'oklch(1 0 0)',
+        border: '1px solid oklch(0.925 0.006 280)',
+        overflow: 'hidden',
+      }}
     >
-      {state === 'pending' && <p className="aa-muted aa-pad">Generating recommendation…</p>}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: '12px',
+          padding: '16px 20px',
+          borderBottom: '1px solid oklch(0.955 0.006 280)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', minWidth: 0 }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: '0 0 32px',
+              width: '32px',
+              height: '32px',
+              borderRadius: '9px',
+              background: 'oklch(0.962 0.024 258)',
+            }}
+          >
+            <Lightning size={16} color="oklch(0.46 0.12 258)" />
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: '14.5px',
+                fontWeight: 600,
+                letterSpacing: '-0.018em',
+                color: 'oklch(0.21 0.015 280)',
+              }}
+            >
+              Recommended action
+            </h2>
+            <p
+              style={{
+                margin: 0,
+                fontSize: '12px',
+                fontWeight: 500,
+                color: 'oklch(0.56 0.015 280)',
+                textWrap: 'pretty',
+              }}
+            >
+              What Sentinel suggests you do about this incident, and why.
+            </p>
+          </div>
+        </div>
+
+        {recommendation !== null && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span
+              style={{
+                padding: '3px 10px',
+                borderRadius: 'var(--s-radius-pill)',
+                fontSize: '11.5px',
+                fontWeight: 600,
+                color: 'oklch(0.42 0.12 258)',
+                background: 'oklch(0.962 0.024 258)',
+              }}
+            >
+              {SOURCE_LABEL[recommendation.source]}
+            </span>
+            <span
+              style={{
+                padding: '3px 10px',
+                borderRadius: 'var(--s-radius-pill)',
+                fontSize: '11.5px',
+                fontWeight: 600,
+                color: 'oklch(0.44 0.015 280)',
+                background: 'oklch(0.958 0.006 280)',
+              }}
+            >
+              {recommendation.reasoningVersion}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {state === 'pending' && (
+        <p
+          style={{
+            padding: '16px 20px',
+            margin: 0,
+            fontSize: '13px',
+            fontWeight: 500,
+            color: 'oklch(0.56 0.015 280)',
+          }}
+        >
+          Generating recommendation…
+        </p>
+      )}
       {state === 'error' && (
-        <p className="aa-muted aa-pad" role="alert">
+        <p
+          style={{
+            padding: '16px 20px',
+            margin: 0,
+            fontSize: '13px',
+            fontWeight: 500,
+            color: 'oklch(0.48 0.15 22)',
+          }}
+          role="alert"
+        >
           The recommendation could not be loaded.
         </p>
       )}
       {state === 'ready' && recommendation === null && (
-        <p className="aa-muted aa-pad">No recommendation is available for this incident.</p>
+        <p
+          style={{
+            padding: '16px 20px',
+            margin: 0,
+            fontSize: '13px',
+            fontWeight: 500,
+            color: 'oklch(0.56 0.015 280)',
+          }}
+        >
+          No recommendation is available for this incident.
+        </p>
       )}
       {state === 'ready' && recommendation !== null && (
         <RecommendationBody
@@ -140,7 +183,7 @@ export function AiRecommendationCard({
           onTakeAction={onTakeAction}
         />
       )}
-    </Card>
+    </section>
   );
 }
 
@@ -161,63 +204,145 @@ function RecommendationBody({
     : 'A containment is already proposed for this incident.';
 
   return (
-    <div className="aa-narrative">
-      {/* 1. What was detected / Reasons */}
-      <div className="aa-narrative-section">
-        <h4 className="aa-narrative-subtitle">
-          <Reasons /> What was detected
-        </h4>
-        <ul className="aa-narrative-list">
-          {r.keyReasons.map((c) => (
-            <li key={c.text}>{c.text}</li>
-          ))}
-        </ul>
-      </div>
-
-      {/* 2. AI Recommendation & Why */}
-      <div className="aa-narrative-section aa-narrative-section--highlight">
-        <h4 className="aa-narrative-subtitle">
-          <Sparkle /> AI Recommendation: {r.actionLabel}
-        </h4>
-        <p className="aa-narrative-text">{r.rationale}</p>
-
-        {r.alignment === 'diverges' ? (
-          <p className="aa-narrative-warning">Note: {r.alignmentNote}</p>
-        ) : (
-          <p
-            className="aa-narrative-text"
-            style={{ marginTop: '0.25rem', color: '#15803d', fontWeight: 600 }}
-          >
-            Aligned
-          </p>
-        )}
-      </div>
-
-      {/* 3. Action Button Only */}
-      <div className="aa-narrative-action">
-        <button
-          type="button"
-          className={`aa-btn aa-btn--primary aa-btn--${r.action}`}
-          onClick={onTakeAction}
-          disabled={disabled}
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {/* WHAT WAS DETECTED */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          padding: '16px 20px 0',
+        }}
+      >
+        <span
+          style={{
+            fontSize: '10.5px',
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'oklch(0.56 0.015 280)',
+          }}
         >
-          {r.actionLabel} <Arrow />
-        </button>
-        {disabled && <span className="aa-narrative-disabled-note">{disabledNote}</span>}
+          WHAT WAS DETECTED
+        </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
+          {r.keyReasons.map((c) => {
+            const lower = c.text.toLowerCase();
+            return (
+              <div key={c.text} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {lower.includes('card') ? (
+                  <CreditCard size={16} color="oklch(0.58 0.015 280)" />
+                ) : lower.includes('failed') || lower.includes('failure') ? (
+                  <WarningCircle size={16} color="oklch(0.58 0.015 280)" />
+                ) : (
+                  <Laptop size={16} color="oklch(0.58 0.015 280)" />
+                )}
+                <span
+                  style={{
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    color: 'oklch(0.26 0.015 280)',
+                  }}
+                >
+                  {c.text}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      {(r.degraded || r.rehearsal) && (
-        <p className="aa-narrative-note">
-          {r.degraded && 'Put together automatically because the live AI was unavailable. '}
-          {r.rehearsal && 'Simulation: an executed action would block nobody.'}
+      {/* AI Recommendation Box */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          margin: '18px 20px',
+          padding: '14px 15px',
+          borderRadius: '10px',
+          background: 'oklch(0.988 0.002 270)',
+          border: '1px solid oklch(0.95 0.006 280)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Sparkle size={15} color="oklch(0.46 0.12 258)" />
+          <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'oklch(0.24 0.015 280)' }}>
+            AI recommendation: <span>{r.actionLabel}</span>
+          </span>
+        </div>
+        <p
+          style={{
+            margin: 0,
+            fontSize: '12.5px',
+            fontWeight: 500,
+            lineHeight: 1.65,
+            color: 'oklch(0.44 0.015 280)',
+            textWrap: 'pretty',
+          }}
+        >
+          {r.rationale}
         </p>
-      )}
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '7px',
+            width: 'fit-content',
+            padding: '3px 10px',
+            borderRadius: 'var(--s-radius-pill)',
+            fontSize: '11.5px',
+            fontWeight: 600,
+            color: 'oklch(0.4 0.11 162)',
+            background: 'oklch(0.955 0.03 162)',
+          }}
+        >
+          <CheckCircle size={13} color="oklch(0.4 0.11 162)" />
+          Aligned
+        </span>
+      </div>
 
-      <p className="aa-foot">
-        <Lock />
-        This is only a recommendation. Nothing happens until you approve it, and it follows your
-        existing policies.
-      </p>
+      {/* Action Row & Lock Note */}
+      <div
+        style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '0 20px 18px' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={onTakeAction}
+            disabled={disabled}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '9px 15px',
+              border: disabled
+                ? '1px solid oklch(0.93 0.006 280)'
+                : '1px solid oklch(0.35 0.16 250)',
+              borderRadius: '8px',
+              fontFamily: 'inherit',
+              fontSize: '12.5px',
+              fontWeight: 600,
+              color: disabled ? 'oklch(0.62 0.015 280)' : '#ffffff',
+              background: disabled ? 'oklch(0.972 0.004 270)' : 'oklch(0.35 0.16 250)',
+              cursor: disabled ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {r.actionLabel} →
+          </button>
+          <span style={{ fontSize: '12px', fontWeight: 500, color: 'oklch(0.58 0.015 280)' }}>
+            {disabledNote}
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <LockSimple size={13} color="oklch(0.66 0.015 280)" />
+          <span style={{ fontSize: '11.5px', fontWeight: 500, color: 'oklch(0.58 0.015 280)' }}>
+            This is only a recommendation. Nothing happens until you approve it, and it follows your
+            existing policies.
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

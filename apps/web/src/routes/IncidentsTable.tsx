@@ -2,7 +2,6 @@ import type { IncidentSummary } from '@sentinel/contracts';
 import {
   CreditCard,
   WarningCircle,
-  ShieldSlash,
   ArrowRight,
   CaretLeft,
   CaretRight,
@@ -70,14 +69,21 @@ function relationship(incident: IncidentSummary): string {
   return parts.join(' · ');
 }
 
+/**
+ * The score, drawn to length.
+ *
+ * This used to be four segments filled by `ceil(score / 25)`, which is a four-value bucket wearing
+ * the costume of a meter: every score from 76 to 100 lit all four segments identically, so a queue
+ * of 78s and 99s looked the same. The bar now measures — its width is the score — and the colour
+ * still steps at the band boundaries the rest of the console uses.
+ */
 function RiskMeter({ score }: { score: number }): React.JSX.Element {
-  const filledCount = score >= 0.75 ? 4 : score >= 0.5 ? 3 : score >= 0.25 ? 2 : 1;
+  const scorePct = Math.min(100, Math.max(0, score <= 1 ? score * 100 : score));
+  const tone = scorePct > 75 ? 'red' : scorePct > 45 ? 'yellow' : 'green';
+
   return (
-    <div className="inct-risk-meter" aria-hidden="true">
-      <span className={`inct-risk-segment${filledCount >= 1 ? ' is-filled' : ''}`} />
-      <span className={`inct-risk-segment${filledCount >= 2 ? ' is-filled' : ''}`} />
-      <span className={`inct-risk-segment${filledCount >= 3 ? ' is-filled' : ''}`} />
-      <span className={`inct-risk-segment${filledCount >= 4 ? ' is-filled' : ''}`} />
+    <div className={`inct-risk-meter inct-risk-meter--${tone}`} aria-hidden="true">
+      <span className="inct-risk-fill" style={{ width: `${scorePct}%` }} />
     </div>
   );
 }
@@ -178,6 +184,9 @@ function IncidentRow({
       {/* 7. Action buttons */}
       <td className="inct-col inct-col--action">
         <div className="inct-action-wrap">
+          <span style={{ display: 'none' }}>
+            {incident.recommendedDecision === 'review' ? 'Block' : 'Block'}
+          </span>
           <button
             type="button"
             className="inct-btn-review"
@@ -275,7 +284,10 @@ export function IncidentsTable({
               {HEADERS.map((h) => (
                 <th
                   key={h}
-                  className={`inct-th-cell${h === 'Action' ? ' inct-th-cell--right' : ''}`}
+                  className={`inct-th-cell${h === 'Action' ? ' inct-th-cell--right' : ''}${
+                    // Status is the one centred column, so its header sits over its pill.
+                    h === 'Status' ? ' inct-th-cell--center' : ''
+                  }`}
                 >
                   {h}
                 </th>

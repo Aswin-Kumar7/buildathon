@@ -1,4 +1,12 @@
-import { Card } from '@sentinel/ui';
+import {
+  WarningCircle,
+  CreditCard,
+  Clock,
+  CheckCircle,
+  TrendUp,
+  Ruler,
+  Laptop,
+} from '@phosphor-icons/react';
 import type { IncidentDetail } from '@sentinel/contracts';
 import {
   decisionLabel,
@@ -10,28 +18,9 @@ import {
   signalDescription,
   signalLabel,
 } from '../incidents/evidence.js';
-import './IncidentEvidence.css';
-
-/* ------------------------------------------------------------------------------------------------
- * Evidence & signals tab
- *
- * A merchant-readable, rules-only view of why the detector opened this incident. Every value comes
- * from the incident detail payload (GET /incidents/:id): the triggered rules and their observed /
- * threshold numbers are `evidence[]`; the impact tier is a presentation of each rule's real signed
- * weight; the behavioural signals are the incident's own counts, graph and (when a rule fired) the
- * observed value it carried. The ML model is deliberately absent here — it has its own tab.
- * ---------------------------------------------------------------------------------------------- */
+import { formatWindow } from '../shared/time.js';
 
 const titleCase = (value: string): string => value.charAt(0).toUpperCase() + value.slice(1);
-
-function formatWindow(ms: number): string {
-  const total = Math.max(0, Math.round(ms / 1000));
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  if (minutes === 0) return `${seconds} sec`;
-  if (minutes < 60) return `${minutes} min ${seconds} sec`;
-  return `${Math.floor(minutes / 60)} hr ${minutes % 60} min`;
-}
 
 function whyText(it: IncidentDetail): string {
   const count = it.firedRules.length;
@@ -43,89 +32,22 @@ function whyText(it: IncidentDetail): string {
   return `${lead}. Together they point to ${hypothesisName(it.primaryHypothesis).toLowerCase()}, and Sentinel’s recommendation is to ${decisionLabel(it.recommendedDecision).toLowerCase()}.`;
 }
 
-type BehaviourRow = { signal: string; observed: string; context: string };
+type BehaviourRow = {
+  signal: string;
+  observed: string;
+  context: string;
+  icon: React.JSX.Element;
+};
 
-function SignalIcon({ children }: { children: React.ReactNode }): React.JSX.Element {
-  return (
-    <svg
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      width={18}
-      height={18}
-    >
-      {children}
-    </svg>
-  );
-}
-
-function CardsIcon(): React.JSX.Element {
-  return (
-    <SignalIcon>
-      <rect x={3} y={6} width={18} height={12} rx={2} />
-      <path d="M3 10h18M7 14h.01" />
-    </SignalIcon>
-  );
-}
-
-function AttemptsIcon(): React.JSX.Element {
-  return (
-    <SignalIcon>
-      <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm0-18v8l4 4" />
-    </SignalIcon>
-  );
-}
-
-function FailedIcon(): React.JSX.Element {
-  return (
-    <SignalIcon>
-      <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10zm-3-11l6 6m0-6l-6 6" />
-    </SignalIcon>
-  );
-}
-
-function CapturedIcon(): React.JSX.Element {
-  return (
-    <SignalIcon>
-      <path d="M5 13l4 4L19 7" />
-    </SignalIcon>
-  );
-}
-
-function SessionsIcon(): React.JSX.Element {
-  return (
-    <SignalIcon>
-      <path d="M21 12c0-4.97-4.03-9-9-9s-9 4.03-9 9 4.03 9 9 9 9-4.03 9-9zM3 12h18M12 3v18M12 3c3.31 0 6 4.03 6 9s-2.69 9-6 9-6-4.03-6-9 2.69-9 6-9z" />
-    </SignalIcon>
-  );
-}
-
-function RateIcon(): React.JSX.Element {
-  return (
-    <SignalIcon>
-      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-    </SignalIcon>
-  );
-}
-
-function CadenceIcon(): React.JSX.Element {
-  return (
-    <SignalIcon>
-      <path d="M4 6h16M4 12h16m-7 6h7" />
-    </SignalIcon>
-  );
-}
-
-function behaviourRows(it: IncidentDetail): (BehaviourRow & { icon: React.JSX.Element })[] {
-  const rows: (BehaviourRow & { icon: React.JSX.Element })[] = [];
+function behaviourRows(it: IncidentDetail): BehaviourRow[] {
+  const rows: BehaviourRow[] = [];
   const cards = it.distinctCards ?? (it.graph.cards.length > 0 ? it.graph.cards.length : null);
   if (cards !== null) {
     rows.push({
       signal: 'Different cards',
       observed: `${cards}`,
       context: `linked to this ${it.entityKind}`,
-      icon: <CardsIcon />,
+      icon: <CreditCard size={15} color="oklch(0.48 0.015 280)" />,
     });
   }
   if (it.attempts > 0) {
@@ -133,13 +55,13 @@ function behaviourRows(it: IncidentDetail): (BehaviourRow & { icon: React.JSX.El
       signal: 'Attempts',
       observed: `${it.attempts}`,
       context: `over ${formatWindow(it.lastActivityAt - it.firstAttemptAt)}`,
-      icon: <AttemptsIcon />,
+      icon: <Clock size={15} color="oklch(0.48 0.015 280)" />,
     });
     rows.push({
       signal: 'Failed attempts',
       observed: `${it.failures}`,
       context: `${Math.round((it.failures / it.attempts) * 100)}% of attempts`,
-      icon: <FailedIcon />,
+      icon: <WarningCircle size={15} color="oklch(0.48 0.015 280)" />,
     });
   }
   if (it.relatedOrders.length > 0) {
@@ -150,7 +72,7 @@ function behaviourRows(it: IncidentDetail): (BehaviourRow & { icon: React.JSX.El
       signal: 'Captured',
       observed: `${captured}`,
       context: captured > 0 ? 'a payment got through' : 'nothing got through',
-      icon: <CapturedIcon />,
+      icon: <CheckCircle size={15} color="oklch(0.48 0.015 280)" />,
     });
   }
   if (it.entityKind === 'network' && it.graph.sessions.length > 0) {
@@ -158,7 +80,7 @@ function behaviourRows(it: IncidentDetail): (BehaviourRow & { icon: React.JSX.El
       signal: 'Sessions involved',
       observed: `${it.graph.sessions.length}`,
       context: 'checkout sessions on this network',
-      icon: <SessionsIcon />,
+      icon: <Laptop size={15} color="oklch(0.48 0.015 280)" />,
     });
   }
   const velocity = it.evidence.find((e) => e.code === 'attempt_rate_above_threshold');
@@ -167,7 +89,7 @@ function behaviourRows(it: IncidentDetail): (BehaviourRow & { icon: React.JSX.El
       signal: 'Peak attempt rate',
       observed: evidenceObserved(velocity),
       context: `fires past ${evidenceThreshold(velocity)}`,
-      icon: <RateIcon />,
+      icon: <TrendUp size={15} color="oklch(0.48 0.015 280)" />,
     });
   }
   const cadence = it.evidence.find((e) => e.code === 'inter_arrival_variation_low');
@@ -176,7 +98,7 @@ function behaviourRows(it: IncidentDetail): (BehaviourRow & { icon: React.JSX.El
       signal: 'Timing regularity',
       observed: cadence.observed.toFixed(2),
       context: 'lower is more machine-like',
-      icon: <CadenceIcon />,
+      icon: <Clock size={15} color="oklch(0.48 0.015 280)" />,
     });
   }
   return rows;
@@ -185,41 +107,163 @@ function behaviourRows(it: IncidentDetail): (BehaviourRow & { icon: React.JSX.El
 function TriggeredRules({ it }: { it: IncidentDetail }): React.JSX.Element {
   const rules = it.evidence.filter((e) => e.weight > 0).sort((a, b) => b.weight - a.weight);
   if (rules.length === 0) {
-    return <p className="es-empty">No unusual patterns stood out on the last check.</p>;
+    return (
+      <p
+        style={{
+          padding: '16px 20px',
+          margin: 0,
+          fontSize: '13px',
+          fontWeight: 500,
+          color: 'oklch(0.56 0.015 280)',
+        }}
+      >
+        No unusual patterns stood out on the last check.
+      </p>
+    );
   }
+
   return (
-    <div className="es-table-wrap">
-      <table className="es-rules">
-        <thead>
-          <tr>
-            <th>What we saw</th>
-            <th>Observed</th>
-            <th>Expected limit</th>
-            <th>Concern</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rules.map((e) => {
-            const impact = evidenceImpact(e.weight);
-            return (
-              <tr key={e.code}>
-                <td className="es-rule">
-                  <span className={`es-rule__dot es-rule__dot--${impact}`} aria-hidden="true" />
-                  <span className="es-rule__text">
-                    <strong>{signalLabel(e.code)}</strong>
-                    <span>{signalDescription(e.code)}</span>
-                  </span>
-                </td>
-                <td className="es-observed">{evidenceObserved(e)}</td>
-                <td className="es-threshold">{evidenceThreshold(e)}</td>
-                <td>
-                  <span className={`es-impact es-impact--${impact}`}>{titleCase(impact)}</span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {/* Table Header Bar */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(240px, 1.5fr) 100px 116px 92px',
+          gap: '14px',
+          padding: '10px 20px',
+          background: 'oklch(0.984 0.003 270)',
+          borderTop: '1px solid oklch(0.955 0.006 280)',
+          borderBottom: '1px solid oklch(0.955 0.006 280)',
+          fontSize: '10.5px',
+          fontWeight: 700,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          color: 'oklch(0.56 0.015 280)',
+        }}
+      >
+        <span>WHAT WE SAW</span>
+        <span style={{ textAlign: 'right' }}>OBSERVED</span>
+        <span style={{ textAlign: 'right' }}>EXPECTED LIMIT</span>
+        <span style={{ textAlign: 'right' }}>CONCERN</span>
+      </div>
+
+      {/* Table Rows */}
+      {rules.map((e, index) => {
+        const impact = evidenceImpact(e.weight);
+        const dotColor =
+          impact === 'high'
+            ? 'oklch(0.62 0.17 22)'
+            : impact === 'medium'
+              ? 'oklch(0.68 0.14 70)'
+              : 'oklch(0.6 0.13 162)';
+
+        const pillInk =
+          impact === 'high'
+            ? 'oklch(0.48 0.15 22)'
+            : impact === 'medium'
+              ? 'oklch(0.45 0.12 70)'
+              : 'oklch(0.4 0.11 162)';
+
+        const pillBg =
+          impact === 'high'
+            ? 'oklch(0.958 0.026 22)'
+            : impact === 'medium'
+              ? 'oklch(0.965 0.03 70)'
+              : 'oklch(0.955 0.03 162)';
+
+        return (
+          <div
+            key={e.code}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(240px, 1.5fr) 100px 116px 92px',
+              gap: '14px',
+              padding: '14px 20px',
+              alignItems: 'center',
+              ...(index < rules.length - 1 && {
+                borderBottom: '1px solid oklch(0.968 0.006 280)',
+              }),
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', minWidth: 0 }}>
+              <span
+                style={{
+                  flex: '0 0 6px',
+                  width: '6px',
+                  height: '6px',
+                  marginTop: '5px',
+                  borderRadius: '99px',
+                  background: dotColor,
+                }}
+              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+                <span
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    letterSpacing: '-0.012em',
+                    color: 'oklch(0.24 0.015 280)',
+                  }}
+                >
+                  {signalLabel(e.code)}
+                </span>
+                <span
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    lineHeight: 1.45,
+                    color: 'oklch(0.56 0.015 280)',
+                    textWrap: 'pretty',
+                  }}
+                >
+                  {signalDescription(e.code)}
+                </span>
+              </div>
+            </div>
+
+            <span
+              style={{
+                textAlign: 'right',
+                fontSize: '13px',
+                fontWeight: 700,
+                fontVariantNumeric: 'tabular-nums',
+                color: 'oklch(0.2 0.015 280)',
+              }}
+            >
+              {evidenceObserved(e)}
+            </span>
+
+            <span
+              style={{
+                textAlign: 'right',
+                fontSize: '12.5px',
+                fontWeight: 500,
+                fontVariantNumeric: 'tabular-nums',
+                color: 'oklch(0.56 0.015 280)',
+              }}
+            >
+              {evidenceThreshold(e)}
+            </span>
+
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                justifySelf: 'end',
+                padding: '3px 10px',
+                borderRadius: 'var(--s-radius-pill)',
+                fontSize: '11.5px',
+                fontWeight: 600,
+                color: pillInk,
+                background: pillBg,
+              }}
+            >
+              {titleCase(impact)}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -227,73 +271,273 @@ function TriggeredRules({ it }: { it: IncidentDetail }): React.JSX.Element {
 function WhyFlaggedCard({ it }: { it: IncidentDetail }): React.JSX.Element {
   const mitigating = it.evidence.filter((e) => e.weight < 0);
   return (
-    <Card title="Why this looks suspicious">
-      <p className="es-why">{whyText(it)}</p>
+    <section
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: '12px',
+        background: 'oklch(1 0 0)',
+        border: '1px solid oklch(0.925 0.006 280)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '12px',
+          padding: '16px 20px',
+          borderBottom: '1px solid oklch(0.955 0.006 280)',
+        }}
+      >
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flex: '0 0 32px',
+            width: '32px',
+            height: '32px',
+            borderRadius: '9px',
+            background: 'oklch(0.962 0.024 258)',
+          }}
+        >
+          <WarningCircle size={16} color="oklch(0.46 0.12 258)" />
+        </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '14.5px',
+              fontWeight: 600,
+              letterSpacing: '-0.018em',
+              color: 'oklch(0.21 0.015 280)',
+            }}
+          >
+            Why this looks suspicious
+          </h2>
+          <p
+            style={{
+              margin: 0,
+              fontSize: '12px',
+              fontWeight: 500,
+              color: 'oklch(0.56 0.015 280)',
+              textWrap: 'pretty',
+            }}
+          >
+            Warning signs observed within the incident window.
+          </p>
+        </div>
+      </div>
+
+      <p
+        style={{
+          margin: 0,
+          padding: '16px 20px 12px',
+          maxWidth: '78ch',
+          fontSize: '13px',
+          fontWeight: 500,
+          lineHeight: 1.65,
+          color: 'oklch(0.32 0.015 280)',
+          textWrap: 'pretty',
+        }}
+      >
+        {whyText(it)}
+      </p>
 
       <TriggeredRules it={it} />
 
       {mitigating.length > 0 && (
-        <p className="es-note">
-          <strong>Argued against flagging:</strong>{' '}
+        <p
+          style={{
+            margin: 0,
+            padding: '12px 20px',
+            fontSize: '12px',
+            fontWeight: 500,
+            color: 'oklch(0.5 0.015 280)',
+          }}
+        >
+          <strong style={{ fontWeight: 600, color: 'oklch(0.3 0.015 280)' }}>
+            Argued against flagging:
+          </strong>{' '}
           {mitigating.map((e) => signalLabel(e.code)).join(', ')}.
         </p>
       )}
       {it.abstentions.length > 0 && (
-        <p className="es-note">
-          <strong>Not enough data to judge:</strong>{' '}
+        <p
+          style={{
+            margin: 0,
+            padding: '8px 20px 14px',
+            fontSize: '12px',
+            fontWeight: 500,
+            color: 'oklch(0.5 0.015 280)',
+          }}
+        >
+          <strong style={{ fontWeight: 600, color: 'oklch(0.3 0.015 280)' }}>
+            Not enough data to judge:
+          </strong>{' '}
           {it.abstentions.map((a) => ruleName(a.rule)).join(', ')}.
         </p>
       )}
-    </Card>
+    </section>
   );
 }
 
 function BehaviouralSignalsCard({ it }: { it: IncidentDetail }): React.JSX.Element {
   const rows = behaviourRows(it);
   return (
-    <Card title="What we measured" subtitle="The key numbers behind this incident.">
-      {rows.length === 0 ? (
-        <p className="es-empty">No extra measurements are available for this incident.</p>
-      ) : (
-        <div className="es-table-wrap">
-          <table className="es-behaviour">
-            <thead>
-              <tr>
-                <th>Signal</th>
-                <th>Observed value</th>
-                <th>Context</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.signal}>
-                  <td className="es-behaviour__name">
-                    <span className="es-icon-wrap">{row.icon}</span>
-                    {row.signal}
-                  </td>
-                  <td className="es-behaviour__value">{row.observed}</td>
-                  <td className="es-behaviour__ctx">{row.context}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <section
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: '12px',
+        background: 'oklch(1 0 0)',
+        border: '1px solid oklch(0.925 0.006 280)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '12px',
+          padding: '16px 20px',
+          borderBottom: '1px solid oklch(0.955 0.006 280)',
+        }}
+      >
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flex: '0 0 32px',
+            width: '32px',
+            height: '32px',
+            borderRadius: '99px',
+            background: 'oklch(0.962 0.024 258)',
+          }}
+        >
+          <Ruler size={16} color="oklch(0.46 0.12 258)" />
+        </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '14.5px',
+              fontWeight: 600,
+              letterSpacing: '-0.018em',
+              color: 'oklch(0.21 0.015 280)',
+            }}
+          >
+            What we measured
+          </h2>
+          <p
+            style={{
+              margin: 0,
+              fontSize: '12px',
+              fontWeight: 500,
+              color: 'oklch(0.56 0.015 280)',
+              textWrap: 'pretty',
+            }}
+          >
+            The key numbers behind this incident.
+          </p>
         </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <p
+          style={{
+            padding: '16px 20px',
+            margin: 0,
+            fontSize: '13px',
+            fontWeight: 500,
+            color: 'oklch(0.56 0.015 280)',
+          }}
+        >
+          No extra measurements are available for this incident.
+        </p>
+      ) : (
+        rows.map((row, index) => (
+          <div
+            key={row.signal}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              padding: '14px 20px',
+              ...(index < rows.length - 1 && {
+                borderBottom: '1px solid oklch(0.968 0.006 280)',
+              }),
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flex: '0 0 28px',
+                width: '28px',
+                height: '28px',
+                borderRadius: '8px',
+                background: 'oklch(0.965 0.004 270)',
+              }}
+            >
+              {row.icon}
+            </span>
+            <span
+              style={{
+                flex: '1 1 auto',
+                fontSize: '12.5px',
+                fontWeight: 500,
+                color: 'oklch(0.3 0.015 280)',
+              }}
+            >
+              {row.signal}
+            </span>
+            <span
+              style={{
+                flex: '0 0 56px',
+                textAlign: 'right',
+                fontSize: '14px',
+                fontWeight: 700,
+                fontVariantNumeric: 'tabular-nums',
+                color: 'oklch(0.2 0.015 280)',
+              }}
+            >
+              {row.observed}
+            </span>
+            <span
+              style={{
+                flex: '0 0 152px',
+                textAlign: 'right',
+                fontSize: '11.5px',
+                fontWeight: 500,
+                color: 'oklch(0.58 0.015 280)',
+              }}
+            >
+              {row.context}
+            </span>
+          </div>
+        ))
       )}
-    </Card>
+    </section>
   );
 }
 
 export function EvidenceSignalsTab({ it }: { it: IncidentDetail }): React.JSX.Element {
   return (
-    <div className="es">
-      <div className="es-grid">
-        <div className="es-col">
-          <WhyFlaggedCard it={it} />
-        </div>
-        <div className="es-col">
-          <BehaviouralSignalsCard it={it} />
-        </div>
-      </div>
-    </div>
+    <section
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1.15fr) minmax(0, 1fr)',
+        gap: '12px',
+        marginBottom: '14px',
+        alignItems: 'start',
+      }}
+    >
+      <WhyFlaggedCard it={it} />
+      <BehaviouralSignalsCard it={it} />
+    </section>
   );
 }

@@ -13,14 +13,8 @@ import {
   PlayCircle,
 } from '@phosphor-icons/react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { simulationStatusSchema, type SimulationStatus } from '@sentinel/contracts';
 import { apiMutate } from '../auth/api.js';
-
-async function fetchStatus(): Promise<SimulationStatus> {
-  const response = await fetch('/api/simulation/status', { credentials: 'include' });
-  if (!response.ok) throw new Error(`api returned ${response.status}`);
-  return simulationStatusSchema.parse(await response.json());
-}
+import { fetchSimulationStatus as fetchStatus } from '../shared/fetchers.js';
 
 async function stopSimulation(): Promise<void> {
   const response = await apiMutate('/api/simulation/stop');
@@ -104,7 +98,7 @@ export function SimulationPanel({
   const verdictTitle = isDone
     ? s.incidentsDetected > 0
       ? 'Incident raised — abuse pattern detected'
-      : 'No incident — and that is the right call'
+      : 'No incident opened — and that is the right call'
     : '';
 
   const verdictText = isDone
@@ -169,11 +163,24 @@ export function SimulationPanel({
           </span>
           <span
             style={{
+              padding: '3px 10px',
+              borderRadius: 'var(--s-radius-pill)',
+              fontSize: '10.5px',
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              color: 'oklch(0.44 0.015 280)',
+              background: 'oklch(0.958 0.006 280)',
+            }}
+          >
+            SIMULATED
+          </span>
+          <span
+            style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '3px 9px',
-              borderRadius: '99px',
+              padding: '3px 10px',
+              borderRadius: 'var(--s-radius-pill)',
               fontSize: '10.5px',
               fontWeight: 600,
               whiteSpace: 'nowrap',
@@ -181,7 +188,7 @@ export function SimulationPanel({
               background: isDone ? 'oklch(0.955 0.006 280)' : 'oklch(0.962 0.024 258)',
             }}
           >
-            {isDone ? 'Finished' : 'Running'}
+            {isDone ? 'Simulation finished' : 'Running'}
           </span>
           <button
             type="button"
@@ -406,6 +413,72 @@ export function SimulationPanel({
         </p>
       </div>
 
+      {/* Incidents Detected List */}
+      {s.detected.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+            padding: '14px 16px',
+            borderBottom: '1px solid oklch(0.958 0.006 280)',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '10.5px',
+              fontWeight: 700,
+              letterSpacing: '0.07em',
+              textTransform: 'uppercase',
+              color: 'oklch(0.52 0.015 280)',
+            }}
+          >
+            Incidents detected
+          </span>
+          {s.detected.map((inc) => (
+            <div
+              key={inc.id}
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+                padding: '12px 13px',
+                borderRadius: '11px',
+                background: 'oklch(0.982 0.014 22)',
+              }}
+            >
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flex: '0 0 20px',
+                  width: '20px',
+                  height: '20px',
+                  marginTop: '1px',
+                  borderRadius: '99px',
+                  background: 'oklch(0.58 0.17 22)',
+                  color: 'oklch(1 0 0)',
+                }}
+              >
+                <Warning size={12} />
+              </span>
+              <span style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
+                <span
+                  style={{
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    color: 'oklch(0.22 0.015 280)',
+                  }}
+                >
+                  {inc.title}
+                </span>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Detection Outcome Verdict */}
       {isDone && (
         <div
@@ -483,6 +556,78 @@ export function SimulationPanel({
         </div>
       )}
 
+      {/* Stood Down Incidents */}
+      {s.stoodDown && s.stoodDown.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+            padding: '14px 16px',
+            borderBottom: '1px solid oklch(0.958 0.006 280)',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '10.5px',
+              fontWeight: 700,
+              letterSpacing: '0.07em',
+              textTransform: 'uppercase',
+              color: 'oklch(0.52 0.015 280)',
+            }}
+          >
+            Opened, then stood down
+          </span>
+          {s.stoodDown.map((sd) => (
+            <div
+              key={sd.id}
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+                padding: '12px 13px',
+                borderRadius: '11px',
+                background: 'oklch(0.98 0.014 162)',
+              }}
+            >
+              <span style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
+                <span
+                  style={{
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    color: 'oklch(0.22 0.015 280)',
+                  }}
+                >
+                  {sd.title}
+                </span>
+                <span
+                  style={{
+                    fontSize: '11.5px',
+                    fontWeight: 500,
+                    color: 'oklch(0.45 0.015 280)',
+                  }}
+                >
+                  Re-classified as {sd.resolvedAs ?? 'retry storm'}
+                </span>
+              </span>
+              <span
+                style={{
+                  marginLeft: 'auto',
+                  padding: '3px 10px',
+                  borderRadius: 'var(--s-radius-pill)',
+                  fontSize: '10.5px',
+                  fontWeight: 600,
+                  color: 'oklch(0.4 0.11 162)',
+                  background: 'oklch(0.955 0.03 162)',
+                }}
+              >
+                stood down
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Expandable Live Activity Feed */}
       <button
         type="button"
@@ -521,7 +666,7 @@ export function SimulationPanel({
         <span
           style={{
             padding: '2px 7px',
-            borderRadius: '99px',
+            borderRadius: 'var(--s-radius-pill)',
             fontSize: '10.5px',
             fontWeight: 600,
             fontVariantNumeric: 'tabular-nums',

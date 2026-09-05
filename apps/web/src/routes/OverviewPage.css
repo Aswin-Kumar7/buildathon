@@ -1,768 +1,1165 @@
-/* Overview Page Container */
-.ov-page-wrapper {
+/* ═══════════════════════════════════════════════════════════════════════════
+   SENTINEL OVERVIEW PAGE DESIGN SYSTEM
+   Consistent typography, modern visual hierarchy, and institutional styling.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.ov-page {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  color: #101828;
-  font-family: inherit;
+  gap: 14px;
+  font-family: var(--s-font);
+  color: oklch(0.25 0.015 280);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Base Card Style */
-.ov-card {
-  background: #ffffff;
-  border: none;
-  border-radius: 12px;
-  box-shadow:
-    0px 4px 18px rgba(13, 21, 38, 0.04),
-    0px 1px 3px rgba(13, 21, 38, 0.02);
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.ov-card:hover {
-  box-shadow:
-    0px 6px 24px rgba(13, 21, 38, 0.06),
-    0px 2px 6px rgba(13, 21, 38, 0.03);
-}
-
-/* Header Hero */
-.ov-header-hero {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1.5rem;
-  margin-bottom: 0.25rem;
-}
-
-.ov-header-title-group h1 {
-  margin: 0;
-  font-size: 1.75rem;
-  font-weight: 500;
-  color: #0f172a;
-  letter-spacing: -0.025em;
-  line-height: 1.2;
-}
-
-.ov-header-subtitle {
-  margin: 0.35rem 0 0;
-  color: #64748b;
-  font-size: 0.875rem;
-  font-weight: 400;
-  line-height: 1.4;
-}
-
-.ov-header-right-controls {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.ov-top-actions-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-/* System Healthy Pill */
-.ov-health-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.45rem 0.85rem;
-  background: #ecfdf5;
-  border: none;
-  border-radius: 9999px;
-  color: #067647;
-  font-size: 0.9375rem;
-  font-weight: 400;
-  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.04);
-}
-
-.ov-health-dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 50%;
-  background: #12b76a;
-}
-
-/* Store Select Button */
-.ov-store-select-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.85rem;
-  background: #ffffff;
-  border: none;
-  border-radius: 0.5rem;
-  color: #344054;
-  font-size: 0.875rem;
-  font-weight: 400;
-  cursor: pointer;
-  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
-  transition: all 0.15s ease;
-}
-
-.ov-store-select-btn:hover {
-  background: #f9fafb;
-}
-
-.ov-header-updated-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #667085;
-  font-size: 0.8rem;
-}
-
-.ov-refresh-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.45rem 0.85rem;
-  background: #ffffff;
-  border: none;
-  border-radius: 0.5rem;
-  color: #0b72e7;
-  font-size: 0.9375rem;
-  font-weight: 400;
-  cursor: pointer;
-  box-shadow: 0px 1px 3px rgba(16, 24, 40, 0.08);
-  transition: all 0.15s ease;
-}
-
-.ov-refresh-btn:hover {
-  background: #eff6ff;
-  color: #0b72e7;
-}
-
-.ov-refresh-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.ov-updated-text {
-  font-size: 0.875rem;
-  color: #667085;
-  white-space: nowrap;
-}
-
-.ov-source-pills {
-  display: none; /* Secondary tab control for developers */
-}
-
-/* Top Stat Cards Grid (Horizontal KPI layout) */
-.ov-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.85rem;
-}
-
-.ov-stat-card {
-  display: flex;
-  align-items: center;
-  gap: 0.85rem;
-  padding: 1.15rem 1.15rem;
-  border-radius: 12px;
-  background: #ffffff;
-  border: none;
-  box-shadow:
-    0px 4px 18px rgba(13, 21, 38, 0.04),
-    0px 1px 3px rgba(13, 21, 38, 0.02);
-  transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.ov-stat-card:hover {
-  box-shadow: 0px 6px 24px rgba(13, 21, 38, 0.06);
-}
-
-.ov-stat-card__inner {
-  display: contents;
-}
-
-.ov-stat-card__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  flex-shrink: 0;
-  border-radius: 10px;
-}
-
-.ov-stat-card__icon--blue {
-  background: #eff6ff;
-  color: #0b72e7;
-}
-
-.ov-stat-card__icon--red {
-  background: #fee2e2;
-  color: #dc2626;
-}
-
-.ov-stat-card__icon--purple {
-  background: #eff6ff;
-  color: #0b72e7;
-}
-
-.ov-stat-card__icon--green {
-  background: #e6f7ed;
-  color: #16a34a;
-}
-
-.ov-stat-card__content {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  min-width: 0;
-}
-
-.ov-stat-card__label {
-  color: #475569;
-  font-size: 0.8rem;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.ov-stat-card__value {
-  font-size: 1.65rem;
-  font-weight: 500;
-  letter-spacing: -0.03em;
-  color: #0f172a;
-  line-height: 1.15;
-  font-variant-numeric: tabular-nums;
-}
-
-.ov-stat-card__foot {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.ov-stat-sub {
-  font-size: 0.875rem;
-  font-weight: 500;
-  white-space: nowrap;
-  color: #64748b;
-}
-
-.ov-delta {
-  font-size: 0.875rem;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.ov-delta--up {
-  color: #16a34a;
-}
-
-.ov-delta--down {
-  color: #dc2626;
-}
-
-/* Panel Common Styles */
-.ov-panel {
-  padding: 1.35rem;
-}
-
-.ov-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.1rem;
-}
-
-.ov-panel-header h2 {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 500;
-  color: #101828;
-  letter-spacing: -0.01em;
-}
-
-.ov-link-all {
-  color: #0b72e7;
-  font-size: 0.9375rem;
-  font-weight: 400;
-  text-decoration: none;
-}
-
-.ov-link-all:hover {
-  text-decoration: underline;
-}
-
-/* Select Window Dropdown */
-.ov-select-wrapper {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-
-.ov-select {
-  appearance: none;
-  background: #f8fafc;
-  border: none;
-  border-radius: 0.5rem;
-  padding: 0.35rem 1.8rem 0.35rem 0.75rem;
-  font-size: 0.9375rem;
-  font-weight: 400;
-  color: #344054;
-  cursor: pointer;
-  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.04);
-}
-
-.ov-select-wrapper svg {
-  position: absolute;
-  right: 0.6rem;
-  pointer-events: none;
-  color: #667085;
-}
-
-/* Middle Grid */
-.ov-middle-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-  gap: 1.25rem;
-}
-
-/* Trend Chart */
-.ov-chart-container {
-  display: flex;
-  gap: 0.75rem;
-  height: 12.5rem;
-  position: relative;
-}
-
-.ov-chart-y-axis {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  color: #667085;
-  font-size: 0.875rem;
-  font-weight: 500;
-  padding-bottom: 0.2rem;
-}
-
-.ov-chart-body {
-  position: relative;
-  flex: 1;
-  height: 100%;
-}
-
-.ov-chart-grid-lines {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  pointer-events: none;
-}
-
-.ov-grid-line {
-  border-bottom: 1px dashed #eaecf0;
-  width: 100%;
-}
-
-.ov-chart-svg {
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.ov-chart-x-axis {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 0.6rem;
-  padding-left: 2.4rem;
-  color: #667085;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-/* Recent Incidents Card */
-.ov-incident-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.ov-incident-list li {
-  border-bottom: 1px solid #f8fafc;
-}
-
-.ov-incident-list li:last-child {
-  border-bottom: none;
-}
-
-.ov-incident-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 0.25rem;
-  color: inherit;
-  text-decoration: none;
-  border-radius: 0.375rem;
-  transition: background-color 0.15s ease;
-}
-
-.ov-incident-row:hover {
-  background: #f9fafb;
-}
-
-.ov-badge {
-  padding: 0.2rem 0.45rem;
-  border-radius: 0.25rem;
-  font-size: 0.65rem;
-  font-weight: 500;
-  letter-spacing: 0.03em;
-  flex-shrink: 0;
-}
-
-.ov-badge--critical {
-  background: #fef3f2;
-  color: #b42318;
-}
-
-.ov-badge--high {
-  background: #fffaeb;
-  color: #b54708;
-}
-
-.ov-badge--medium {
-  background: #fef0c7;
-  color: #b54708;
-}
-
-.ov-badge--low {
-  background: #eff6ff;
-  color: #0b72e7;
-}
-
-.ov-incident-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.ov-incident-title {
-  font-size: 0.875rem;
-  font-weight: 400;
-  color: #101828;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ov-incident-meta {
-  font-size: 0.875rem;
-  color: #667085;
-}
-
-.ov-status-pill {
-  padding: 0.25rem 0.65rem;
-  border-radius: 9999px;
-  font-size: 0.875rem;
-  font-weight: 400;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.ov-status-pill--needs-review {
-  background: #fef3f2;
-  color: #f04438;
-}
-
-.ov-status-pill--monitoring {
-  background: #eff6ff;
-  color: #0b72e7;
-}
-
-.ov-status-pill--reviewing {
-  background: #fef0c7;
-  color: #b54708;
-}
-
-.ov-status-pill--resolved {
-  background: #ecfdf5;
-  color: #027a48;
-}
-
-.ov-status-pill--neutral {
-  background: #f2f4f7;
-  color: #344054;
-}
-
-.ov-incident-row svg {
-  color: #d0d5dd;
-  flex-shrink: 0;
-}
-
-/* Bottom Grid */
-.ov-bottom-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(0, 0.95fr);
-  gap: 1.25rem;
-}
-
-/* How Sentinel Protects You Section */
-.ov-flow-steps {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0.5rem;
-  margin: 1.5rem 0 1.75rem;
-}
-
-.ov-flow-line {
-  position: absolute;
-  top: 1.35rem;
-  left: 10%;
-  right: 10%;
-  height: 2px;
-  background: #eff6ff;
-  z-index: 1;
-}
-
-.ov-flow-step {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.ov-flow-icon-bubble {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 50%;
-  background: #eff6ff;
-  border: none;
-  color: #0b72e7;
-  margin-bottom: 0.6rem;
-  box-shadow: 0px 1px 3px rgba(16, 24, 40, 0.05);
-}
-
-.ov-flow-step-title {
-  font-size: 0.9375rem;
-  font-weight: 500;
-  color: #101828;
-}
-
-.ov-flow-step-desc {
-  margin: 0.25rem 0 0;
-  font-size: 0.875rem;
-  color: #667085;
-  line-height: 1.35;
-  max-width: 9rem;
-}
-
-/* Banner Box Inside Flow Card */
-.ov-banner-box {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.1rem 1.25rem;
-  background: #eff6ff;
-  border: none;
-  border-radius: 0.75rem;
-}
-
-.ov-banner-icon-bg {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: 50%;
-  background: #0b72e7;
-  flex-shrink: 0;
-}
-
-.ov-banner-text {
-  flex: 1;
-}
-
-.ov-banner-text strong {
+/* ── Page Header ──────────────────────────────────────────────────────────── */
+.ovp-head {
   display: block;
-  font-size: 0.95rem;
+  padding: 4px 0 2px;
+}
+
+.ovp-head h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+  color: oklch(0.18 0.015 280);
+}
+
+.ovp-head p {
+  margin: 4px 0 0;
+  font-size: 13px;
   font-weight: 500;
-  color: #101828;
+  color: oklch(0.55 0.015 280);
 }
 
-.ov-banner-text p {
-  margin: 0.2rem 0 0;
-  font-size: 0.9375rem;
-  color: #344054;
+/* ── Time Range Selector ─────────────────────────────────────────────────── */
+.ov-range {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid oklch(0.925 0.006 280);
+  border-radius: 8px;
+  background: oklch(0.985 0.003 270);
 }
 
-.ov-banner-button {
-  padding: 0.5rem 1rem;
-  background: #ffffff;
-  border: none;
-  border-radius: 9999px;
-  color: #0b72e7;
-  font-size: 0.9375rem;
-  font-weight: 400;
-  text-decoration: none;
-  white-space: nowrap;
-  box-shadow: 0px 1px 2px rgba(16, 24, 40, 0.05);
+.ov-range__btn {
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: oklch(0.5 0.015 280);
+  cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.ov-banner-button:hover {
-  background: #f9fafb;
+.ov-range__btn:hover {
+  color: oklch(0.24 0.015 280);
 }
 
-/* Top Risk Reasons Section */
-.ov-reasons-list {
+.ov-range__btn.is-active {
+  background: #ffffff;
+  color: oklch(0.22 0.015 280);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Unreviewed Incident Alert Banner ─────────────────────────────────────── */
+.ov-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  border: 1px solid oklch(0.9 0.04 22);
+  border-radius: 12px;
+  background: oklch(0.985 0.015 22);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.ov-alert__icon {
+  flex: none;
+  color: oklch(0.55 0.19 22);
+}
+
+.ov-alert__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: oklch(0.38 0.15 22);
+}
+
+.ov-alert__facts {
+  font-size: 12px;
+  font-weight: 500;
+  color: oklch(0.52 0.07 22);
+}
+
+.ov-alert__cta {
+  margin-left: auto;
+  padding: 6px 14px;
+  border-radius: 7px;
+  background: var(--s-accent, #0b72e7);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.ov-alert__cta:hover {
+  background: var(--s-accent-hover, #0052cc);
+}
+
+/* ── Top Metric KPI Cards Strip ──────────────────────────────────────────── */
+.ov-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid oklch(0.925 0.006 280);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+}
+
+.ov-kpi {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-}
-
-.ov-reason-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.ov-reason-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  gap: 10px;
   min-width: 0;
+  padding: 16px 20px;
+  border-left: 1px solid oklch(0.955 0.006 280);
 }
 
-.ov-reason-icon {
+.ov-kpi:first-child {
+  border-left: 0;
+}
+
+.ov-kpi__label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: oklch(0.54 0.015 280);
+}
+
+.ov-kpi__value {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 0.5rem;
-  background: #f8fafc;
-  border: none;
-  flex-shrink: 0;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: oklch(0.2 0.015 280);
 }
 
-.ov-reason-name {
-  font-size: 0.9375rem;
-  font-weight: 400;
-  color: #101828;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.ov-kpi__value span {
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: oklch(0.55 0.015 280);
   white-space: nowrap;
 }
 
-.ov-reason-right {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 50%;
+.ov-kpi__value--alert {
+  color: oklch(0.48 0.18 22);
 }
 
-.ov-reason-bar-bg {
-  flex: 1;
-  height: 0.5rem;
-  background: #f2f4f7;
-  border-radius: 9999px;
+.ov-kpi__value--ok {
+  color: oklch(0.42 0.13 150);
+}
+
+/* Sits where the other cards put their track, so the four cards keep one rhythm. */
+.ov-kpi__note {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: oklch(0.45 0.015 280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ov-kpi__foot {
+  margin: auto 0 0;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: oklch(0.55 0.015 280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sparkline micro-bar track */
+.ov-spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 32px;
+  padding: 2px 0;
+}
+
+.ov-spark__bar {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 2px;
+  background: oklch(0.88 0.03 250);
+  transition:
+    height 0.2s ease,
+    background 0.15s ease;
+}
+
+.ov-spark__bar:hover {
+  background: var(--s-accent, #0b72e7);
+}
+
+/* Segmented progress micro-track */
+.ov-segs {
+  height: 5px;
+  border-radius: 3px;
+  background: oklch(0.955 0.006 280);
   overflow: hidden;
 }
 
-.ov-reason-bar-fill {
+.ov-segs__fill {
+  display: block;
   height: 100%;
-  border-radius: 9999px;
+  border-radius: 3px;
   transition: width 0.3s ease;
 }
 
-.ov-reason-pct {
-  font-size: 0.9375rem;
-  font-weight: 400;
-  color: #101828;
-  width: 2.5rem;
-  text-align: right;
+.ov-segs__fill--alert {
+  background: oklch(0.55 0.19 22);
 }
 
-.ov-reasons-footer {
-  margin-top: 1.25rem;
-  text-align: right;
+.ov-segs__fill--ok {
+  background: oklch(0.6 0.15 150);
 }
 
-.ov-reasons-link {
-  color: #0b72e7;
-  font-size: 0.9375rem;
-  font-weight: 400;
-  text-decoration: none;
+/*
+ * The risk card keeps the strip's four-row anatomy — label, value, track, footnote — and hands the
+ * gauge a column of its own beside them. Laying it out as a row instead used to centre the whole
+ * card, which is what pushed its label below every other label in the strip.
+ */
+.ov-kpi--gauge {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto 1fr;
+  align-content: start;
+  column-gap: 14px;
 }
 
-.ov-reasons-link:hover {
-  text-decoration: underline;
+.ov-kpi--gauge > *:not(.ov-gauge) {
+  grid-column: 1;
 }
 
-/* Responsive Breakpoints */
-@media (max-width: 80rem) {
-  .ov-stats-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (max-width: 64rem) {
-  .ov-middle-grid,
-  .ov-bottom-grid {
-    grid-template-columns: 1fr;
-  }
-  .ov-stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 48rem) {
-  .ov-header-hero {
-    flex-direction: column;
-  }
-  .ov-header-right-controls {
-    align-items: flex-start;
-  }
-  .ov-stats-grid {
-    grid-template-columns: 1fr;
-  }
-  .ov-flow-steps {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-  .ov-flow-line {
-    display: none;
-  }
-  .ov-banner-box {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-/* Honest chart empty state + degraded health pill (added when wiring real data). */
-.ov-chart-empty {
-  position: absolute;
-  inset: 0;
+/*
+ * The dial's viewBox is 180x100, so a square slot rendered it two-thirds the width it could be and
+ * left a third of the box empty underneath — which is what made it look both small and off-centre.
+ * The slot now carries the dial's own proportions.
+ */
+.ov-gauge {
+  grid-column: 2;
+  grid-row: 1 / -1;
+  align-self: center;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.9375rem;
-  color: var(--s-ink-3, #667085);
+  flex: none;
+  /* The card gives 250px of content and the threshold footnote needs 137px of it, so this is the
+     widest the dial can be without pushing that line into an ellipsis. */
+  width: 94px;
 }
-.ov-health-pill--bad {
-  background: #fef3f2;
-  color: #b42318;
+
+.ov-gauge .rg-gauge-card {
+  max-width: none;
+  width: 100%;
+  /* The gauge's own --nobox variant sets this padding with !important, so matching it is the only
+     way to reclaim the 16px it was taking out of an already narrow slot. */
+  padding: 0 !important;
 }
-.ov-health-pill--bad .ov-health-dot {
-  background: #f04438;
+
+.ov-gauge .rg-gauge-visual {
+  max-width: none;
+}
+
+.ov-gauge svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.ov-kpi__value--crit {
+  color: oklch(0.48 0.18 22);
+}
+
+.ov-kpi__value--warn {
+  color: oklch(0.5 0.13 75);
+}
+
+/* ── Panel Card Foundation ────────────────────────────────────────────────── */
+.ov-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid oklch(0.925 0.006 280);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+}
+
+.ov-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 20px;
+  border-bottom: 1px solid oklch(0.955 0.006 280);
+}
+
+.ov-panel__head h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: oklch(0.22 0.015 280);
+}
+
+.ov-panel__sub {
+  margin: 4px 0 0;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: oklch(0.55 0.015 280);
+}
+
+.ov-panel__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--s-accent, #0b72e7);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: opacity 0.15s ease;
+}
+
+.ov-panel__more:hover {
+  text-decoration: underline;
+}
+
+.ov-panel__empty {
+  margin: 0;
+  padding: 28px 20px;
+  text-align: center;
+  font-size: 12.5px;
+  color: oklch(0.55 0.015 280);
+}
+
+/* Docked Card Footer matching Incidents, Attempts, and Policy pages */
+.ov-panel__foot {
+  margin-top: auto;
+  padding: 12px 20px;
+  border-top: 1px solid oklch(0.955 0.006 280);
+  background: oklch(0.985 0.003 270);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: oklch(0.55 0.015 280);
+}
+
+/* ── Grid Layouts ─────────────────────────────────────────────────────────── */
+.ovp-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.ovp-grid--main {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+}
+
+.ovp-grid--foot {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 1100px) {
+  .ov-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ovp-grid--main,
+  .ovp-grid--foot {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── Status Pills & Plates ────────────────────────────────────────────────── */
+.ov-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--s-radius-pill, 9999px);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.ov-pill--crit {
+  color: oklch(0.44 0.16 22);
+  background: oklch(0.96 0.026 22);
+}
+
+.ov-pill--warn {
+  color: oklch(0.46 0.13 62);
+  background: oklch(0.965 0.03 72);
+}
+
+.ov-pill--info {
+  color: oklch(0.42 0.13 258);
+  background: oklch(0.955 0.026 258);
+}
+
+.ov-pill--ok {
+  color: oklch(0.4 0.12 150);
+  background: oklch(0.955 0.03 150);
+}
+
+.ov-pill--muted {
+  color: oklch(0.48 0.015 280);
+  background: oklch(0.958 0.006 280);
+}
+
+.ov-plate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.ov-plate--crit {
+  color: oklch(0.5 0.17 22);
+  background: oklch(0.96 0.026 22);
+}
+
+.ov-plate--warn {
+  color: oklch(0.5 0.14 62);
+  background: oklch(0.965 0.03 72);
+}
+
+.ov-plate--info {
+  color: oklch(0.44 0.14 258);
+  background: oklch(0.955 0.026 258);
+}
+
+.ov-plate--ok {
+  color: oklch(0.42 0.13 150);
+  background: oklch(0.955 0.03 150);
+}
+
+.ov-plate--muted {
+  color: oklch(0.48 0.02 280);
+  background: oklch(0.958 0.006 280);
+}
+
+/* ── Recent Incidents List ────────────────────────────────────────────────── */
+.ov-inc {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ov-inc__row {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 13px 20px;
+  border-bottom: 1px solid oklch(0.965 0.006 280);
+  transition: background 0.12s ease;
+}
+
+.ov-inc__row:hover {
+  background: oklch(0.99 0.002 270);
+}
+
+.ov-inc__row:last-child {
+  border-bottom: 0;
+}
+
+.ov-inc__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ov-inc__when {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: oklch(0.6 0.015 280);
+  white-space: nowrap;
+}
+
+.ov-inc__title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: oklch(0.2 0.015 280);
+  text-decoration: none;
+  line-height: 1.3;
+}
+
+.ov-inc__title:hover {
+  color: var(--s-accent, #0b72e7);
+}
+
+.ov-inc__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: oklch(0.55 0.015 280);
+  flex-wrap: wrap;
+}
+
+.ov-inc__entity code {
+  font-family: var(--s-mono, ui-monospace, monospace);
+  font-size: 11px;
+  background: oklch(0.965 0.006 280);
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: oklch(0.3 0.015 280);
+}
+
+.ov-inc__card-count {
+  font-size: 11px;
+  color: oklch(0.48 0.015 280);
+}
+
+.ov-inc__score {
+  margin-left: auto;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: oklch(0.45 0.015 280);
+}
+
+.ov-inc__score strong {
+  font-weight: 700;
+  color: oklch(0.25 0.015 280);
+}
+
+.ov-inc__summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ov-inc__count-chip {
+  font-size: 11.5px;
+}
+
+.ov-inc__count-chip strong {
+  color: oklch(0.25 0.015 280);
+}
+
+/* ── Activity blocks ──────────────────────────────────────────────── */
+/*
+ * A handful of wide columns, each carrying its own number on the cap. There is no y-axis: with the
+ * value printed on every column there is nothing left for an axis to tell you, and dropping it buys
+ * the columns the whole height of the card.
+ */
+.ov-blk {
+  --flag-h: 18px;
+  --label-h: 14px;
+
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 22px 18px;
+}
+
+.ov-blk__chart {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 10px;
+  min-height: 210px;
+}
+
+/*
+ * The axis has to line up with the bars, not with the card. Rather than padding it by hand to clear
+ * the strips a column reserves, it *is* a column: the same empty flag on top, the same track in the
+ * middle, the same label strip beneath. A tick then sits at a percentage of the very box the bars
+ * are measured against, so the two cannot drift apart.
+ */
+.ov-blk__yaxis {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  gap: 6px;
+  padding: 6px 0 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: oklch(0.62 0.015 280);
+}
+
+.ov-blk__ytrack {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+
+.ov-blk__ytrack span {
+  position: absolute;
+  right: 0;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.ov-blk__plot {
+  display: flex;
+  align-items: flex-end;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 10px;
+}
+
+.ov-blk__col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  padding: 6px 0 0;
+  border-radius: 10px;
+  transition: background 0.12s ease;
+}
+
+.ov-blk__col.is-hover {
+  background: oklch(0.965 0.008 265);
+}
+
+/* A block that raised something says so above its column, in words, before anything is decoded. */
+.ov-blk__flag {
+  display: inline-flex;
+  align-items: center;
+  height: var(--flag-h);
+  padding: 0 8px;
+  border-radius: var(--s-radius-pill);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: oklch(0.42 0.17 25);
+  background: oklch(0.94 0.045 25);
+}
+
+/* Present but silent on a quiet block, so every column's value label sits on the same line. */
+.ov-blk__flag.is-empty {
+  color: transparent;
+  background: none;
+}
+
+.ov-blk__track {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  border-bottom: 1px solid oklch(0.9 0.008 280);
+  /* A hairline at the top tick and another at the midpoint, so the axis numbers have something to
+     land on. Painted per column rather than across the plot: the columns already tile the width. */
+  background-image:
+    linear-gradient(oklch(0.945 0.006 280), oklch(0.945 0.006 280)),
+    linear-gradient(oklch(0.945 0.006 280), oklch(0.945 0.006 280));
+  background-size:
+    100% 1px,
+    100% 1px;
+  background-position:
+    0 0,
+    0 50%;
+  background-repeat: no-repeat;
+}
+
+.ov-blk__bar {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 54px;
+  min-height: 4px;
+  /* Rounded at the data end, square where it meets the baseline. */
+  border-radius: 5px 5px 0 0;
+  background: #7ea8e4;
+}
+
+/*
+ * The failed part is a segment of the column, separated by the surface rather than by a stroke.
+ *
+ * Brick red, chosen deliberately after trying a muted terracotta, a pastel, and an amber: it is the
+ * one that stays legible at a glance, and the failure share is the thing on this card most worth
+ * seeing. It separates from the bar blue by a wide margin under every colour-vision deficiency
+ * (worst adjacent dE 26.5 deutan, 32.8 normal).
+ */
+.ov-blk__failed {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 3px;
+  border-radius: 0 0 1px 1px;
+  background: #c42b1c;
+  box-shadow: 0 -2px 0 0 #ffffff;
+}
+
+/* A block with no traffic is a flat mark on the baseline, not a gap in the row. */
+.ov-blk__none {
+  display: block;
+  width: 100%;
+  max-width: 54px;
+  height: 3px;
+  border-radius: 2px;
+  background: oklch(0.93 0.006 280);
+}
+
+.ov-blk__label {
+  height: var(--label-h);
+  line-height: var(--label-h);
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  color: oklch(0.55 0.015 280);
+}
+
+/* One strip under the columns: the key when nothing is hovered, the numbers when something is. */
+.ov-blk__readout {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  min-height: 34px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: oklch(0.975 0.003 270);
+  font-size: 11.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: oklch(0.45 0.015 280);
+}
+
+.ov-blk__readout-time {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: oklch(0.22 0.015 280);
+}
+
+.ov-blk__readout-name {
+  flex: 1 1 140px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  color: oklch(0.55 0.015 280);
+}
+
+.ov-blk__legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: oklch(0.52 0.015 280);
+}
+
+.ov-blk__key {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.ov-blk__key--ok {
+  background: #7ea8e4;
+}
+
+.ov-blk__key--bad {
+  background: #c42b1c;
+}
+
+.ov-blk__key--inc {
+  border-radius: var(--s-radius-pill);
+  width: 14px;
+  height: 9px;
+  background: oklch(0.94 0.045 25);
+  box-shadow: inset 0 0 0 1.5px oklch(0.72 0.14 25);
+}
+
+/* ── the moments ─────────────────────────────────────────────────── */
+.ov-tl__moments {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ov-tl__moment {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 13px 14px;
+  border: 1px solid oklch(0.94 0.006 280);
+  border-radius: 11px;
+  background: oklch(0.995 0.001 270);
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+
+.ov-tl__moment.is-incident {
+  border-color: oklch(0.9 0.05 25);
+  background: oklch(0.985 0.012 25);
+}
+
+.ov-tl__moment.is-active {
+  border-color: oklch(0.78 0.03 265);
+}
+
+.ov-tl__moment.is-incident.is-active {
+  border-color: oklch(0.72 0.14 25);
+}
+
+.ov-tl__moment-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.ov-tl__moment-time {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: oklch(0.24 0.015 280);
+}
+
+.ov-tl__tag {
+  padding: 2px 8px;
+  border-radius: var(--s-radius-pill);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: oklch(0.48 0.02 280);
+  background: oklch(0.955 0.006 280);
+}
+
+.ov-tl__tag--alert {
+  color: oklch(0.44 0.17 25);
+  background: oklch(0.94 0.045 25);
+}
+
+.ov-tl__moment-count {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: oklch(0.42 0.015 280);
+}
+
+.ov-tl__moment-count strong {
+  font-size: 21px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
+  color: oklch(0.2 0.015 280);
+}
+
+.ov-tl__moment-sub {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: oklch(0.56 0.015 280);
+}
+
+.ov-tl__moment-inc {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 9px 0 0;
+  padding-top: 9px;
+  border-top: 1px solid oklch(0.93 0.02 25);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: oklch(0.4 0.15 25);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.ov-tl__moment-inc:hover {
+  text-decoration: underline;
+}
+
+.ov-tl__moment-inc--plain {
+  font-weight: 500;
+  cursor: default;
+}
+
+.ov-tl__moment-score {
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: oklch(0.55 0.06 25);
+}
+
+.ov-tl__summary,
+.ov-tl__quiet {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.55;
+  color: oklch(0.57 0.015 280);
+  text-wrap: pretty;
+}
+
+/* ── Top Risk Reasons ─────────────────────────────────────────────────────── */
+.ov-reasons-wrap {
+  padding: 16px 20px 8px;
+}
+
+.ov-reasons__bar {
+  display: flex;
+  gap: 3px;
+  height: 7px;
+  margin-bottom: 14px;
+}
+
+.ov-reasons__seg {
+  border-radius: 3px;
+}
+
+.ov-reasons__seg--crit {
+  background: oklch(0.6 0.18 22);
+}
+.ov-reasons__seg--warn {
+  background: oklch(0.7 0.15 62);
+}
+.ov-reasons__seg--info {
+  background: oklch(0.58 0.14 250);
+}
+.ov-reasons__seg--ok {
+  background: oklch(0.62 0.13 150);
+}
+.ov-reasons__seg--muted {
+  background: oklch(0.84 0.015 280);
+}
+
+.ov-reasons {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ov-reasons__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 0;
+  border-bottom: 1px solid oklch(0.97 0.004 280);
+  font-size: 12px;
+}
+
+.ov-reasons__item:last-child {
+  border-bottom: 0;
+}
+
+.ov-reasons__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ov-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ov-dot--crit {
+  background: oklch(0.6 0.18 22);
+}
+.ov-dot--warn {
+  background: oklch(0.7 0.15 62);
+}
+.ov-dot--info {
+  background: oklch(0.58 0.14 250);
+}
+.ov-dot--ok {
+  background: oklch(0.62 0.13 150);
+}
+.ov-dot--muted {
+  background: oklch(0.84 0.015 280);
+}
+
+.ov-reasons__name {
+  font-weight: 500;
+  color: oklch(0.28 0.015 280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ov-reasons__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ov-reasons__count {
+  font-size: 11px;
+  font-weight: 500;
+  color: oklch(0.55 0.015 280);
+}
+
+.ov-reasons__pct {
+  font-size: 12px;
+  font-weight: 700;
+  color: oklch(0.22 0.015 280);
+  min-width: 32px;
+  text-align: right;
+}
+
+/* ── Recent Activity (Audit Log) ──────────────────────────────────────────── */
+.ov-act {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ov-act__row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 20px;
+  border-bottom: 1px solid oklch(0.965 0.006 280);
+  transition: background 0.12s ease;
+}
+
+.ov-act__row:hover {
+  background: oklch(0.99 0.002 270);
+}
+
+.ov-act__row:last-child {
+  border-bottom: 0;
+}
+
+.ov-act__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ov-act__what {
+  font-size: 13px;
+  font-weight: 600;
+  color: oklch(0.22 0.015 280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ov-act__who {
+  font-size: 11px;
+  color: oklch(0.55 0.015 280);
+}
+
+.ov-act__seq {
+  font-family: var(--s-mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  color: oklch(0.48 0.015 280);
+}
+
+.ov-act__when {
+  margin-left: auto;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: oklch(0.6 0.015 280);
+  white-space: nowrap;
+}
+
+/* ── Current Policy Tiles ─────────────────────────────────────────────────── */
+.ov-policy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: oklch(0.955 0.006 280);
+}
+
+.ov-policy-tile {
+  background: #ffffff;
+  padding: 13px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ov-policy-tile__label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: oklch(0.55 0.015 280);
+}
+
+.ov-policy-tile__value {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: oklch(0.2 0.015 280);
+  font-variant-numeric: tabular-nums;
+}
+
+.ov-policy-tile__sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: oklch(0.6 0.015 280);
+}
+
+.ov-policy__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ov-policy__note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
 }

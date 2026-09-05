@@ -31,16 +31,16 @@
 /* ── Active / Open Pill State matching screenshot ── */
 .csp-container--pill .csp-trigger.is-open,
 .csp-container--pill.is-open .csp-trigger {
-  background: #EFF6FF !important;
-  border-color: #3B82F6 !important;
-  color: #1D4ED8 !important;
+  background: #eff6ff !important;
+  border-color: #3b82f6 !important;
+  color: #1d4ed8 !important;
   font-weight: 600 !important;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
 }
 
 .csp-container--pill .csp-trigger.is-open .csp-icon,
 .csp-container--pill .csp-trigger.is-open .csp-chevron {
-  color: #1D4ED8 !important;
+  color: #1d4ed8 !important;
 }
 
 /* ── Field Variant Trigger ── */
@@ -112,10 +112,27 @@
   animation: cspFadeIn 0.14s ease-out;
 }
 
+.csp-container--dropup .csp-dropdown-menu {
+  top: auto;
+  bottom: calc(100% + 6px);
+  animation: cspFadeInUp 0.14s ease-out;
+}
+
 @keyframes cspFadeIn {
   from {
     opacity: 0;
     transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cspFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
   }
   to {
     opacity: 1;

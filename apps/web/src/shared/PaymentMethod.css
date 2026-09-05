@@ -1,0 +1,71 @@
+/*
+ * The payment-method cell: the network's mark in a fixed-width slot, then its name. Lives beside
+ * the component so both the attempts table and the device-history table get it from one place —
+ * these rules used to sit in AttemptsPage.css, which the attempt detail page never loads.
+ */
+
+.ap-method-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.ap-method-logo-wrap {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+.ap-method-logo {
+  max-height: 16px;
+  width: auto;
+  object-fit: contain;
+  user-select: none;
+  pointer-events: none;
+}
+
+.ap-method-logo--visa {
+  height: 14px;
+}
+
+.ap-method-logo--mc {
+  height: 14px;
+}
+
+.ap-method-logo--amex {
+  height: 14px;
+}
+
+.ap-method-logo--rupay {
+  height: 12px;
+  max-width: 26px;
+}
+
+.ap-method-logo--upi {
+  height: 13px;
+  max-width: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.ap-method-logo--netbanking {
+  height: 14px;
+}
+
+.ap-method-logo--wallet {
+  height: 14px;
+}
+
+.ap-method-label {
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ap-text-body);
+}

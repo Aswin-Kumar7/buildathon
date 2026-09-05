@@ -1,12 +1,10 @@
-/* ── Policy Page Styles matching Sentinel Console.html ── */
-
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
+/* ── Policy Page Styles ── */
 
 .pol-page {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  font-family: 'Instrument Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--s-font);
   color: oklch(0.26 0.015 280);
 }
 
@@ -59,11 +57,21 @@
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: 99px;
+  border-radius: var(--s-radius-pill);
   font-size: 11.5px;
   font-weight: 600;
   color: oklch(0.4 0.1 162);
   background: oklch(0.955 0.03 162);
+}
+
+/* Engaging the kill switch turns this from a healthy green to a stopped red. */
+.pol-head__status-pill--stopped {
+  color: oklch(0.46 0.15 22);
+  background: oklch(0.958 0.026 22);
+}
+
+.pol-head__status-pill--stopped .pol-head__status-dot {
+  background: oklch(0.6 0.19 22);
 }
 
 .pol-head__status-dot {
@@ -345,9 +353,64 @@
 }
 
 .pol-settings-slider-input {
+  -webkit-appearance: none;
+  appearance: none;
   width: 100%;
-  accent-color: #1E6FD9;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    #2563eb 0%,
+    #2563eb var(--fill-pct, 50%),
+    #e2e8f0 var(--fill-pct, 50%),
+    #e2e8f0 100%
+  );
+  outline: none;
   cursor: pointer;
+}
+
+.pol-settings-slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #2563eb;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition:
+    transform 0.1s ease,
+    border-color 0.1s ease;
+}
+
+.pol-settings-slider-input::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.pol-settings-slider-input::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #2563eb;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition:
+    transform 0.1s ease,
+    border-color 0.1s ease;
+}
+
+.pol-settings-slider-input::-moz-range-track {
+  height: 2px;
+  background: linear-gradient(
+    to right,
+    #2563eb 0%,
+    #2563eb var(--fill-pct, 50%),
+    #e2e8f0 var(--fill-pct, 50%),
+    #e2e8f0 100%
+  );
+  border-radius: 2px;
 }
 
 /* Approvals: Toggle & Amount */
@@ -392,7 +455,13 @@
   display: flex;
   align-items: center;
   gap: 11px;
+  width: 100%;
   padding: 15px 20px;
+  background: transparent;
+  border: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
   cursor: pointer;
   transition: background 0.12s ease;
 }
@@ -405,7 +474,7 @@
   margin-left: auto;
   padding: 3px 9px;
   border: 1px solid oklch(0.93 0.006 280);
-  border-radius: 99px;
+  border-radius: var(--s-radius-pill);
   font-size: 11.5px;
   font-weight: 600;
   white-space: nowrap;
@@ -452,9 +521,9 @@
 }
 
 .pol-safeguard-input {
-  padding: 4px 8px;
+  padding: 5px 9px;
   border: 1px solid oklch(0.92 0.006 280);
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 12px;
   font-family: inherit;
   width: 70px;
@@ -511,7 +580,7 @@
   display: inline-flex;
   align-items: center;
   padding: 3px 9px;
-  border-radius: 99px;
+  border-radius: var(--s-radius-pill);
   font-size: 11px;
   font-weight: 600;
   color: oklch(0.48 0.015 280);
@@ -557,8 +626,8 @@
 }
 
 .pol-active-card__hash {
-  padding: 2px 7px;
-  border-radius: 6px;
+  padding: 3px 8px;
+  border-radius: var(--s-radius-pill);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 11.5px;
   font-weight: 600;
@@ -623,19 +692,66 @@
   gap: 10px;
   padding: 11px 14px;
   border-radius: 8px;
-  background: color-mix(in oklab, #1E6FD9 9%, white);
-  border: 1px solid color-mix(in oklab, #1E6FD9 20%, white);
+  background: color-mix(in oklab, #1e6fd9 9%, white);
+  border: 1px solid color-mix(in oklab, #1e6fd9 20%, white);
 }
 
 .pol-prev-card__banner-icon {
-  color: #1E6FD9;
+  color: #1e6fd9;
   flex-shrink: 0;
 }
 
 .pol-prev-card__banner-text {
   font-size: 12px;
   font-weight: 600;
-  color: #1E6FD9;
+  color: #1e6fd9;
+}
+
+.pol-prev-rows {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid oklch(0.95 0.006 280);
+}
+
+.pol-prev-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid oklch(0.95 0.006 280);
+}
+
+.pol-prev-row__left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: oklch(0.3 0.015 280);
+}
+
+.pol-prev-row__icon {
+  color: oklch(0.52 0.015 280);
+  flex-shrink: 0;
+}
+
+.pol-prev-row__icon--crit {
+  color: oklch(0.55 0.15 22);
+}
+
+.pol-prev-row__val {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: oklch(0.2 0.015 280);
+}
+
+.pol-prev-row__val--muted {
+  color: oklch(0.55 0.015 280);
+}
+
+.pol-prev-row__val--crit {
+  color: oklch(0.5 0.15 22);
 }
 
 .pol-prev-card__prompt {
@@ -653,12 +769,12 @@
   gap: 8px;
   padding: 9px 16px;
   border: 0;
-  border-radius: 9px;
+  border-radius: 8px;
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
   color: #ffffff;
-  background: #1E6FD9;
+  background: #1e6fd9;
   cursor: pointer;
   transition: background 0.15s ease;
 }
@@ -722,9 +838,18 @@
   border-radius: 6px;
 }
 
-.pol-metric__ico--crit { background: oklch(0.62 0.17 22 / 0.1); color: oklch(0.62 0.17 22); }
-.pol-metric__ico--warn { background: oklch(0.68 0.15 42 / 0.1); color: oklch(0.68 0.15 42); }
-.pol-metric__ico--ok { background: oklch(0.62 0.12 162 / 0.1); color: oklch(0.62 0.12 162); }
+.pol-metric__ico--crit {
+  background: oklch(0.62 0.17 22 / 0.1);
+  color: oklch(0.62 0.17 22);
+}
+.pol-metric__ico--warn {
+  background: oklch(0.68 0.15 42 / 0.1);
+  color: oklch(0.68 0.15 42);
+}
+.pol-metric__ico--ok {
+  background: oklch(0.62 0.12 162 / 0.1);
+  color: oklch(0.62 0.12 162);
+}
 
 .pol-impact__base {
   margin: 0;
@@ -930,12 +1055,877 @@
 }
 
 @keyframes pol-pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 @media (max-width: 900px) {
   .pol-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Full Page Policy History (Image 4 Design) ── */
+.pol-hist-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.pol-hist-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: oklch(0.52 0.015 280);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: fit-content;
+  padding: 0;
+  margin-bottom: 2px;
+  transition: color 0.12s ease;
+}
+
+.pol-hist-back:hover {
+  color: oklch(0.2 0.015 280);
+}
+
+.pol-hist-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pol-hist-head__title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pol-hist-head h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: oklch(0.2 0.015 280);
+}
+
+.pol-hist-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: var(--s-radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  color: oklch(0.42 0.14 145);
+  background: oklch(0.96 0.03 145);
+  border: 1px solid oklch(0.92 0.04 145);
+}
+
+.pol-hist-head p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: oklch(0.55 0.015 280);
+  max-width: 820px;
+}
+
+.pol-hist-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.pol-hist-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid oklch(0.925 0.006 280);
+  background: #ffffff;
+  width: 280px;
+  color: oklch(0.55 0.015 280);
+}
+
+.pol-hist-search input {
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 13px;
+  color: oklch(0.24 0.015 280);
+  width: 100%;
+}
+
+.pol-hist-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pol-hist-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: oklch(0.3 0.015 280);
+  background: #ffffff;
+  border: 1px solid oklch(0.925 0.006 280);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.pol-hist-table-wrap {
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid oklch(0.925 0.006 280);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+}
+
+.pol-hist-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+
+.pol-hist-table th {
+  padding: 12px 16px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: oklch(0.56 0.015 280);
+  background: oklch(0.99 0.002 270);
+  border-bottom: 1px solid oklch(0.94 0.006 280);
+}
+
+.pol-hist-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid oklch(0.958 0.006 280);
+  vertical-align: middle;
+}
+
+.pol-hist-table tr:last-child td {
+  border-bottom: none;
+}
+
+.pol-hist-ver {
+  font-weight: 600;
+  color: oklch(0.48 0.015 280);
+}
+
+.pol-hist-change {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pol-hist-change__title {
+  font-weight: 600;
+  color: oklch(0.2 0.015 280);
+}
+
+.pol-hist-change__desc {
+  font-size: 12px;
+  color: oklch(0.58 0.015 280);
+}
+
+.pol-hist-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--s-radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pol-hist-pill--active {
+  color: oklch(0.42 0.14 145);
+  background: oklch(0.96 0.03 145);
+}
+
+.pol-hist-pill--review {
+  color: oklch(0.5 0.14 75);
+  background: oklch(0.96 0.03 75);
+}
+
+.pol-hist-pill--neutral {
+  color: oklch(0.5 0.015 280);
+  background: oklch(0.95 0.006 280);
+}
+
+.pol-hist-by {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: oklch(0.3 0.015 280);
+}
+
+.pol-hist-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  color: oklch(0.4 0.015 280);
+  background: oklch(0.93 0.006 280);
+}
+
+.pol-hist-when {
+  color: oklch(0.48 0.015 280);
+  font-size: 12.5px;
+}
+
+.pol-hist-hash {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: oklch(0.5 0.015 280);
+  background: oklch(0.965 0.006 280);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.pol-hist-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 13px 20px;
+  background: oklch(0.985 0.003 270);
+  border-top: 1px solid oklch(0.955 0.006 280);
+  font-size: 12px;
+  color: oklch(0.55 0.015 280);
+}
+
+.pol-hist-foot strong {
+  font-weight: 700;
+  color: oklch(0.26 0.015 280);
+}
+
+.pol-hist-foot-note {
+  font-size: 11.5px;
+  color: oklch(0.62 0.015 280);
+}
+
+.pol-hist-pager {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pol-hist-pager-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  border: 1px solid oklch(0.93 0.006 280);
+  background: oklch(1 0 0);
+  color: oklch(0.4 0.015 280);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pol-hist-pager-btn:hover:not(:disabled) {
+  background: oklch(0.98 0.003 270);
+  color: oklch(0.2 0.015 280);
+}
+
+.pol-hist-pager-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pol-hist-pager-page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: oklch(0.3 0.015 280);
+  background: oklch(0.962 0.006 280);
+  padding: 0 4px;
+}
+
+.pol-hist-pager-of {
+  font-size: 12px;
+  font-weight: 500;
+  color: oklch(0.55 0.015 280);
+}
+
+/*
+ * The approval switch.
+ *
+ * `.pol-toggle` had no rules at all, so this rendered as a raw 16x6px browser button with a default
+ * outset border and a zero-sized knob — the stray mark beside "Require approval before blocking".
+ * It is a real switch now, and its on state is legible without relying on colour alone (the knob
+ * moves as well as the track changing).
+ */
+.pol-toggle {
+  position: relative;
+  flex: none;
+  display: inline-block;
+  width: 38px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid oklch(0.88 0.008 280);
+  border-radius: var(--s-radius-full);
+  background: oklch(0.93 0.006 280);
+  cursor: pointer;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.pol-toggle__knob {
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--s-radius-full);
+  background: oklch(1 0 0);
+  box-shadow: 0 1px 2px oklch(0.3 0.02 280 / 0.28);
+  transform: translateY(-50%);
+  transition: left 0.16s ease;
+}
+
+.pol-toggle.is-on {
+  background: oklch(0.56 0.15 250);
+  border-color: oklch(0.5 0.15 250);
+}
+
+.pol-toggle.is-on .pol-toggle__knob {
+  left: 19px;
+}
+
+.pol-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.pol-toggle:focus-visible {
+  outline: 2px solid var(--s-focus, #0b72e7);
+  outline-offset: 2px;
+}
+
+/* Shown until a preview has actually been run, in place of invented numbers. */
+.pol-prev-empty {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: oklch(0.52 0.015 280);
+  text-wrap: pretty;
+}
+
+/* ── Save button ─────────────────────────────────────────────────────────── */
+.pol-settings-card__save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--s-accent, #0b72e7);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.pol-settings-card__save-btn:hover:not(:disabled) {
+  background: var(--s-accent-hover, #0052cc);
+}
+
+.pol-settings-card__save-btn:disabled {
+  cursor: not-allowed;
+  background: oklch(0.945 0.006 280);
+  color: oklch(0.62 0.015 280);
+}
+
+/* ── Save confirmation ───────────────────────────────────────────────────── */
+.pol-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: oklch(0.2 0.02 280 / 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.pol-confirm__box {
+  width: min(440px, 100%);
+  padding: 22px;
+  border-radius: 14px;
+  background: oklch(1 0 0);
+  box-shadow: 0 24px 48px -12px oklch(0.2 0.02 280 / 0.28);
+}
+
+.pol-confirm__title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: oklch(0.2 0.015 280);
+}
+
+.pol-confirm__body {
+  margin: 0 0 18px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: oklch(0.42 0.015 280);
+  text-wrap: pretty;
+}
+
+.pol-confirm__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pol-confirm__cancel,
+.pol-confirm__go {
+  padding: 8px 15px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pol-confirm__cancel {
+  border: 1px solid oklch(0.9 0.008 280);
+  background: oklch(1 0 0);
+  color: oklch(0.36 0.015 280);
+}
+
+.pol-confirm__go {
+  border: 0;
+  background: var(--s-accent, #0b72e7);
+  color: #fff;
+}
+
+.pol-confirm__go:hover {
+  background: var(--s-accent-hover, #0052cc);
+}
+
+/* ── Revert control in history ───────────────────────────────────────────── */
+.pol-revert-btn {
+  padding: 4px 10px;
+  border: 1px solid oklch(0.9 0.008 280);
+  border-radius: var(--s-radius-pill);
+  background: oklch(1 0 0);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: oklch(0.36 0.015 280);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pol-revert-btn:hover:not(:disabled) {
+  border-color: oklch(0.8 0.02 265);
+  color: var(--s-accent, #0b72e7);
+}
+
+.pol-revert-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pol-revert-live {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: oklch(0.44 0.11 162);
+  white-space: nowrap;
+}
+
+/*
+ * The part of a slider's scale a neighbouring setting rules out. The scale itself never changes
+ * size — shading the unreachable end keeps a thumb position meaning one value.
+ */
+.pol-settings-slider-blocked {
+  position: absolute;
+  top: 50%;
+  height: 4px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(
+    -45deg,
+    oklch(0.88 0.01 280) 0 3px,
+    oklch(0.94 0.006 280) 3px 6px
+  );
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.pol-settings-slider-blocked--low {
+  left: 0;
+}
+
+.pol-settings-slider-blocked--high {
+  right: 0;
+}
+
+.pol-settings-slider-note {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: oklch(0.56 0.015 280);
+}
+
+/* ── Policy history drawer ───────────────────────────────────────────────── */
+.polhx__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 59;
+  background: oklch(0.2 0.02 280 / 0.28);
+}
+
+.polhx {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 420px;
+  max-width: 100vw;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: oklch(1 0 0);
+  border-left: 1px solid oklch(0.925 0.006 280);
+  box-shadow: -10px 0 30px rgb(0 0 0 / 8%);
+  animation: polhx-in 0.18s ease-out;
+}
+
+@keyframes polhx-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .polhx {
+    animation: none;
+  }
+}
+
+.polhx__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid oklch(0.94 0.006 280);
+}
+
+.polhx__title {
+  margin: 0 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: oklch(0.2 0.015 280);
+}
+
+.polhx__sub {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: oklch(0.54 0.015 280);
+  text-wrap: pretty;
+}
+
+.polhx__x {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: oklch(0.55 0.015 280);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.polhx__x:hover {
+  background: oklch(0.95 0.006 280);
+  color: oklch(0.2 0.015 280);
+}
+
+.polhx__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 20px 24px;
+}
+
+.polhx__empty {
+  margin: 24px 0;
+  font-size: 12.5px;
+  color: oklch(0.54 0.015 280);
+}
+
+.polhx__item {
+  padding: 14px 0;
+  border-bottom: 1px solid oklch(0.955 0.006 280);
+}
+
+.polhx__item:last-child {
+  border-bottom: 0;
+}
+
+.polhx__item-top {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.polhx__ver {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: oklch(0.21 0.015 280);
+  font-variant-numeric: tabular-nums;
+}
+
+.polhx__standing {
+  padding: 3px 10px;
+  border-radius: var(--s-radius-pill);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.polhx__standing--live {
+  color: oklch(0.42 0.11 162);
+  background: oklch(0.955 0.03 162);
+}
+
+.polhx__standing--past {
+  color: oklch(0.44 0.02 280);
+  background: oklch(0.958 0.006 280);
+}
+
+.polhx__standing--never {
+  color: oklch(0.5 0.09 62);
+  background: oklch(0.965 0.03 72);
+}
+
+.polhx__hash {
+  display: inline-block;
+  margin-top: 6px;
+  font-family: var(--s-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  color: oklch(0.5 0.015 280);
+}
+
+.polhx__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  margin: 12px 0 0;
+}
+
+.polhx__meta dt {
+  margin: 0 0 2px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: oklch(0.6 0.015 280);
+}
+
+.polhx__meta dd {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: oklch(0.3 0.015 280);
+}
+
+.polhx__actions {
+  margin-top: 13px;
+}
+
+.polhx__restore {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid oklch(0.9 0.008 280);
+  border-radius: 8px;
+  background: oklch(1 0 0);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: oklch(0.34 0.015 280);
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.polhx__restore:hover:not(:disabled) {
+  border-color: oklch(0.78 0.03 265);
+  color: var(--s-accent, #0b72e7);
+}
+
+.polhx__restore:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.polhx__running {
+  font-size: 12px;
+  font-weight: 600;
+  color: oklch(0.44 0.11 162);
+}
+
+/* History sits beside Save, as another thing you do to the policy. */
+.pol-settings-card__history-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid oklch(0.92 0.008 280);
+  border-radius: 8px;
+  background: oklch(1 0 0);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: oklch(0.34 0.015 280);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.pol-settings-card__history-btn:hover {
+  border-color: oklch(0.8 0.02 265);
+  color: var(--s-accent, #0b72e7);
+}
+
+/* Names the range so it cannot be read as a second opinion about the value beside it. */
+.pol-settings-slider-range__key {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: oklch(0.66 0.015 280);
+}
+
+/* ── Version settings disclosure in the history drawer ───────────────────── */
+.polhx__disclose {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--s-accent, #0b72e7);
+  cursor: pointer;
+}
+
+.polhx__settings {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  list-style: none;
+  border: 1px solid oklch(0.945 0.006 280);
+  border-radius: 10px;
+  background: oklch(0.99 0.002 270);
+}
+
+.polhx__setting {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  font-size: 11.5px;
+}
+
+.polhx__setting + .polhx__setting {
+  border-top: 1px solid oklch(0.96 0.006 280);
+}
+
+.polhx__setting-label {
+  color: oklch(0.5 0.015 280);
+}
+
+.polhx__setting-value {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-weight: 600;
+  color: oklch(0.26 0.015 280);
+  white-space: nowrap;
+}
+
+.polhx__setting.is-changed .polhx__setting-value {
+  color: var(--s-accent, #0b72e7);
+}
+
+.polhx__delta {
+  font-size: 10px;
+  font-weight: 600;
+  color: oklch(0.58 0.09 62);
+}
+
+.polhx__unreadable {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 1px solid oklch(0.93 0.02 62);
+  border-radius: 10px;
+  background: oklch(0.98 0.02 72);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: oklch(0.45 0.09 62);
+}
+
+/* Shown when the ledger is genuinely empty. It used to render six invented versions instead,
+   under an append-only badge, which is the one place in this product a placeholder cannot go. */
+.pol-hist-empty {
+  padding: 2.5rem 1.25rem;
+  text-align: center;
+  color: oklch(0.55 0.015 280);
+  font-size: 0.875rem;
 }

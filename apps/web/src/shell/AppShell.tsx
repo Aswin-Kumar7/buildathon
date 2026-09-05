@@ -1,8 +1,12 @@
 import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
-import { systemHealthResponseSchema, type SystemHealthResponse } from '@sentinel/contracts';
+import {
+  attemptRowsResponseSchema,
+  systemHealthResponseSchema,
+  type SystemHealthResponse,
+} from '@sentinel/contracts';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { useState, type ReactNode } from 'react';
-import { useLogout, useSession } from '../auth/useSession.js';
+import { useConfirmedLogout, useSession } from '../auth/useSession.js';
 import { NotificationBell } from './NotificationBell.js';
 import {
   SquaresFour,
@@ -97,39 +101,78 @@ function getInitials(name?: string): string {
   return name.slice(0, 2).toUpperCase();
 }
 
+/**
+ * Sign out, asking once. The confirmation is the button: it widens to say so and only the second
+ * press signs out, which keeps a destructive action behind a deliberate act without putting a
+ * dialog in front of it. Blur cancels, so clicking away is the same as saying no.
+ */
+function LogoutButton(): React.JSX.Element {
+  const logout = useConfirmedLogout();
+  return (
+    <button
+      type="button"
+      className={`shell__logout-btn${logout.armed ? ' is-armed' : ''}`}
+      onClick={logout.press}
+      onBlur={logout.cancel}
+      disabled={logout.isPending}
+      aria-label={logout.armed ? 'Press again to sign out' : 'Sign out'}
+      title={logout.armed ? 'Press again to sign out' : 'Log out'}
+    >
+      <SignOut size={16} />
+      {logout.armed && <span className="shell__logout-confirm">Sure?</span>}
+    </button>
+  );
+}
+
+/** Who you are signed in as, and the two things you can do about it. */
+function UserFooter({ onNavigate }: { onNavigate: () => void }): React.JSX.Element {
+  const { user } = useSession();
+  const initials = getInitials(user?.displayName);
+  return (
+    <div className="shell__user-foot" data-testid="current-user">
+      <Link
+        to="/console/settings"
+        className="shell__user-identity"
+        onClick={onNavigate}
+        aria-label="Your profile and settings"
+      >
+        <span className="shell__user-avatar" aria-hidden="true">
+          {initials}
+        </span>
+        <span className="shell__user-details">
+          <span className="shell__user-name">{user?.displayName ?? 'Aswin Kumar'}</span>
+          <span className="shell__user-account">Merchant Account</span>
+        </span>
+      </Link>
+      <LogoutButton />
+    </div>
+  );
+}
+
 function Sidebar({ onNavigate }: { onNavigate: () => void }): React.JSX.Element {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const { user } = useSession();
-  const logout = useLogout();
-  const initials = getInitials(user?.displayName);
 
-  // Dynamic live badge count queries
+  // `source=all` is not a default — it is the only value that matches what the Attempts page and
+  // the Overview both count. Omitting it makes the API fall back to `razorpay`, so after any
+  // simulation run this badge showed live traffic only while the page beside it showed live plus
+  // replay: the same label, two populations, on one screen.
+  //
+  // The response is validated rather than read off an untyped body, and the interval matches the
+  // table's own so the badge cannot sit on a stale number while the rows behind it refresh.
   const attemptsQuery = useQuery({
     queryKey: ['attempt-count-sidebar'],
     queryFn: async () => {
-      const res = await fetch('/api/attempts/rows?page=1&pageSize=1', { credentials: 'include' });
+      const res = await fetch('/api/attempts/rows?page=1&pageSize=1&source=all', {
+        credentials: 'include',
+      });
       if (!res.ok) return null;
-      return res.json();
+      return attemptRowsResponseSchema.parse(await res.json());
     },
-    staleTime: 30_000,
-  });
-
-  const incidentsQuery = useQuery({
-    queryKey: ['incidents-count-sidebar'],
-    queryFn: async () => {
-      const res = await fetch('/api/incidents', { credentials: 'include' });
-      if (!res.ok) return null;
-      return res.json();
-    },
-    staleTime: 30_000,
+    staleTime: 15_000,
+    refetchInterval: 15_000,
   });
 
   const attemptsCount: number | undefined = attemptsQuery.data?.total;
-  const activeIncidentsCount: number = incidentsQuery.data?.counts
-    ? (incidentsQuery.data.counts.open ?? 0) + (incidentsQuery.data.counts.underReview ?? 0)
-    : (incidentsQuery.data?.incidents?.filter(
-        (i: { status: string }) => i.status === 'open' || i.status === 'under_review',
-      ).length ?? 0);
 
   return (
     <aside className="shell__nav" aria-label="Console navigation">
@@ -184,26 +227,7 @@ function Sidebar({ onNavigate }: { onNavigate: () => void }): React.JSX.Element 
         </Link>
       </nav>
 
-      {/* User Account Footer */}
-      <div className="shell__user-foot" data-testid="current-user">
-        <span className="shell__user-avatar" aria-hidden="true">
-          {initials}
-        </span>
-        <div className="shell__user-details">
-          <div className="shell__user-name">{user?.displayName ?? 'Aswin Kumar'}</div>
-          <div className="shell__user-account">Merchant Account</div>
-        </div>
-        <button
-          type="button"
-          className="shell__logout-btn"
-          onClick={() => logout.mutate()}
-          disabled={logout.isPending}
-          aria-label="Sign out"
-          title="Log out"
-        >
-          <SignOut size={16} />
-        </button>
-      </div>
+      <UserFooter onNavigate={onNavigate} />
     </aside>
   );
 }

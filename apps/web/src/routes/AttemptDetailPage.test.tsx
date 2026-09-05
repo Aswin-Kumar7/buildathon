@@ -81,6 +81,7 @@ function detail(overrides: Partial<AttemptDetail> = {}): AttemptDetail {
         paymentId: 'pay_1',
         at: ISO,
         amountPaise: 10_000,
+        method: 'card',
         cardNetwork: 'visa',
         cardFingerprint: '3a9c1b2d',
         status: 'failed',
@@ -113,8 +114,9 @@ describe('AttemptDetailPage', () => {
     stub(detail());
     render(wrap(<AttemptDetailPage />));
 
-    expect(await screen.findByText('Payment details')).toBeInTheDocument();
-    expect(screen.getByText('Insufficient balance')).toBeInTheDocument();
+    const detailsElements = await screen.findAllByText('Payment details');
+    expect(detailsElements[0]).toBeInTheDocument();
+    expect(screen.getByText(/Insufficient balance/)).toBeInTheDocument();
     // The invariant of the whole project, said on the page itself.
     expect(screen.getByText(/not an incident on its own/i)).toBeInTheDocument();
   });

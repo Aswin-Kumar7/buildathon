@@ -142,7 +142,7 @@
 }
 .tl-badge {
   padding: 0.1rem 0.5rem;
-  border-radius: var(--s-radius-full, 999px);
+  border-radius: var(--s-radius-pill);
   font-size: 0.65rem;
   font-weight: 400;
   letter-spacing: 0.02em;

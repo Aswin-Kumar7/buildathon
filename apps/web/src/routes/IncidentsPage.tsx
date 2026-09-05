@@ -3,7 +3,6 @@ import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-q
 import { useNavigate } from '@tanstack/react-router';
 import {
   incidentListResponseSchema,
-  simulationStatusSchema,
   type IncidentListResponse,
   type IncidentSummary,
   type SimulationStatus,
@@ -24,7 +23,6 @@ import { CustomSelectPill } from '../components/CustomSelectPill.js';
 import {
   PlayCircle,
   DownloadSimple,
-  CalendarBlank,
   Gauge,
   Funnel,
   FlowArrow,
@@ -33,6 +31,7 @@ import {
   CircleNotch,
   X,
 } from '@phosphor-icons/react';
+import { fetchSimulationStatus as fetchSimStatus } from '../shared/fetchers.js';
 
 type Source = 'all' | IncidentSummary['source'];
 type StatusTab = 'all' | 'active' | 'under_review' | 'resolved' | 'expired' | 'history';
@@ -65,12 +64,6 @@ async function fetchIncidents(source: Source): Promise<IncidentListResponse> {
   const response = await fetch(`/api/incidents${query}`, { credentials: 'include' });
   if (!response.ok) throw new Error(`api returned ${response.status}`);
   return incidentListResponseSchema.parse(await response.json());
-}
-
-async function fetchSimStatus(): Promise<SimulationStatus> {
-  const response = await fetch('/api/simulation/status', { credentials: 'include' });
-  if (!response.ok) throw new Error(`api returned ${response.status}`);
-  return simulationStatusSchema.parse(await response.json());
 }
 
 function inTab(incident: IncidentSummary, tab: StatusTab): boolean {
@@ -162,7 +155,6 @@ export function IncidentsPage(): React.JSX.Element {
         togglePopup={() => setPopupOpen((v) => !v)}
         closePopup={() => setPopupOpen(false)}
         simRunning={simRunning}
-        minimized={dock.view === 'minimized'}
         simStatus={sim.data}
         onChipOpen={dock.open}
         onChipDismiss={dock.dismiss}
@@ -246,7 +238,6 @@ function Header({
   closePopup,
   simRunning,
   onStarted,
-  minimized,
   simStatus,
   onChipOpen,
   onChipDismiss,
@@ -258,7 +249,6 @@ function Header({
   closePopup: () => void;
   simRunning: boolean;
   onStarted: (family: string) => void;
-  minimized: boolean;
   simStatus: SimulationStatus | undefined;
   onChipOpen: () => void;
   onChipDismiss: () => void;
@@ -315,7 +305,7 @@ function SimChip({
         alignItems: 'center',
         gap: '10px',
         padding: '6px 14px',
-        borderRadius: '99px',
+        borderRadius: 'var(--s-radius-pill)',
         fontSize: '13px',
         fontWeight: 600,
         fontFamily: 'inherit',
@@ -356,7 +346,7 @@ function SimChip({
               alignItems: 'center',
               justifyContent: 'center',
               padding: '2px 9px',
-              borderRadius: '99px',
+              borderRadius: 'var(--s-radius-pill)',
               background: '#FFFFFF',
               color: running ? '#1A73E8' : '#0D652D',
               fontSize: '12.5px',
@@ -401,19 +391,6 @@ export function FilterRow({ filters, onChange }: FilterRowProps): React.JSX.Elem
   return (
     <div className="inct-toolbar">
       <div className="inct-toolbar-filters">
-        <CustomSelectPill
-          value="all"
-          options={[
-            { value: 'all', label: 'All dates' },
-            { value: 'today', label: 'Today' },
-            { value: '7d', label: 'Last 7 days' },
-            { value: '30d', label: 'Last 30 days' },
-          ]}
-          onChange={() => {}}
-          ariaLabel="Date filter"
-          icon={<CalendarBlank size={14} />}
-        />
-
         <CustomSelectPill
           value={filters.risk}
           options={RISK_LEVELS.map((r) => ({

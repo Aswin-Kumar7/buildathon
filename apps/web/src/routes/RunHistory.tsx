@@ -1,19 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { simulationRunsResponseSchema, type SimulationRun } from '@sentinel/contracts';
-
-/**
- * Past simulation runs, shown on the Incidents list itself.
- *
- * Read from the durable `simulation_runs` log (GET /api/simulation/runs): a snapshot of what each
- * run detected, kept independently of the live incident table — so it survives the per-scenario
- * reset. Lives here (not in the simulation panel) so a merchant can see the history alongside the
- * incidents it produced, without opening the run panel.
- */
-async function fetchRuns(): Promise<SimulationRun[]> {
-  const response = await fetch('/api/simulation/runs', { credentials: 'include' });
-  if (!response.ok) throw new Error(`api returned ${response.status}`);
-  return simulationRunsResponseSchema.parse(await response.json()).runs;
-}
+import { type SimulationRun } from '@sentinel/contracts';
+import { fetchSimulationRuns as fetchRuns } from '../shared/fetchers.js';
 
 const CAT_TONE: Record<string, string> = {
   attack: 'attack',

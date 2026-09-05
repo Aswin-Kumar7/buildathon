@@ -99,7 +99,7 @@
   font-size: 0.875rem;
   font-weight: 500;
   padding: 0.18rem 0.55rem;
-  border-radius: 9999px;
+  border-radius: var(--s-radius-pill);
   border: 1px solid transparent;
   line-height: 1.2;
 }

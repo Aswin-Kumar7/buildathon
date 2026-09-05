@@ -122,20 +122,22 @@ const VERIFY_LADDER = [0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7];
 const BLOCK_LADDER = [0.5, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9];
 const DURATION_LADDER = [5, 10, 15, 30, 45, 60, 90, 120];
 
-export const scoreOptions = (current: number, floor: number): number[] =>
-  [...new Set([...VERIFY_LADDER, current])]
-    .filter((s) => s >= floor && s <= 1)
-    .sort((a, b) => a - b);
+/*
+ * A ladder is the whole scale a slider is drawn on, and it never depends on a neighbouring setting.
+ *
+ * These used to be filtered by the other slider's value — the block ladder dropped every notch below
+ * the verification level, the duration ladder every notch above the maximum. That shortened the
+ * scale from one end, so an unchanged value landed on a different index and the thumb slid across
+ * the track while the number beside it stayed exactly the same. Limits are now enforced by clamping
+ * the value (see LadderSlider), not by resizing the scale underneath it, so a position always means
+ * one value. The active policy's own value is merged in so nothing off the ladder is ever hidden.
+ */
+const ladder = (base: number[], current: number): number[] =>
+  [...new Set([...base, current])].sort((a, b) => a - b);
 
-export const blockOptions = (current: number, floor: number): number[] =>
-  [...new Set([...BLOCK_LADDER, current])]
-    .filter((s) => s >= floor && s <= 1)
-    .sort((a, b) => a - b);
-
-export const durationOptions = (current: number, max: number): number[] =>
-  [...new Set([...DURATION_LADDER, current])]
-    .filter((d) => d >= 1 && d <= max)
-    .sort((a, b) => a - b);
+export const scoreOptions = (current: number): number[] => ladder(VERIFY_LADDER, current);
+export const blockOptions = (current: number): number[] => ladder(BLOCK_LADDER, current);
+export const durationOptions = (current: number): number[] => ladder(DURATION_LADDER, current);
 
 export const pct = (value: number): string => `${Math.round(value * 100)}%`;
 

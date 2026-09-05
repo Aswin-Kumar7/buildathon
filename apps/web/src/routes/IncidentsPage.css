@@ -1,13 +1,11 @@
-/* ── Incidents Page styles matching Sentinel Console.html ── */
-
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap');
+/* ── Incidents Page styles ── */
 
 .incp-page {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  font-family: 'Instrument Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--s-font);
   color: oklch(0.26 0.015 280);
 }
 
@@ -82,7 +80,7 @@
   font-size: 12px;
   font-weight: 600;
   color: #ffffff;
-  background: #1E6FD9;
+  background: #1e6fd9;
   cursor: pointer;
   transition: background 0.15s ease;
 }
@@ -94,7 +92,7 @@
 /* ── 5-Column Unified Metrics Container ── */
 .incp-metrics {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   border-radius: 12px;
   background: oklch(1 0 0);
   border: 1px solid oklch(0.925 0.006 280);
@@ -112,9 +110,54 @@
   border: none;
   border-left: 1px solid oklch(0.95 0.006 280);
   text-align: left;
+  font-family: inherit;
   cursor: pointer;
   transition: background 0.12s ease;
   min-height: 86px;
+}
+
+/* The number and its share sit on one baseline, as they do on Payment attempts. */
+.incp-metric-values {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.incp-metric-share {
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: oklch(0.56 0.015 280);
+}
+
+.incp-metric-share--critical {
+  color: oklch(0.5 0.14 22);
+}
+.incp-metric-share--high {
+  color: oklch(0.54 0.14 42);
+}
+.incp-metric-share--medium {
+  color: oklch(0.52 0.12 82);
+}
+.incp-metric-share--low {
+  color: oklch(0.48 0.11 250);
+}
+.incp-metric-share--resolved {
+  color: oklch(0.44 0.11 162);
+}
+.incp-metric-share--faint {
+  color: oklch(0.74 0.015 280);
+}
+
+.incp-metric-dot--total {
+  background: oklch(0.55 0.18 264);
+}
+.incp-metric-dot--muted {
+  background: oklch(0.9 0.008 280);
+}
+.incp-metric-bar--total {
+  background: oklch(0.55 0.18 264);
 }
 
 .incp-metric-col:first-child {
@@ -126,7 +169,7 @@
 }
 
 .incp-metric-col.is-active {
-  background: color-mix(in oklab, #1E6FD9 6%, white);
+  background: color-mix(in oklab, #1e6fd9 6%, white);
 }
 
 .incp-metric-col__header {
@@ -142,11 +185,21 @@
   border-radius: 99px;
 }
 
-.incp-metric-dot--critical { background: oklch(0.62 0.17 22); }
-.incp-metric-dot--high { background: oklch(0.68 0.15 42); }
-.incp-metric-dot--medium { background: oklch(0.78 0.13 82); }
-.incp-metric-dot--low { background: oklch(0.62 0.11 250); }
-.incp-metric-dot--resolved { background: oklch(0.62 0.12 162); }
+.incp-metric-dot--critical {
+  background: oklch(0.62 0.17 22);
+}
+.incp-metric-dot--high {
+  background: oklch(0.68 0.15 42);
+}
+.incp-metric-dot--medium {
+  background: oklch(0.78 0.13 82);
+}
+.incp-metric-dot--low {
+  background: oklch(0.62 0.11 250);
+}
+.incp-metric-dot--resolved {
+  background: oklch(0.62 0.12 162);
+}
 
 .incp-metric-label {
   font-size: 11px;
@@ -183,11 +236,21 @@
   transition: width 0.3s ease;
 }
 
-.incp-metric-bar--critical { background: oklch(0.62 0.17 22); }
-.incp-metric-bar--high { background: oklch(0.68 0.15 42); }
-.incp-metric-bar--medium { background: oklch(0.78 0.13 82); }
-.incp-metric-bar--low { background: oklch(0.62 0.11 250); }
-.incp-metric-bar--resolved { background: oklch(0.62 0.12 162); }
+.incp-metric-bar--critical {
+  background: oklch(0.62 0.17 22);
+}
+.incp-metric-bar--high {
+  background: oklch(0.68 0.15 42);
+}
+.incp-metric-bar--medium {
+  background: oklch(0.78 0.13 82);
+}
+.incp-metric-bar--low {
+  background: oklch(0.62 0.11 250);
+}
+.incp-metric-bar--resolved {
+  background: oklch(0.62 0.12 162);
+}
 
 /* ── Incidents Table Card Panel ── */
 .inct-panel {
@@ -264,7 +327,9 @@
 
 .inct-head-row {
   display: grid;
-  grid-template-columns: minmax(180px, 1.4fr) minmax(90px, 0.7fr) minmax(90px, 0.7fr) minmax(90px, 0.7fr) minmax(130px, 0.9fr) minmax(80px, 0.6fr) minmax(80px, 0.6fr);
+  grid-template-columns:
+    minmax(180px, 1.4fr) minmax(90px, 0.7fr) minmax(90px, 0.7fr) minmax(90px, 0.7fr)
+    minmax(130px, 0.9fr) minmax(80px, 0.6fr) minmax(80px, 0.6fr);
   gap: 12px;
   min-width: 750px;
   padding: 12px 16px;
@@ -281,9 +346,15 @@
   text-align: right;
 }
 
+.inct-th-cell--center {
+  text-align: center;
+}
+
 .inct-row {
   display: grid;
-  grid-template-columns: minmax(180px, 1.4fr) minmax(90px, 0.7fr) minmax(90px, 0.7fr) minmax(90px, 0.7fr) minmax(130px, 0.9fr) minmax(80px, 0.6fr) minmax(80px, 0.6fr);
+  grid-template-columns:
+    minmax(180px, 1.4fr) minmax(90px, 0.7fr) minmax(90px, 0.7fr) minmax(90px, 0.7fr)
+    minmax(130px, 0.9fr) minmax(80px, 0.6fr) minmax(80px, 0.6fr);
   gap: 12px;
   min-width: 750px;
   align-items: center;
@@ -377,10 +448,18 @@
   line-height: 1;
 }
 
-.inct-score-num--critical { color: oklch(0.42 0.15 22); }
-.inct-score-num--high { color: oklch(0.52 0.15 42); }
-.inct-score-num--medium { color: oklch(0.56 0.13 82); }
-.inct-score-num--low { color: oklch(0.45 0.12 250); }
+.inct-score-num--critical {
+  color: oklch(0.42 0.15 22);
+}
+.inct-score-num--high {
+  color: oklch(0.52 0.15 42);
+}
+.inct-score-num--medium {
+  color: oklch(0.56 0.13 82);
+}
+.inct-score-num--low {
+  color: oklch(0.45 0.12 250);
+}
 
 .inct-score-max {
   font-size: 11px;
@@ -389,18 +468,30 @@
 }
 
 .inct-risk-meter {
-  display: flex;
-  gap: 2px;
   height: 5px;
-}
-
-.inct-risk-segment {
-  flex: 1 1 0;
-  border-radius: 2px;
+  border-radius: 3px;
   background: oklch(0.93 0.006 280);
+  overflow: hidden;
 }
 
-.inct-risk-segment.is-filled {
+/* Width is the score, so 78 and 99 no longer draw the same bar. */
+.inct-risk-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: oklch(0.64 0.16 22);
+  transition: width 0.3s ease;
+}
+
+.inct-risk-meter--green .inct-risk-fill {
+  background: oklch(0.64 0.17 145);
+}
+
+.inct-risk-meter--yellow .inct-risk-fill {
+  background: oklch(0.72 0.16 75);
+}
+
+.inct-risk-meter--red .inct-risk-fill {
   background: oklch(0.64 0.16 22);
 }
 
@@ -411,22 +502,32 @@
   white-space: nowrap;
 }
 
-.inct-tier-tag--critical { color: oklch(0.5 0.14 22); }
-.inct-tier-tag--high { color: oklch(0.56 0.14 42); }
-.inct-tier-tag--medium { color: oklch(0.58 0.12 82); }
-.inct-tier-tag--low { color: oklch(0.48 0.11 250); }
+.inct-tier-tag--critical {
+  color: oklch(0.5 0.14 22);
+}
+.inct-tier-tag--high {
+  color: oklch(0.56 0.14 42);
+}
+.inct-tier-tag--medium {
+  color: oklch(0.58 0.12 82);
+}
+.inct-tier-tag--low {
+  color: oklch(0.48 0.11 250);
+}
 
-/* 3. Status Cell */
+/* 3. Status Cell — centred in its column, pill and sub-label sharing one axis. */
 .inct-status-wrap {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
   gap: 4px;
 }
 
 .inct-status-pill {
-  padding: 2px 8px;
-  border-radius: 5px;
-  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: var(--s-radius-pill);
+  font-size: 11.5px;
   font-weight: 600;
   white-space: nowrap;
   width: fit-content;
@@ -481,7 +582,7 @@
 }
 
 .inct-source-dot--live {
-  background: #1E6FD9;
+  background: #1e6fd9;
 }
 
 .inct-source-sub {
@@ -691,7 +792,7 @@
   padding: 3px 8px;
   background: oklch(0.97 0.01 250);
   border: 1px solid oklch(0.9 0.03 250);
-  border-radius: 8px;
+  border-radius: var(--s-radius-pill);
 }
 
 .incp-simchip__main {
@@ -707,7 +808,7 @@
 .incp-simchip__text {
   font-size: 12px;
   font-weight: 600;
-  color: #1E6FD9;
+  color: #1e6fd9;
 }
 
 .incp-simchip__x {
@@ -826,8 +927,8 @@
   background: oklch(0.99 0.002 270);
 }
 .simpop-item.is-selected {
-  background: #1E6FD91a;
-  border-color: #1E6FD9;
+  background: #1e6fd91a;
+  border-color: #1e6fd9;
   box-shadow: none;
 }
 .simpop-item.is-run {
@@ -942,9 +1043,9 @@
 .simpop-start {
   width: 100%;
   padding: 0.7rem;
-  border: 1px solid #1E6FD9;
+  border: 1px solid #1e6fd9;
   border-radius: 8px;
-  background: #1E6FD9;
+  background: #1e6fd9;
   color: #ffffff;
   font-size: 0.875rem;
   font-weight: 600;
@@ -1025,8 +1126,13 @@
   background: oklch(0.48 0.015 280);
 }
 @keyframes simpulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 .simpanel-scenario {
   display: flex;
@@ -1041,9 +1147,9 @@
 }
 .simpanel-tag {
   padding: 0.1rem 0.4rem;
-  border-radius: 5px;
-  background: #1E6FD91a;
-  color: #1E6FD9;
+  border-radius: var(--s-radius-pill);
+  background: #1e6fd91a;
+  color: #1e6fd9;
   font-size: 0.6rem;
   font-weight: 500;
   letter-spacing: 0.03em;
@@ -1123,18 +1229,23 @@
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .simpanel-step--done .simpanel-node {
-  border-color: #1E6FD9;
-  color: #1E6FD9;
+  border-color: #1e6fd9;
+  color: #1e6fd9;
 }
 .simpanel-step--active .simpanel-node {
-  background: #1E6FD91a;
-  border-color: #1E6FD9;
-  color: #1E6FD9;
+  background: #1e6fd91a;
+  border-color: #1e6fd9;
+  color: #1e6fd9;
   animation: phaseNodePulse 1.6s ease-in-out infinite;
 }
 @keyframes phaseNodePulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(30, 111, 217, 0.4); }
-  50% { box-shadow: 0 0 0 6px rgba(30, 111, 217, 0); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(30, 111, 217, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(30, 111, 217, 0);
+  }
 }
 .simpanel-rail {
   position: absolute;
@@ -1148,16 +1259,20 @@
   border-radius: 2px;
 }
 .simpanel-rail.is-filled {
-  background: #1E6FD9;
+  background: #1e6fd9;
 }
 .simpanel-rail.is-animating {
-  background: linear-gradient(90deg, #1E6FD9 0%, #1E6FD9 50%, oklch(0.93 0.006 280) 100%);
+  background: linear-gradient(90deg, #1e6fd9 0%, #1e6fd9 50%, oklch(0.93 0.006 280) 100%);
   background-size: 200% 100%;
   animation: railFlow 1.4s linear infinite;
 }
 @keyframes railFlow {
-  0% { background-position: 100% 0; }
-  100% { background-position: -100% 0; }
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
 .simpanel-step__label {
   margin-top: 0.45rem;
@@ -1167,7 +1282,7 @@
   white-space: nowrap;
 }
 .simpanel-step--active .simpanel-step__label {
-  color: #1E6FD9;
+  color: #1e6fd9;
   font-weight: 600;
 }
 .simpanel-step--done .simpanel-step__label {
@@ -1248,10 +1363,22 @@
   border-radius: 7px;
   flex: none;
 }
-.simpanel-detected__ico--critical { background: oklch(0.62 0.17 22 / 0.1); color: oklch(0.62 0.17 22); }
-.simpanel-detected__ico--high { background: oklch(0.68 0.15 42 / 0.1); color: oklch(0.68 0.15 42); }
-.simpanel-detected__ico--medium { background: oklch(0.78 0.13 82 / 0.1); color: oklch(0.78 0.13 82); }
-.simpanel-detected__ico--low { background: oklch(0.62 0.11 250 / 0.1); color: oklch(0.62 0.11 250); }
+.simpanel-detected__ico--critical {
+  background: oklch(0.62 0.17 22 / 0.1);
+  color: oklch(0.62 0.17 22);
+}
+.simpanel-detected__ico--high {
+  background: oklch(0.68 0.15 42 / 0.1);
+  color: oklch(0.68 0.15 42);
+}
+.simpanel-detected__ico--medium {
+  background: oklch(0.78 0.13 82 / 0.1);
+  color: oklch(0.78 0.13 82);
+}
+.simpanel-detected__ico--low {
+  background: oklch(0.62 0.11 250 / 0.1);
+  color: oklch(0.62 0.11 250);
+}
 .simpanel-detected__text {
   display: flex;
   flex-direction: column;
@@ -1268,15 +1395,27 @@
 }
 .simpanel-detected__pill {
   padding: 0.1rem 0.4rem;
-  border-radius: 999px;
+  border-radius: var(--s-radius-pill);
   font-size: 0.6rem;
   font-weight: 500;
   text-transform: uppercase;
 }
-.simpanel-detected__pill--critical { background: oklch(0.62 0.17 22 / 0.1); color: oklch(0.62 0.17 22); }
-.simpanel-detected__pill--high { background: oklch(0.68 0.15 42 / 0.1); color: oklch(0.68 0.15 42); }
-.simpanel-detected__pill--medium { background: oklch(0.78 0.13 82 / 0.1); color: oklch(0.78 0.13 82); }
-.simpanel-detected__pill--low { background: oklch(0.62 0.11 250 / 0.1); color: oklch(0.62 0.11 250); }
+.simpanel-detected__pill--critical {
+  background: oklch(0.62 0.17 22 / 0.1);
+  color: oklch(0.62 0.17 22);
+}
+.simpanel-detected__pill--high {
+  background: oklch(0.68 0.15 42 / 0.1);
+  color: oklch(0.68 0.15 42);
+}
+.simpanel-detected__pill--medium {
+  background: oklch(0.78 0.13 82 / 0.1);
+  color: oklch(0.78 0.13 82);
+}
+.simpanel-detected__pill--low {
+  background: oklch(0.62 0.11 250 / 0.1);
+  color: oklch(0.62 0.11 250);
+}
 .simpanel-stood {
   display: flex;
   align-items: center;
@@ -1299,7 +1438,7 @@
 }
 .simpanel-stood__pill {
   padding: 0.1rem 0.4rem;
-  border-radius: 999px;
+  border-radius: var(--s-radius-pill);
   font-size: 0.6rem;
   font-weight: 500;
   text-transform: uppercase;

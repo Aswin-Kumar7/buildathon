@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Pulse, WarningCircle, Shield, Wallet } from '@phosphor-icons/react';
-import { CreditCard, Laptop, ArrowLeft } from '@phosphor-icons/react';
+import { WarningCircle, Wallet, ArrowLeft } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from '@tanstack/react-router';
-import { Badge, Card, ErrorState, Loading } from '@sentinel/ui';
+import { ErrorState, Loading, Tabs, type TabItem } from '@sentinel/ui';
 import {
   attemptDetailResponseSchema,
   type AttemptDetail,
@@ -20,9 +19,9 @@ import rupayLogo from '../assets/payments/rupay.png';
 import amexLogo from '../assets/payments/amex.svg';
 import upiLogo from '../assets/payments/upi.svg';
 import netbankingLogo from '../assets/payments/netbanking.svg';
-import walletLogo from '../assets/payments/wallet.png';
 
 import './AttemptDetailPage.css';
+import { PaymentMethodCell } from '../shared/PaymentMethod.js';
 
 async function fetchAttempt(paymentId: string): Promise<AttemptDetail> {
   const response = await fetch(`/api/attempts/payment/${paymentId}`, { credentials: 'include' });
@@ -59,27 +58,12 @@ function formatSentenceCase(str: string | null | undefined): string {
 }
 
 type StatusKey = AttemptDetailPayment['status'];
-const STATUS_TONE: Record<StatusKey, 'ok' | 'critical' | 'warn' | 'neutral'> = {
-  captured: 'ok',
-  failed: 'critical',
-  authorized: 'warn',
-  refunded: 'warn',
-  created: 'neutral',
-};
 const STATUS_LABEL: Record<StatusKey, string> = {
   captured: 'Captured',
   failed: 'Failed',
   authorized: 'Authorized',
   refunded: 'Refunded',
   created: 'Created',
-};
-const ROW_STATUS_TONE: Record<AttemptDeviceRecent['status'], string> = {
-  captured: 'ok',
-  recovered: 'info',
-  failed: 'critical',
-  authorized: 'warn',
-  refunded: 'warn',
-  pending: 'neutral',
 };
 const ROW_STATUS_LABEL: Record<AttemptDeviceRecent['status'], string> = {
   captured: 'Captured',
@@ -89,8 +73,6 @@ const ROW_STATUS_LABEL: Record<AttemptDeviceRecent['status'], string> = {
   refunded: 'Refunded',
   pending: 'Pending',
 };
-const SEVERITY_TONE = { high: 'critical', medium: 'warn', low: 'neutral' } as const;
-
 const CARD_BRANDS: Record<string, { logo: string; cls: string; label: string }> = {
   visa: { logo: visaLogo, cls: 'ap-pm-logo--visa', label: 'Visa' },
   mastercard: { logo: mastercardLogo, cls: 'ap-pm-logo--mastercard', label: 'Mastercard' },
@@ -176,19 +158,6 @@ function MethodFactCell({ payment }: { payment: AttemptDetailPayment }): React.J
   );
 }
 
-function cardCohort(payment: AttemptDetailPayment): string | null {
-  const parts = [
-    formatSentenceCase(payment.cardNetwork),
-    formatSentenceCase(payment.cardType),
-    formatSentenceCase(payment.cardIssuer),
-  ].filter((part): part is string => part !== null && part !== '' && part !== '—');
-  if (parts.length === 0 && payment.cardFingerprint === null) return null;
-  const label = parts.join(' · ');
-  return payment.cardFingerprint === null
-    ? label
-    : `${label}${label ? ' · ' : ''}⚹${payment.cardFingerprint}`;
-}
-
 function statusSentence(payment: AttemptDetailPayment): string {
   switch (payment.status) {
     case 'captured':
@@ -219,111 +188,262 @@ function Fact({
   );
 }
 
-function CoreFacts({ payment }: { payment: AttemptDetailPayment }): React.JSX.Element {
-  return (
-    <>
-      <Fact label="Payment ID">
-        <code>{payment.paymentId}</code>
-      </Fact>
-      <Fact label="Order ID">
-        <code>{payment.orderId ?? '—'}</code>
-      </Fact>
-      <Fact label="Amount">
-        <strong>{rupees(payment.amountPaise)}</strong>
-      </Fact>
-      <Fact label="Currency">{payment.currency ?? 'INR'}</Fact>
-      <Fact label="Method">
-        <MethodFactCell payment={payment} />
-      </Fact>
-      <Fact label="Status">
-        <span className={`ad-chip ad-chip--${STATUS_TONE[payment.status]}`}>
+function PaymentDetails({ payment }: { payment: AttemptDetailPayment }): React.JSX.Element {
+  const isCaptured = payment.status === 'captured';
+  const isFailed = payment.status === 'failed';
+
+  const fields: Array<{
+    label: string;
+    value: React.ReactNode;
+    kind: 'mono' | 'strong' | 'pill' | 'plain';
+  }> = [
+    { label: 'Payment ID', value: payment.paymentId, kind: 'mono' },
+    { label: 'Order ID', value: payment.orderId ?? '—', kind: 'mono' },
+    { label: 'Amount', value: rupees(payment.amountPaise), kind: 'strong' },
+    { label: 'Currency', value: payment.currency ?? 'INR', kind: 'plain' },
+    { label: 'Method', value: formatSentenceCase(payment.method), kind: 'plain' },
+    {
+      label: 'Status',
+      value: (
+        <span
+          style={{
+            display: 'inline-flex',
+            padding: '3px 10px',
+            borderRadius: 'var(--s-radius-pill)',
+            fontSize: '11.5px',
+            fontWeight: 600,
+            width: 'fit-content',
+            color: isCaptured
+              ? 'oklch(0.4 0.11 162)'
+              : isFailed
+                ? 'oklch(0.48 0.15 22)'
+                : 'oklch(0.44 0.015 280)',
+            background: isCaptured
+              ? 'oklch(0.955 0.03 162)'
+              : isFailed
+                ? 'oklch(0.958 0.026 22)'
+                : 'oklch(0.958 0.006 280)',
+          }}
+        >
           {STATUS_LABEL[payment.status]}
         </span>
-      </Fact>
-      <Fact label="Captured">{payment.captured ? 'Yes' : 'No'}</Fact>
-      <Fact label="Refunded">{payment.refunded ? 'Yes' : 'No'}</Fact>
-      <Fact label="First seen">{dateTime(payment.firstSeenAt)}</Fact>
-      <Fact label="Last seen">{dateTime(payment.lastSeenAt)}</Fact>
-      <Fact label="Events">{payment.eventCount}</Fact>
-      <Fact label="Source">{payment.source === 'replay' ? 'Simulation' : 'Live'}</Fact>
-    </>
-  );
-}
-
-function FailureFacts({
-  failure,
-}: {
-  failure: AttemptDetailPayment['failure'];
-}): React.JSX.Element | null {
-  if (failure === null) return null;
-  return (
-    <>
-      <Fact label="Failure reason">
-        {failure.description ?? failure.reason ?? 'Declined'}
-        {failure.code !== null && <span className="ad-muted"> · {failure.code}</span>}
-      </Fact>
-      {failure.step !== null && <Fact label="Failed at step">{failure.step}</Fact>}
-      {failure.source !== null && <Fact label="Declined by">{failure.source}</Fact>}
-    </>
-  );
-}
-
-function CardHeaderTitle({
-  icon,
-  text,
-  badgeTone,
-}: {
-  icon: React.ReactNode;
-  text: string;
-  badgeTone: string;
-}): React.JSX.Element {
-  return (
-    <div className="ad-card-head-inner">
-      <span className={`ad-card-badge ad-card-badge--${badgeTone}`}>{icon}</span>
-      <span>{text}</span>
-    </div>
-  );
-}
-
-function PaymentDetails({ payment }: { payment: AttemptDetailPayment }): React.JSX.Element {
-  const cohort = cardCohort(payment);
-  const badgeTone =
-    payment.status === 'captured' ? 'green' : payment.status === 'failed' ? 'red' : 'amber';
+      ),
+      kind: 'pill',
+    },
+    { label: 'Captured', value: payment.captured ? 'Yes' : 'No', kind: 'plain' },
+    { label: 'Refunded', value: payment.refunded ? 'Yes' : 'No', kind: 'plain' },
+    { label: 'First seen', value: dateTime(payment.firstSeenAt), kind: 'plain' },
+    { label: 'Last seen', value: dateTime(payment.lastSeenAt), kind: 'plain' },
+    { label: 'Events', value: `${payment.eventCount}`, kind: 'plain' },
+    { label: 'Source', value: payment.source === 'replay' ? 'Simulation' : 'Live', kind: 'plain' },
+  ];
 
   return (
-    <Card
-      title={<CardHeaderTitle icon={<CreditCard />} text="Payment details" badgeTone="blue" />}
-      subtitle="Transaction amounts, payment method facts, and terminal status."
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: '12px',
+        background: 'oklch(1 0 0)',
+        border: '1px solid oklch(0.925 0.006 280)',
+        overflow: 'hidden',
+      }}
     >
-      <dl className="ad-facts">
-        <CoreFacts payment={payment} />
-        {cohort !== null && <Fact label="Card">{cohort}</Fact>}
-        <FailureFacts failure={payment.failure} />
-        {payment.international !== null && (
-          <Fact label="International">{payment.international ? 'Yes' : 'No'}</Fact>
-        )}
-      </dl>
-
-      <div className={`ad-status ad-status--${STATUS_TONE[payment.status]}`}>
-        <div className="ad-status__title-row">
-          <span className={`ad-card-badge ad-card-badge--sm ad-card-badge--${badgeTone}`}>
-            <WarningCircle />
-          </span>
-          <strong>Attempt status: {STATUS_LABEL[payment.status]}</strong>
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '12px',
+          padding: '16px 20px',
+          borderBottom: '1px solid oklch(0.955 0.006 280)',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '14.5px',
+              fontWeight: 600,
+              letterSpacing: '-0.018em',
+              color: 'oklch(0.21 0.015 280)',
+            }}
+          >
+            Payment details
+          </h2>
+          <p
+            style={{
+              margin: 0,
+              fontSize: '12px',
+              fontWeight: 500,
+              color: 'oklch(0.56 0.015 280)',
+              textWrap: 'pretty',
+            }}
+          >
+            Transaction amounts, payment method facts, and terminal status.
+          </p>
         </div>
-        <span>{statusSentence(payment)}</span>
       </div>
 
-      <p className="ad-note">
-        This attempt is not an incident on its own. A single payment is never judged risky or safe
-        by itself — it is evaluated only as part of your overall payment activity, once many
-        attempts and behavioural factors line up.
-      </p>
-      <p className="ad-note ad-note--subtle">
-        A card’s last four is never stored — for a tokenised card it is the token’s last four, not
-        the card’s. Distinct cards are told apart by a token fingerprint instead.
-      </p>
-    </Card>
+      {/* 3-Column Fields Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+        {fields.map((field, i) => {
+          const hasLeftBorder = i % 3 !== 0;
+          const hasBottomBorder = i < 9;
+          return (
+            <div
+              key={field.label}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '7px',
+                padding: '14px 20px',
+                ...(hasLeftBorder && { borderLeft: '1px solid oklch(0.968 0.006 280)' }),
+                ...(hasBottomBorder && { borderBottom: '1px solid oklch(0.968 0.006 280)' }),
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '10.5px',
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: 'oklch(0.56 0.015 280)',
+                }}
+              >
+                {field.label}
+              </span>
+              {field.kind === 'pill' ? (
+                field.value
+              ) : field.kind === 'mono' ? (
+                <span
+                  style={{
+                    fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+                    fontSize: '12.5px',
+                    fontWeight: 500,
+                    color: 'oklch(0.24 0.015 280)',
+                    wordBreak: 'break-all',
+                  }}
+                >
+                  {field.value}
+                </span>
+              ) : field.kind === 'strong' ? (
+                <span
+                  style={{
+                    fontSize: '16px',
+                    fontWeight: 400,
+                    letterSpacing: '-0.01em',
+                    fontVariantNumeric: 'tabular-nums',
+                    color: 'oklch(0.19 0.015 280)',
+                  }}
+                >
+                  {field.value}
+                </span>
+              ) : (
+                <span
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    color: 'oklch(0.26 0.015 280)',
+                  }}
+                >
+                  {field.value}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Attempt Status Banner & Notes */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px 20px' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '10px',
+            padding: '13px 15px',
+            borderRadius: '10px',
+            background: isCaptured
+              ? 'oklch(0.972 0.024 162)'
+              : isFailed
+                ? 'oklch(0.972 0.026 22)'
+                : 'oklch(0.972 0.006 280)',
+          }}
+        >
+          <WarningCircle
+            size={16}
+            color={
+              isCaptured
+                ? 'oklch(0.46 0.12 162)'
+                : isFailed
+                  ? 'oklch(0.5 0.15 22)'
+                  : 'oklch(0.5 0.015 280)'
+            }
+            style={{ flexShrink: 0, marginTop: '2px' }}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>
+            <span
+              style={{
+                fontSize: '12.5px',
+                fontWeight: 600,
+                color: isCaptured
+                  ? 'oklch(0.3 0.07 162)'
+                  : isFailed
+                    ? 'oklch(0.38 0.12 22)'
+                    : 'oklch(0.3 0.015 280)',
+              }}
+            >
+              Attempt status: {STATUS_LABEL[payment.status]}
+            </span>
+            <span
+              style={{
+                fontSize: '12px',
+                fontWeight: 500,
+                lineHeight: 1.55,
+                color: isCaptured
+                  ? 'oklch(0.38 0.05 162)'
+                  : isFailed
+                    ? 'oklch(0.42 0.08 22)'
+                    : 'oklch(0.45 0.015 280)',
+                textWrap: 'pretty',
+              }}
+            >
+              {statusSentence(payment)}
+            </span>
+          </div>
+        </div>
+
+        <p
+          style={{
+            margin: 0,
+            maxWidth: '88ch',
+            fontSize: '12.5px',
+            fontWeight: 500,
+            lineHeight: 1.65,
+            color: 'oklch(0.48 0.015 280)',
+          }}
+        >
+          This attempt is not an incident on its own. A single payment is never judged risky or safe
+          by itself — it is evaluated only as part of your overall payment activity, once many
+          attempts and behavioural factors line up.
+        </p>
+
+        <p
+          style={{
+            margin: 0,
+            maxWidth: '88ch',
+            fontSize: '11.5px',
+            fontWeight: 500,
+            lineHeight: 1.6,
+            color: 'oklch(0.62 0.015 280)',
+          }}
+        >
+          A card’s last four is never stored — for a tokenised card it is the token’s last four, not
+          the card’s. Distinct cards are told apart by a token fingerprint instead.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -332,52 +452,163 @@ function IncidentAssociation({
 }: {
   incident: AttemptIncidentLink | null;
 }): React.JSX.Element {
-  if (incident === null) {
-    return (
-      <Card
-        title={<CardHeaderTitle icon={<Shield />} text="Incident association" badgeTone="grey" />}
-        subtitle="Correlation with fraud detectors."
-      >
-        <div className="ad-assoc ad-assoc--none">
-          <strong>Standalone attempt</strong>
-          <span>This attempt is not currently part of any detected incident.</span>
-        </div>
-      </Card>
-    );
-  }
   return (
-    <Card
-      title={<CardHeaderTitle icon={<Shield />} text="Incident association" badgeTone="red" />}
-      subtitle="Correlated risk detection."
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: '12px',
+        background: 'oklch(1 0 0)',
+        border: '1px solid oklch(0.925 0.006 280)',
+        overflow: 'hidden',
+      }}
     >
-      <div className="ad-assoc ad-assoc--linked">
-        <strong>Part of an incident</strong>
-        <span>This attempt correlates with other activity the detector grouped together.</span>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '12px',
+          padding: '16px 20px',
+          borderBottom: '1px solid oklch(0.955 0.006 280)',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '14.5px',
+              fontWeight: 600,
+              letterSpacing: '-0.018em',
+              color: 'oklch(0.21 0.015 280)',
+            }}
+          >
+            Incident association
+          </h2>
+          <p
+            style={{
+              margin: 0,
+              fontSize: '12px',
+              fontWeight: 500,
+              color: 'oklch(0.56 0.015 280)',
+              textWrap: 'pretty',
+            }}
+          >
+            Correlation with fraud detectors.
+          </p>
+        </div>
       </div>
-      <dl className="ad-facts ad-facts--sidebar">
-        <Fact label="Incident">
-          <Link className="ad-link" to="/console/incidents/$id" params={{ id: incident.id }}>
-            {incident.ref}
-          </Link>
-        </Fact>
-        <Fact label="Name">{incident.title}</Fact>
-        <Fact label="Severity">
-          <Badge tone={SEVERITY_TONE[incident.severity]}>{incident.severity}</Badge>
-        </Fact>
-        <Fact label="Grouped by">{incident.entityKind}</Fact>
-        <Fact label="Linked attempts">{incident.attempts}</Fact>
-        {incident.distinctCards !== null && (
-          <Fact label="Linked cards">{incident.distinctCards}</Fact>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px 20px' }}>
+        {incident === null ? (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '5px',
+              padding: '13px 15px',
+              borderRadius: '10px',
+              background: 'oklch(0.978 0.002 270)',
+              border: '1px solid oklch(0.94 0.006 280)',
+            }}
+          >
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'oklch(0.24 0.015 280)' }}>
+              Standalone attempt
+            </span>
+            <span
+              style={{
+                fontSize: '12px',
+                fontWeight: 500,
+                lineHeight: 1.5,
+                color: 'oklch(0.52 0.015 280)',
+              }}
+            >
+              This attempt is not currently part of any detected incident.
+            </span>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '5px',
+                padding: '13px 15px',
+                borderRadius: '10px',
+                background: 'oklch(0.958 0.026 22)',
+                border: '1px solid oklch(0.93 0.02 22)',
+              }}
+            >
+              <span style={{ fontSize: '13px', fontWeight: 600, color: 'oklch(0.42 0.15 22)' }}>
+                Part of an incident
+              </span>
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  lineHeight: 1.5,
+                  color: 'oklch(0.48 0.14 22)',
+                }}
+              >
+                This attempt correlates with other activity the detector grouped together.
+              </span>
+            </div>
+
+            <dl className="ad-facts ad-facts--sidebar">
+              <Fact label="Incident">
+                <Link className="ad-link" to="/console/incidents/$id" params={{ id: incident.id }}>
+                  {incident.ref}
+                </Link>
+              </Fact>
+              <Fact label="Name">{incident.title}</Fact>
+              <Fact label="Severity">
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    padding: '3px 10px',
+                    borderRadius: 'var(--s-radius-pill)',
+                    fontSize: '11.5px',
+                    fontWeight: 600,
+                    width: 'fit-content',
+                    color:
+                      incident.severity === 'high'
+                        ? 'oklch(0.48 0.15 22)'
+                        : incident.severity === 'medium'
+                          ? 'oklch(0.45 0.12 70)'
+                          : 'oklch(0.44 0.015 280)',
+                    background:
+                      incident.severity === 'high'
+                        ? 'oklch(0.958 0.026 22)'
+                        : incident.severity === 'medium'
+                          ? 'oklch(0.965 0.03 70)'
+                          : 'oklch(0.958 0.006 280)',
+                  }}
+                >
+                  {incident.severity}
+                </span>
+              </Fact>
+              <Fact label="Grouped by">{incident.entityKind}</Fact>
+              <Fact label="Linked attempts">{incident.attempts}</Fact>
+              {incident.distinctCards !== null && (
+                <Fact label="Linked cards">{incident.distinctCards}</Fact>
+              )}
+              <Fact label="Linked devices">{incident.distinctDevices}</Fact>
+              <Fact label="Linked sessions">{incident.distinctSessions}</Fact>
+              <Fact label="Window">{duration(incident.windowMs)}</Fact>
+              <Fact label="Reason">{incident.reason}</Fact>
+            </dl>
+            <Link className="ad-cta" to="/console/incidents/$id" params={{ id: incident.id }}>
+              View incident →
+            </Link>
+          </div>
         )}
-        <Fact label="Linked devices">{incident.distinctDevices}</Fact>
-        <Fact label="Linked sessions">{incident.distinctSessions}</Fact>
-        <Fact label="Window">{duration(incident.windowMs)}</Fact>
-        <Fact label="Reason">{incident.reason}</Fact>
-      </dl>
-      <Link className="ad-cta" to="/console/incidents/$id" params={{ id: incident.id }}>
-        View incident →
-      </Link>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -388,17 +619,66 @@ function percent(value: number): string {
 function MonitoringSignals({ signals }: { signals: AttemptSignals | null }): React.JSX.Element {
   if (signals === null) {
     return (
-      <Card
-        title={<CardHeaderTitle icon={<Pulse />} text="Monitoring signals" badgeTone="purple" />}
-        subtitle="What was observed around this attempt."
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          borderRadius: '12px',
+          background: 'oklch(1 0 0)',
+          border: '1px solid oklch(0.925 0.006 280)',
+          overflow: 'hidden',
+        }}
       >
-        <p className="ad-note">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '12px',
+            padding: '16px 20px',
+            borderBottom: '1px solid oklch(0.955 0.006 280)',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: '14.5px',
+                fontWeight: 600,
+                letterSpacing: '-0.018em',
+                color: 'oklch(0.21 0.015 280)',
+              }}
+            >
+              Monitoring signals
+            </h2>
+            <p
+              style={{
+                margin: 0,
+                fontSize: '12px',
+                fontWeight: 500,
+                color: 'oklch(0.56 0.015 280)',
+                textWrap: 'pretty',
+              }}
+            >
+              Observations recorded at the time of this attempt.
+            </p>
+          </div>
+        </div>
+        <p
+          style={{
+            margin: 0,
+            padding: '16px 20px',
+            fontSize: '12.5px',
+            fontWeight: 500,
+            color: 'oklch(0.52 0.015 280)',
+          }}
+        >
           No checkout context was captured for this attempt, so device- and network-level
           observations aren’t available. Nothing is invented in their place.
         </p>
-      </Card>
+      </div>
     );
   }
+
   const amount =
     signals.amountVsTypical === 'typical'
       ? 'Within the shop’s normal range'
@@ -408,15 +688,15 @@ function MonitoringSignals({ signals }: { signals: AttemptSignals | null }): Rea
           ? `Below this shop’s typical (≈ ${rupees(signals.typicalAmountPaise)})`
           : 'Not enough history to compare';
 
-  const rows: { label: string; hint: string; value: string }[] = [
+  const rows: { label: string; desc: string; value: string }[] = [
     {
       label: 'Velocity',
-      hint: `Attempts from this device in the last ${signals.windowSeconds}s`,
+      desc: `Attempts from this device in the last ${signals.windowSeconds}s`,
       value: `${signals.attemptsInWindow}`,
     },
     {
       label: 'Failure rate',
-      hint: `Failed of ${signals.attemptsInWindow} in that window`,
+      desc: `Failed of ${signals.attemptsInWindow} in that window`,
       value:
         signals.failureRate === null
           ? '—'
@@ -424,176 +704,683 @@ function MonitoringSignals({ signals }: { signals: AttemptSignals | null }): Rea
     },
     {
       label: 'Device history',
-      hint: 'Was this device active before this window',
+      desc: 'Was this device active before this window',
       value: signals.deviceSeenBefore ? 'Seen before' : 'First seen now',
     },
     {
       label: 'Network sharing',
-      hint: `Distinct devices on this network in the last ${Math.round(signals.networkWindowSeconds / 60)} min`,
+      desc: `Distinct devices on this network in the last ${Math.round(signals.networkWindowSeconds / 60)} min`,
       value: `${signals.networkDistinctDevices}`,
     },
     {
       label: 'Card reuse',
-      hint: `This card tried in the last ${signals.windowSeconds}s`,
+      desc: `This card tried in the last ${signals.windowSeconds}s`,
       value: signals.cardReuseInWindow === null ? 'Not a card' : `${signals.cardReuseInWindow}×`,
     },
     {
       label: 'Amount deviation',
-      hint: 'This amount vs the shop’s typical',
+      desc: 'This amount vs the shop’s typical',
       value: amount,
     },
   ];
+
   return (
-    <Card
-      title={<CardHeaderTitle icon={<Pulse />} text="Monitoring signals" badgeTone="purple" />}
-      subtitle="Observations recorded at the time of this attempt."
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: '12px',
+        background: 'oklch(1 0 0)',
+        border: '1px solid oklch(0.925 0.006 280)',
+        overflow: 'hidden',
+      }}
     >
-      <ul className="ad-signals">
-        {rows.map((row) => (
-          <li key={row.label}>
-            <span className="ad-signal__label">
-              <strong>{row.label}</strong>
-              <em>{row.hint}</em>
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '12px',
+          padding: '16px 20px',
+          borderBottom: '1px solid oklch(0.955 0.006 280)',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '14.5px',
+              fontWeight: 600,
+              letterSpacing: '-0.018em',
+              color: 'oklch(0.21 0.015 280)',
+            }}
+          >
+            Monitoring signals
+          </h2>
+          <p
+            style={{
+              margin: 0,
+              fontSize: '12px',
+              fontWeight: 500,
+              color: 'oklch(0.56 0.015 280)',
+              textWrap: 'pretty',
+            }}
+          >
+            Observations recorded at the time of this attempt.
+          </p>
+        </div>
+      </div>
+
+      {/* Signal Rows */}
+      <div style={{ display: 'flex', flexDirection: 'column', padding: '4px 20px 6px' }}>
+        {rows.map((row, i) => (
+          <div
+            key={row.label}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: '18px',
+              padding: '12px 0',
+              ...(i < rows.length - 1 && { borderBottom: '1px solid oklch(0.968 0.006 280)' }),
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+              <span
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  letterSpacing: '-0.012em',
+                  color: 'oklch(0.24 0.015 280)',
+                }}
+              >
+                {row.label}
+              </span>
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  color: 'oklch(0.56 0.015 280)',
+                  textWrap: 'pretty',
+                }}
+              >
+                {row.desc}
+              </span>
+            </div>
+            <span
+              style={{
+                fontSize: '13px',
+                fontWeight: 600,
+                fontVariantNumeric: 'tabular-nums',
+                textAlign: 'right',
+                color: 'oklch(0.22 0.015 280)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {row.value}
             </span>
-            <span className="ad-signal__value">{row.value}</span>
-          </li>
+          </div>
         ))}
-      </ul>
-      <p className="ad-note">
+      </div>
+
+      <p
+        style={{
+          margin: 0,
+          padding: '12px 20px 18px',
+          maxWidth: '88ch',
+          fontSize: '12.5px',
+          fontWeight: 500,
+          lineHeight: 1.65,
+          color: 'oklch(0.48 0.015 280)',
+          textWrap: 'pretty',
+        }}
+      >
         These are observations, not a score. Risk is evaluated only after correlating multiple
         attempts — no single number here judges this payment.
       </p>
-    </Card>
-  );
-}
-
-function RecentFromDevice({ rows }: { rows: AttemptDeviceRecent[] }): React.JSX.Element | null {
-  if (rows.length === 0) return null;
-  return (
-    <Card
-      title={
-        <CardHeaderTitle
-          icon={<Laptop />}
-          text="Recent attempts from this device"
-          badgeTone="blue"
-        />
-      }
-      subtitle="Chronological attempt history on this device fingerprint."
-      variant="flush"
-    >
-      <div className="ad-table-wrap">
-        <table className="ad-table">
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Payment ID</th>
-              <th>Card</th>
-              <th>Amount</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.paymentId} className={row.isCurrent ? 'is-current' : undefined}>
-                <td className="ad-muted">{new Date(row.at).toLocaleTimeString('en-IN')}</td>
-                <td>
-                  {row.isCurrent ? (
-                    <code className="ad-code">{row.paymentId}</code>
-                  ) : (
-                    <Link
-                      className="ad-link"
-                      to="/console/attempts/$paymentId"
-                      params={{ paymentId: row.paymentId }}
-                    >
-                      {row.paymentId}
-                    </Link>
-                  )}
-                </td>
-                <td>{row.cardNetwork !== null ? formatSentenceCase(row.cardNetwork) : '—'}</td>
-                <td className="ad-amount">{rupees(row.amountPaise)}</td>
-                <td>
-                  <span className={`ad-chip ad-chip--${ROW_STATUS_TONE[row.status]}`}>
-                    {ROW_STATUS_LABEL[row.status]}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
+    </div>
   );
 }
 
 function Context({ context }: { context: SensorContext | null }): React.JSX.Element | null {
   if (context === null) return null;
+
+  const rows: Array<{ label: string; value: React.ReactNode; isMono?: boolean }> = [
+    { label: 'Session', value: context.sessionFingerprint, isMono: true },
+    { label: 'Device', value: context.deviceFingerprint, isMono: true },
+    { label: 'Network', value: context.ipFingerprint, isMono: true },
+    { label: 'Browser', value: context.userAgentFamily, isMono: false },
+    { label: 'Items in cart', value: `${context.itemCount}`, isMono: false },
+  ];
+
   return (
-    <Card
-      title={<CardHeaderTitle icon={<Laptop />} text="Checkout context" badgeTone="blue" />}
-      subtitle="The storefront’s record of who was checking out."
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: '12px',
+        background: 'oklch(1 0 0)',
+        border: '1px solid oklch(0.925 0.006 280)',
+        overflow: 'hidden',
+      }}
     >
-      <dl className="ad-facts ad-facts--sidebar">
-        <Fact label="Session">
-          <code className="ad-code">{context.sessionFingerprint}</code>
-        </Fact>
-        <Fact label="Device">
-          <code className="ad-code">{context.deviceFingerprint}</code>
-        </Fact>
-        <Fact label="Network">
-          <code className="ad-code">{context.ipFingerprint}</code>
-        </Fact>
-        <Fact label="Browser">{context.userAgentFamily}</Fact>
-        <Fact label="Items in cart">{context.itemCount}</Fact>
-      </dl>
-      <p className="ad-note">
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '12px',
+          padding: '16px 20px',
+          borderBottom: '1px solid oklch(0.955 0.006 280)',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '14.5px',
+              fontWeight: 600,
+              letterSpacing: '-0.018em',
+              color: 'oklch(0.21 0.015 280)',
+            }}
+          >
+            Checkout context
+          </h2>
+          <p
+            style={{
+              margin: 0,
+              fontSize: '12px',
+              fontWeight: 500,
+              color: 'oklch(0.56 0.015 280)',
+              textWrap: 'pretty',
+            }}
+          >
+            The storefront’s record of who was checking out.
+          </p>
+        </div>
+      </div>
+
+      {/* Context Rows */}
+      <div style={{ display: 'flex', flexDirection: 'column', padding: '4px 20px 6px' }}>
+        {rows.map((row, i) => (
+          <div
+            key={row.label}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              padding: '12px 0',
+              ...(i < rows.length - 1 && { borderBottom: '1px solid oklch(0.968 0.006 280)' }),
+            }}
+          >
+            <span
+              style={{
+                fontSize: '10.5px',
+                fontWeight: 700,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: 'oklch(0.56 0.015 280)',
+              }}
+            >
+              {row.label}
+            </span>
+            {row.isMono ? (
+              <span
+                style={{
+                  fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  color: 'oklch(0.28 0.015 280)',
+                  background: 'oklch(0.962 0.004 270)',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid oklch(0.92 0.006 280)',
+                  wordBreak: 'break-all',
+                  width: 'fit-content',
+                }}
+              >
+                {row.value}
+              </span>
+            ) : (
+              <span
+                style={{
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: 'oklch(0.26 0.015 280)',
+                }}
+              >
+                {row.value}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <p
+        style={{
+          margin: 0,
+          padding: '12px 20px 18px',
+          fontSize: '12px',
+          fontWeight: 500,
+          lineHeight: 1.6,
+          color: 'oklch(0.5 0.015 280)',
+          textWrap: 'pretty',
+        }}
+      >
         These are keyed fingerprints — enough to tell two checkouts apart, never the values behind
         them.
       </p>
-    </Card>
+    </div>
+  );
+}
+
+function RecentFromDevice({ rows }: { rows: AttemptDeviceRecent[] }): React.JSX.Element | null {
+  if (rows.length === 0) return null;
+
+  return (
+    <section
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: '12px',
+        background: 'oklch(1 0 0)',
+        border: '1px solid oklch(0.925 0.006 280)',
+        overflow: 'hidden',
+        marginBottom: '14px',
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '12px',
+          padding: '16px 20px',
+          borderBottom: '1px solid oklch(0.955 0.006 280)',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '14.5px',
+              fontWeight: 600,
+              letterSpacing: '-0.018em',
+              color: 'oklch(0.21 0.015 280)',
+            }}
+          >
+            Recent attempts from this device
+          </h2>
+          <p
+            style={{
+              margin: 0,
+              fontSize: '12px',
+              fontWeight: 500,
+              color: 'oklch(0.56 0.015 280)',
+              textWrap: 'pretty',
+            }}
+          >
+            Chronological attempt history on this device fingerprint.
+          </p>
+        </div>
+      </div>
+
+      {/* Table Container */}
+      <div className="om-scroll" style={{ overflowX: 'auto' }}>
+        {/* Table Header Row */}
+        <div
+          style={{
+            display: 'grid',
+            // Weighted by how much text each column holds, so the leftover width is shared out rather
+            // than pooling behind Payment ID and leaving Amount jammed against Status.
+            gridTemplateColumns:
+              'minmax(96px, 0.78fr) minmax(196px, 1.35fr) minmax(112px, 0.86fr) minmax(96px, 0.72fr) minmax(100px, 0.76fr)',
+            gap: '18px',
+            minWidth: '780px',
+            padding: '10px 20px',
+            background: 'oklch(0.984 0.003 270)',
+            borderBottom: '1px solid oklch(0.955 0.006 280)',
+            fontSize: '10.5px',
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            color: 'oklch(0.56 0.015 280)',
+          }}
+        >
+          <span>Time</span>
+          <span>Payment ID</span>
+          <span>Method</span>
+          <span>Amount</span>
+          <span>Status</span>
+        </div>
+
+        {/* Table Data Rows */}
+        {rows.map((row) => {
+          const isCaptured = row.status === 'captured';
+          const isFailed = row.status === 'failed';
+          const isRecovered = row.status === 'recovered';
+          const isAuthorized = row.status === 'authorized';
+
+          const badgeColor = isCaptured
+            ? 'oklch(0.4 0.11 162)'
+            : isFailed
+              ? 'oklch(0.46 0.13 22)'
+              : isRecovered
+                ? 'oklch(0.35 0.12 250)'
+                : isAuthorized
+                  ? 'oklch(0.45 0.12 70)'
+                  : 'oklch(0.45 0.015 280)';
+
+          const badgeBg = isCaptured
+            ? 'oklch(0.955 0.03 162)'
+            : isFailed
+              ? 'oklch(0.958 0.026 22)'
+              : isRecovered
+                ? 'oklch(0.962 0.025 250)'
+                : isAuthorized
+                  ? 'oklch(0.965 0.03 70)'
+                  : 'oklch(0.958 0.006 280)';
+
+          return (
+            <div
+              key={row.paymentId}
+              style={{
+                display: 'grid',
+                // Weighted by how much text each column holds, so the leftover width is shared out rather
+                // than pooling behind Payment ID and leaving Amount jammed against Status.
+                gridTemplateColumns:
+                  'minmax(96px, 0.78fr) minmax(196px, 1.35fr) minmax(112px, 0.86fr) minmax(96px, 0.72fr) minmax(100px, 0.76fr)',
+                gap: '18px',
+                minWidth: '780px',
+                alignItems: 'center',
+                padding: '12px 20px',
+                borderBottom: '1px solid oklch(0.97 0.006 280)',
+                background: row.isCurrent ? 'oklch(0.984 0.008 260)' : 'transparent',
+              }}
+            >
+              {/* Time */}
+              <span
+                style={{
+                  fontSize: '12.5px',
+                  fontWeight: 500,
+                  fontVariantNumeric: 'tabular-nums',
+                  color: 'oklch(0.3 0.015 280)',
+                }}
+              >
+                {new Date(row.at).toLocaleTimeString('en-IN')}
+              </span>
+
+              {/* Payment ID */}
+              <div>
+                {row.isCurrent ? (
+                  <span
+                    style={{
+                      fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      color: 'oklch(0.32 0.015 280)',
+                      background: 'oklch(0.962 0.004 270)',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid oklch(0.92 0.006 280)',
+                    }}
+                  >
+                    {row.paymentId}
+                  </span>
+                ) : (
+                  <Link
+                    style={{
+                      fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      color: 'oklch(0.35 0.16 250)',
+                      textDecoration: 'none',
+                    }}
+                    to="/console/attempts/$paymentId"
+                    params={{ paymentId: row.paymentId }}
+                  >
+                    {row.paymentId}
+                  </Link>
+                )}
+              </div>
+
+              {/* Card */}
+              <PaymentMethodCell method={row.method} cardNetwork={row.cardNetwork} />
+
+              {/* Amount */}
+              <span
+                style={{
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  fontVariantNumeric: 'tabular-nums',
+                  color: 'oklch(0.24 0.015 280)',
+                }}
+              >
+                {rupees(row.amountPaise)}
+              </span>
+
+              {/* Status Badge */}
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 'fit-content',
+                  padding: '3px 10px',
+                  borderRadius: 'var(--s-radius-pill)',
+                  fontSize: '11.5px',
+                  fontWeight: 600,
+                  color: badgeColor,
+                  background: badgeBg,
+                }}
+              >
+                {ROW_STATUS_LABEL[row.status]}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
 type DetailTab = 'overview' | 'activity' | 'signals';
 
 function HeroBanner({ payment }: { payment: AttemptDetailPayment }): React.JSX.Element {
+  const isCaptured = payment.status === 'captured';
+  const isFailed = payment.status === 'failed';
+
+  const statusColor = isCaptured
+    ? 'oklch(0.4 0.11 162)'
+    : isFailed
+      ? 'oklch(0.46 0.13 22)'
+      : 'oklch(0.44 0.015 280)';
+
+  const statusBg = isCaptured
+    ? 'oklch(0.955 0.03 162)'
+    : isFailed
+      ? 'oklch(0.958 0.026 22)'
+      : 'oklch(0.958 0.006 280)';
+
   return (
-    <header className="ad-hero-banner">
-      <div className="ad-hero__content">
-        <div className="ad-hero__left">
-          <div className="ad-hero__top">
-            <span className={`ad-chip ad-chip--lg ad-chip--${STATUS_TONE[payment.status]}`}>
+    <section
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: '12px',
+        background: 'oklch(1 0 0)',
+        border: '1px solid oklch(0.925 0.006 280)',
+        overflow: 'hidden',
+        marginBottom: '14px',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: '20px',
+          flexWrap: 'wrap',
+          padding: '18px 22px',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '11px', minWidth: 0 }}>
+          {/* Status Badge + Monospace Payment ID */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '9px', flexWrap: 'wrap' }}>
+            <span
+              style={{
+                padding: '4px 10px',
+                borderRadius: '7px',
+                fontSize: '10.5px',
+                fontWeight: 700,
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                color: statusColor,
+                background: statusBg,
+              }}
+            >
               {STATUS_LABEL[payment.status]}
             </span>
-            <code className="ad-hero__id">{payment.paymentId}</code>
+            <span
+              style={{
+                padding: '4px 10px',
+                borderRadius: '7px',
+                fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+                fontSize: '12px',
+                fontWeight: 500,
+                color: 'oklch(0.32 0.015 280)',
+                background: 'oklch(0.962 0.004 270)',
+                border: '1px solid oklch(0.92 0.006 280)',
+              }}
+            >
+              {payment.paymentId}
+            </span>
           </div>
-          <div className="ad-hero__amount-row">
-            <h1 className="ad-hero__amount">{rupees(payment.amountPaise)}</h1>
-            <span className="ad-hero__currency">{payment.currency ?? 'INR'}</span>
+
+          {/* Amount + Currency */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '7px' }}>
+            <span
+              style={{
+                fontSize: '34px',
+                fontWeight: 600,
+                letterSpacing: '-0.03em',
+                lineHeight: 1,
+                fontVariantNumeric: 'tabular-nums',
+                color: 'oklch(0.19 0.015 280)',
+              }}
+            >
+              {rupees(payment.amountPaise)}
+            </span>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: 'oklch(0.6 0.015 280)' }}>
+              {payment.currency ?? 'INR'}
+            </span>
           </div>
-          <div className="ad-hero__meta">
+
+          {/* Fact Meta Line */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <MethodFactCell payment={payment} />
-            <span className="ad-hero__sep">•</span>
-            <span>{dateTime(payment.firstSeenAt)}</span>
-            <span className="ad-hero__sep">•</span>
-            <Badge tone={payment.source === 'replay' ? 'neutral' : 'info'}>
+            <span
+              style={{
+                width: '3px',
+                height: '3px',
+                borderRadius: '99px',
+                background: 'oklch(0.82 0.01 280)',
+              }}
+            />
+            <span
+              style={{
+                fontSize: '12.5px',
+                fontWeight: 500,
+                fontVariantNumeric: 'tabular-nums',
+                color: 'oklch(0.46 0.015 280)',
+              }}
+            >
+              {dateTime(payment.firstSeenAt)}
+            </span>
+            <span
+              style={{
+                padding: '3px 10px',
+                borderRadius: 'var(--s-radius-pill)',
+                fontSize: '11.5px',
+                fontWeight: 600,
+                color: 'oklch(0.42 0.015 280)',
+                background: 'oklch(0.958 0.006 280)',
+              }}
+            >
               {payment.source === 'replay' ? 'Simulation' : 'Live'}
-            </Badge>
-            <Badge tone="warn" dot>
+            </span>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '3px 10px',
+                borderRadius: 'var(--s-radius-pill)',
+                fontSize: '11.5px',
+                fontWeight: 600,
+                color: 'oklch(0.48 0.12 62)',
+                background: 'oklch(0.962 0.028 72)',
+              }}
+            >
+              <span
+                style={{
+                  width: '5px',
+                  height: '5px',
+                  borderRadius: '99px',
+                  background: 'oklch(0.68 0.14 62)',
+                }}
+              />
               Test mode
-            </Badge>
+            </span>
           </div>
         </div>
 
+        {/* Failure Highlight if present */}
         {payment.failure !== null && (
-          <div className="ad-hero__failure-highlight">
-            <div className="ad-hero__failure-title">
-              <span className="ad-hero__failure-dot" />
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              gap: '4px',
+              maxWidth: '480px',
+              textAlign: 'right',
+              marginLeft: 'auto',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '7px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: 'oklch(0.46 0.13 22)',
+              }}
+            >
+              <span
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '99px',
+                  background: 'oklch(0.62 0.17 22)',
+                  flexShrink: 0,
+                }}
+              />
               <strong>
                 Payment Failed:{' '}
                 {payment.failure.description ?? payment.failure.reason ?? 'Declined'}
               </strong>
             </div>
-            <p className="ad-hero__failure-sub">
+            <p
+              style={{
+                margin: 0,
+                fontSize: '12.5px',
+                fontWeight: 500,
+                color: 'oklch(0.55 0.015 280)',
+                lineHeight: 1.45,
+              }}
+            >
               Declined by {payment.failure.source ?? 'bank'}
               {payment.failure.step ? ` during ${payment.failure.step}` : ''}
               {payment.failure.code ? ` · ${payment.failure.code}` : ''}
@@ -601,9 +1388,15 @@ function HeroBanner({ payment }: { payment: AttemptDetailPayment }): React.JSX.E
           </div>
         )}
       </div>
-    </header>
+    </section>
   );
 }
+
+const DETAIL_TABS: TabItem[] = [
+  { id: 'overview', label: 'Payment details' },
+  { id: 'activity', label: 'Device history' },
+  { id: 'signals', label: 'Signals & context' },
+];
 
 function TabNav({
   activeTab,
@@ -613,32 +1406,11 @@ function TabNav({
   onTab: (tab: DetailTab) => void;
 }): React.JSX.Element {
   return (
-    <nav className="ad-nav-tabs" aria-label="Payment Detail Tabs">
-      <button
-        type="button"
-        className={`ad-tab-btn ${activeTab === 'overview' ? 'is-active' : ''}`}
-        onClick={() => onTab('overview')}
-      >
-        <CreditCard />
-        <span>Payment Overview</span>
-      </button>
-      <button
-        type="button"
-        className={`ad-tab-btn ${activeTab === 'activity' ? 'is-active' : ''}`}
-        onClick={() => onTab('activity')}
-      >
-        <Laptop />
-        <span>Device Pulse</span>
-      </button>
-      <button
-        type="button"
-        className={`ad-tab-btn ${activeTab === 'signals' ? 'is-active' : ''}`}
-        onClick={() => onTab('signals')}
-      >
-        <Pulse />
-        <span>Risk Signals & Context</span>
-      </button>
-    </nav>
+    <Tabs
+      items={DETAIL_TABS}
+      active={activeTab}
+      onChange={(id: string) => onTab(id as DetailTab)}
+    />
   );
 }
 
@@ -673,7 +1445,10 @@ export function AttemptDetailPage(): React.JSX.Element {
       <TabNav activeTab={activeTab} onTab={setActiveTab} />
 
       {/* Tab Panel 1: Overview */}
-      <div className={`ad-tab-panel ${activeTab === 'overview' ? 'is-active' : ''}`}>
+      <div
+        className="ad-tab-panel"
+        style={{ display: activeTab === 'overview' ? 'block' : 'none' }}
+      >
         <div className="ad-grid">
           <div className="ad-main">
             <PaymentDetails payment={payment} />
@@ -685,14 +1460,17 @@ export function AttemptDetailPage(): React.JSX.Element {
       </div>
 
       {/* Tab Panel 2: Device Pulse */}
-      <div className={`ad-tab-panel ${activeTab === 'activity' ? 'is-active' : ''}`}>
+      <div
+        className="ad-tab-panel"
+        style={{ display: activeTab === 'activity' ? 'block' : 'none' }}
+      >
         <div className="ad-grid ad-grid--single">
           <RecentFromDevice rows={it.recentFromDevice} />
         </div>
       </div>
 
       {/* Tab Panel 3: Risk Signals & Context */}
-      <div className={`ad-tab-panel ${activeTab === 'signals' ? 'is-active' : ''}`}>
+      <div className="ad-tab-panel" style={{ display: activeTab === 'signals' ? 'block' : 'none' }}>
         <div className="ad-grid">
           <div className="ad-main">
             <MonitoringSignals signals={it.signals} />

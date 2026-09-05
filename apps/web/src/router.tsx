@@ -19,6 +19,7 @@ import { FeaturesPage } from './routes/FeaturesPage.js';
 import { IncidentsPage } from './routes/IncidentsPage.js';
 import { IncidentDetailPage } from './routes/IncidentDetailPage.js';
 import { PolicyPage } from './routes/PolicyPage.js';
+import { PolicyHistoryPage } from './routes/PolicyHistory.js';
 import { AuditPage } from './routes/AuditPage.js';
 import { SettingsPage } from './routes/SettingsPage.js';
 import { AppShell } from './shell/AppShell.js';
@@ -116,6 +117,12 @@ const policyRoute = createRoute({
   component: PolicyPage,
 });
 
+const policyHistoryRoute = createRoute({
+  getParentRoute: () => consoleRoute,
+  path: '/policy/history',
+  component: PolicyHistoryPage,
+});
+
 const auditRoute = createRoute({
   getParentRoute: () => consoleRoute,
   path: '/audit',
@@ -145,6 +152,7 @@ const routeTree = rootRoute.addChildren([
     incidentsRoute,
     incidentDetailRoute,
     policyRoute,
+    policyHistoryRoute,
     auditRoute,
     scenariosRoute,
     settingsRoute,

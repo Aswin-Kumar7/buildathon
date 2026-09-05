@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Link } from '@tanstack/react-router';
 import type { AuditEntry } from '@sentinel/contracts';
-import { fmtDateTime, kindLabel, kindTone, statusLabel } from '../incidents/audit-words.js';
+import { fmtDateTime, kindLabel } from '../incidents/audit-words.js';
 import {
-  ArrowRight as ArrowIcon,
-  ArrowSquareOut as ExternalIcon,
-  Copy as CopyIcon,
-  Check as CheckIcon,
-  CaretDown as ChevronIcon,
-  Info as InfoIcon,
+  ArrowsLeftRight,
+  CheckCircle,
+  Copy,
+  Check,
+  CaretUp,
+  CaretDown,
+  Info,
+  X,
+  Code,
 } from '@phosphor-icons/react';
-
-const incidentRef = (id: string): string => `INC-${id.replace(/-/g, '').slice(0, 4).toUpperCase()}`;
 
 function asRecord(payload: unknown): Record<string, unknown> {
   return payload !== null && typeof payload === 'object' && !Array.isArray(payload)
@@ -19,13 +19,6 @@ function asRecord(payload: unknown): Record<string, unknown> {
     : {};
 }
 
-/**
- * The read-only detail of a single audit entry, attached to the right edge of the app.
- *
- * Everything shown is a field of the entry the list already returned — no second request. The chain
- * links (this hash, the previous, and the next entry's hash, derived from the row after it) are shown
- * so an operator can follow the record by hand, exactly as the verifier does.
- */
 export function AuditDrawer({
   entry,
   nextHash,
@@ -35,6 +28,8 @@ export function AuditDrawer({
   nextHash: string | null;
   onClose: () => void;
 }): React.JSX.Element {
+  const [metaOpen, setMetaOpen] = useState(true);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') onClose();
@@ -43,116 +38,172 @@ export function AuditDrawer({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const actorName = entry.actor ?? 'system';
+  const initials = actorName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
+  const payload = asRecord(entry.payload);
+  const fromState =
+    typeof payload['from'] === 'string'
+      ? payload['from']
+      : typeof payload['fromState'] === 'string'
+        ? payload['fromState']
+        : null;
+  const toState =
+    typeof payload['to'] === 'string'
+      ? payload['to']
+      : typeof payload['toState'] === 'string'
+        ? payload['toState']
+        : null;
+
+  // Build metadata key-value list for table
+  const metaRows: Array<{ key: string; val: string }> = [];
+  metaRows.push({ key: 'version', val: String(entry.policyVersion ?? entry.seq) });
+  metaRows.push({ key: 'subjectType', val: entry.subjectType });
+  metaRows.push({ key: 'subjectId', val: entry.subjectId });
+  const fmtState = (st: string) => st.charAt(0).toUpperCase() + st.slice(1).replace(/_/g, ' ');
+  if (fromState !== null) metaRows.push({ key: 'fromState', val: fmtState(fromState) });
+  if (toState !== null) metaRows.push({ key: 'toState', val: fmtState(toState) });
+
+  for (const [k, v] of Object.entries(payload)) {
+    if (['from', 'to', 'fromState', 'toState'].includes(k)) continue;
+    metaRows.push({
+      key: k,
+      val: typeof v === 'object' ? JSON.stringify(v) : String(v),
+    });
+  }
+
   return (
     <aside className="auddr" role="dialog" aria-modal="false" aria-label="Audit event details">
+      {/* Header */}
       <header className="auddr__head">
         <h2>Audit event details</h2>
         <button type="button" className="auddr__x" onClick={onClose} aria-label="Close">
-          ✕
+          <X size={16} />
         </button>
       </header>
 
-      <div className="auddr__badge">
-        <span className={`aud-badge aud-badge--${kindTone(entry.kind)}`}>
-          {kindLabel(entry.kind)}
-        </span>
-        <span className="auddr__num">Event #{entry.seq}</span>
-      </div>
+      <div className="auddr__content">
+        {/* Banner */}
+        <div className="auddr__banner">
+          <div className="auddr__banner-left">
+            <span className="auddr__banner-icon">
+              <ArrowsLeftRight size={16} />
+            </span>
+            <span className="auddr__banner-title">{kindLabel(entry.kind)}</span>
+          </div>
+          <span className="auddr__event-num">Event #{entry.seq}</span>
+        </div>
 
-      <DrawerBody entry={entry} nextHash={nextHash} onClose={onClose} />
+        {/* 2-Column Meta Grid */}
+        <div className="auddr__grid">
+          <div className="auddr__grid-col">
+            <span className="auddr__grid-label">When</span>
+            <span className="auddr__grid-val">{fmtDateTime(entry.at)}</span>
+          </div>
+          <div className="auddr__grid-col">
+            <span className="auddr__grid-label">Performed by</span>
+            <div className="auddr__actor">
+              <span className="auddr__actor-avatar">{initials}</span>
+              <span className="auddr__grid-val">{actorName}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* HASH CHAIN */}
+        <div className="auddr__chain-sec">
+          <div className="auddr__chain-head">
+            <span className="auddr__sec-label">HASH CHAIN</span>
+            <span className="auddr__verified-badge">
+              <CheckCircle size={13} weight="fill" /> Link verified
+            </span>
+          </div>
+
+          <div className="auddr__timeline">
+            {/* Previous entry */}
+            <div className="auddr__tl-item">
+              <div className="auddr__tl-node auddr__tl-node--open" />
+              <div className="auddr__tl-content">
+                <span className="auddr__tl-label">PREVIOUS ENTRY · #{entry.seq - 1}</span>
+                <HashBox value={entry.prevHash} isCurrent={false} />
+              </div>
+            </div>
+
+            {/* Current entry */}
+            <div className="auddr__tl-item">
+              <div className="auddr__tl-node auddr__tl-node--current" />
+              <div className="auddr__tl-content">
+                <span className="auddr__tl-label auddr__tl-label--current">
+                  THIS ENTRY · #{entry.seq}
+                </span>
+                <HashBox value={entry.hash} isCurrent={true} />
+              </div>
+            </div>
+
+            {/* Next entry */}
+            <div className="auddr__tl-item">
+              <div className="auddr__tl-node auddr__tl-node--dotted" />
+              <div className="auddr__tl-content">
+                <span className="auddr__tl-label">NEXT ENTRY</span>
+                {nextHash !== null ? (
+                  <HashBox value={nextHash} isCurrent={false} />
+                ) : (
+                  <span className="auddr__latest-note">Latest entry — head of the chain</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Additional metadata accordion */}
+        <div className="auddr__meta-accordion">
+          <button
+            type="button"
+            className="auddr__meta-trigger"
+            onClick={() => setMetaOpen((prev) => !prev)}
+            aria-expanded={metaOpen}
+          >
+            <span className="auddr__meta-trigger-left">
+              <Code size={15} />
+              <span>Additional metadata</span>
+            </span>
+            {metaOpen ? <CaretUp size={14} /> : <CaretDown size={14} />}
+          </button>
+
+          {metaOpen && (
+            <div className="auddr__meta-table-wrap">
+              <table className="auddr__meta-table">
+                <tbody>
+                  {metaRows.map((r) => (
+                    <tr key={r.key}>
+                      <td className="auddr__meta-key">{r.key}</td>
+                      <td className="auddr__meta-val">{r.val}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="auddr__callout-box">
+                <Info size={16} className="auddr__callout-ico" />
+                <p>
+                  This record is immutable and part of the cryptographic audit chain. Changing it
+                  would break the link the next entry recorded, and the verifier would report
+                  exactly where.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </aside>
   );
 }
 
-function DrawerBody({
-  entry,
-  nextHash,
-  onClose,
-}: {
-  entry: AuditEntry;
-  nextHash: string | null;
-  onClose: () => void;
-}): React.JSX.Element {
-  const payload = asRecord(entry.payload);
-  const from = typeof payload['from'] === 'string' ? payload['from'] : null;
-  const to = typeof payload['to'] === 'string' ? payload['to'] : null;
-  const note = typeof payload['note'] === 'string' ? payload['note'] : null;
-  const relatedIncident = entry.subjectType === 'incident' ? entry.subjectId : null;
-
-  return (
-    <div className="auddr__body">
-      <Section label="When">
-        <span className="auddr__val">{fmtDateTime(entry.at)}</span>
-      </Section>
-      <Section label="Performed by">
-        <span className="auddr__val">{entry.actor ?? 'system'}</span>
-      </Section>
-
-      {from !== null && to !== null && (
-        <Section label="Change">
-          <div className="auddr__change">
-            <span>{statusLabel(from)}</span>
-            <ArrowIcon />
-            <strong>{statusLabel(to)}</strong>
-          </div>
-        </Section>
-      )}
-
-      {note !== null && (
-        <Section label="Reason">
-          <p className="auddr__reason">{note}</p>
-        </Section>
-      )}
-
-      {relatedIncident !== null && (
-        <Section label="Related incident">
-          <Link
-            to="/console/incidents/$id"
-            params={{ id: relatedIncident }}
-            className="auddr__link"
-            onClick={onClose}
-          >
-            {incidentRef(relatedIncident)} <ExternalIcon />
-          </Link>
-        </Section>
-      )}
-
-      <HashField label="Audit hash" value={entry.hash} />
-      <HashField label="Previous hash" value={entry.prevHash} />
-      {nextHash !== null ? (
-        <HashField label="Next hash" value={nextHash} />
-      ) : (
-        <Section label="Next hash">
-          <span className="auddr__muted">This is the latest entry — the head of the chain.</span>
-        </Section>
-      )}
-
-      <Metadata entry={entry} shown={{ from, to, note }} />
-
-      <p className="auddr__immutable">
-        <InfoIcon /> This record is immutable and part of the cryptographic audit chain. Changing it
-        would break the link the next entry recorded, and the verifier would report exactly where.
-      </p>
-    </div>
-  );
-}
-
-function Section({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <div className="auddr__section">
-      <span className="auddr__label">{label}</span>
-      {children}
-    </div>
-  );
-}
-
-function HashField({ label, value }: { label: string; value: string }): React.JSX.Element {
+function HashBox({ value, isCurrent }: { value: string; isCurrent: boolean }): React.JSX.Element {
   const [copied, setCopied] = useState(false);
   const copy = (): void => {
     void navigator.clipboard?.writeText(value).then(
@@ -163,61 +214,13 @@ function HashField({ label, value }: { label: string; value: string }): React.JS
       () => undefined,
     );
   };
-  return (
-    <div className="auddr__section">
-      <span className="auddr__label">{label}</span>
-      <div className="auddr__hash">
-        <code title={value}>{value}</code>
-        <button type="button" className="auddr__copy" onClick={copy} aria-label={`Copy ${label}`}>
-          {copied ? <CheckIcon /> : <CopyIcon />}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Metadata({
-  entry,
-  shown,
-}: {
-  entry: AuditEntry;
-  shown: { from: string | null; to: string | null; note: string | null };
-}): React.JSX.Element | null {
-  const [open, setOpen] = useState(false);
-  const payload = asRecord(entry.payload);
-  const rows: [string, string][] = [];
-  for (const [key, value] of Object.entries(payload)) {
-    if (key === 'from' && shown.from !== null) continue;
-    if (key === 'to' && shown.to !== null) continue;
-    if (key === 'note' && shown.note !== null) continue;
-    rows.push([key, typeof value === 'object' ? JSON.stringify(value) : String(value)]);
-  }
-  if (entry.policyVersion !== null) rows.push(['policyVersion', String(entry.policyVersion)]);
-  if (entry.policyHash !== null) rows.push(['policyHash', entry.policyHash]);
-  rows.push(['subjectType', entry.subjectType]);
-  rows.push(['subjectId', entry.subjectId]);
-  if (rows.length === 0) return null;
 
   return (
-    <div className={`auddr__meta${open ? ' is-open' : ''}`}>
-      <button
-        type="button"
-        className="auddr__metabar"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-      >
-        Additional metadata <ChevronIcon />
+    <div className={`auddr__hash-box ${isCurrent ? 'auddr__hash-box--current' : ''}`}>
+      <code className="auddr__hash-text">{value}</code>
+      <button type="button" className="auddr__hash-copy" onClick={copy} title="Copy hash">
+        {copied ? <Check size={13} /> : <Copy size={13} />}
       </button>
-      {open && (
-        <dl className="auddr__metalist">
-          {rows.map(([key, value]) => (
-            <div key={key}>
-              <dt>{key}</dt>
-              <dd title={value}>{value}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
     </div>
   );
 }

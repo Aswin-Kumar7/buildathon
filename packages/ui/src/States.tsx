@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import './States.css';
 
 /** A spinner, sized to the current font unless a size is given. */
-export function Spinner({ size = '1.25rem' }: { size?: string }): React.JSX.Element {
+function Spinner({ size = '1.25rem' }: { size?: string }): React.JSX.Element {
   return <span className="s-spinner" style={{ width: size, height: size }} aria-hidden="true" />;
 }
 

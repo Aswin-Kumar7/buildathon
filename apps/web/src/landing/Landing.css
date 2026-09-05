@@ -4,10 +4,17 @@ body {
   margin: 0;
   padding: 0;
   width: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
+}
+
+/* `clip`, never `hidden`. Both prevent sideways scroll, but `hidden` also makes this a scroll
+   container — and inside a scroll container `position: sticky` silently stops sticking. That is what
+   broke the pinned panels in the landing page's pipeline section: they scrolled away instead of
+   holding. `clip` does the clipping without creating the container. Scrollbars are already hidden by
+   the rules above and below, which need no overflow value at all. */
+body {
+  overflow-x: clip;
 }
 
 html::-webkit-scrollbar,
@@ -35,8 +42,11 @@ body::-webkit-scrollbar,
 .lp {
   --lp-ink: #05070d;
   --lp-ink-2: #0a0e17;
-  --lp-paper: #f6f8fa;
-  --lp-card: #f8f9fb;
+  /* The light half of the page was a grey-white that made the whole section look dimmed next to
+     the dark one above it. Paper is now near-white, with cards a shade under it so they still read
+     as raised rather than as holes. */
+  --lp-paper: #fcfdfe;
+  --lp-card: #f5f7fa;
   --lp-line: rgba(10, 13, 20, 0.1);
   --lp-line-2: rgba(255, 255, 255, 0.08);
   --lp-text: #0b0e17;
@@ -185,9 +195,10 @@ body::-webkit-scrollbar,
   padding: 0.45rem 0.6rem 0.45rem 1.35rem;
   background: #080c16 !important;
   border-color: rgba(255, 255, 255, 0.22) !important;
+  /* Lifted, not looming: the drop was dark enough to read as a smudge under the pill. */
   box-shadow:
-    0 18px 48px rgba(0, 0, 0, 0.8),
-    0 4px 12px rgba(0, 0, 0, 0.5),
+    0 12px 32px rgba(0, 0, 0, 0.46),
+    0 3px 8px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.25) !important;
 }
 
@@ -711,6 +722,12 @@ body::-webkit-scrollbar,
   align-items: start;
 }
 
+/* The heading and the paragraph under it were flush: `.lp-h2` and `.lp-body` both zero their own
+   margins, so nothing stood between them. */
+.lp-results__left .lp-body {
+  margin-top: 1.15rem;
+}
+
 .lp-mono--head {
   color: var(--lp-text-2);
   display: block;
@@ -927,27 +944,104 @@ body::-webkit-scrollbar,
   top: 0;
   z-index: 2;
   align-self: start;
-  /* No left padding: the section's gutter already places this on the page's text edge. */
-  /* Top padding clears the corner glow so the heading starts below it, as in the reference. */
-  padding: clamp(5rem, 8vw, 7rem) clamp(1.5rem, 3.4vw, 3.25rem) clamp(3rem, 6vw, 5.5rem) 0;
+  /* The same one-screen runway as the stage opposite. Pinned to the top with a fixed inset instead,
+     this column's copy ran out ~290px above the fold while the card beside it sat in the middle of
+     the screen, so the whole left side read as having slipped upwards. */
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  /* `safe` so a viewport shorter than the copy overflows downwards, where it can still be reached,
+     rather than off the top. Browsers that do not know the keyword keep the plain `center` above. */
+  align-items: safe center;
+  /* No left padding: the section's gutter already places this on the page's text edge. Symmetric
+     block padding, since the centring — not the inset — is what positions the copy now. */
+  padding: clamp(3rem, 6vw, 5.5rem) clamp(1.5rem, 3.4vw, 3.25rem) clamp(3rem, 6vw, 5.5rem) 0;
+}
+
+.lp-eco__intro {
+  /* `flex: 1` rather than a width, so this fills the panel's content box exactly as it did when it
+     was the panel's direct block content. It stays above the corner glow. */
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  z-index: 2;
+  /* Optical nudge, deliberately small and deliberately not layout: the copy is shifted off the
+     centring the flex box computed for it, so the glow — the panel's other child — stays exactly on
+     the page gutter while the type sits a hair left of and above it. */
+  left: 14px;
+  top: 0;
 }
 
 .lp-eco__glow {
   position: absolute;
   z-index: 0;
   top: 0;
-  left: var(--lp-gutter);
-  width: min(30rem, 62%);
-  height: 16rem;
+  /* Sits inside the pinned panel, not the section, so the light travels with the heading it lights
+     — anchored to the section it slid out from under the heading once the panel started sticking.
+     Spans the panel edge to edge rather than carrying its own width: the reference draws this as a
+     band filling the whole column and cut clean by the divider, not a pool fading out mid-column.
+     The panel's left edge is the page gutter, so the light still starts on the page's text edge. */
+  left: 0;
+  right: 0;
+  /* The band has to run out just above the heading — that clearance is what the reference is really
+     made of, and a fixed height only holds it at one window size. The band is measured from the top
+     of the column and the heading from its centre, so at 860px tall the heading had drifted 59px up
+     into the light. Solving for the heading's own top gives the height back:
+
+       heading top = 50vh - (intro height / 2) = 50vh - 292px
+
+     The height is then set against where the light *looks* like it ends, not where its alpha
+     reaches zero. The last stretch of the falloff is under 0.10 alpha and reads as black, so
+     matching the maths left an obvious gap that measured as 6px. 0.83 is where the tail stops being
+     perceptible, and it is parked 30px into the heading so the light reaches the type rather than
+     stopping short of it:
+
+       0.83 x height = 50vh - 292px + 30px, so height = 60.25vh - 316px
+
+     That puts ~0.21 alpha behind the heading's first line — white display type still reads there at
+     13:1 — and the invisible remainder of the tail falls through the copy below it. The 292px half-height is the one assumption, so the
+     clamp guards both ends of it: never a sliver, never taller than the column can carry. */
+  height: clamp(4rem, calc(57.6vh - 302px), 32rem);
   pointer-events: none;
-  /* A defined block bleeding out of the corner, the way the reference draws it — not a soft orb
-     floating behind the heading. Anchored to the section so it stays put while the panel sticks. */
-  background: radial-gradient(
-    ellipse 112% 120% at 0% 0%,
-    rgba(126, 190, 255, 1) 0%,
-    rgba(52, 124, 244, 0.72) 28%,
-    rgba(22, 64, 168, 0.32) 54%,
-    rgba(5, 7, 13, 0) 80%
+  /* Two jobs, deliberately split. A radial did both at once and could not do either well: with a
+     horizontal radius wide enough to keep the top edge lit all the way to the divider, its
+     transparent contour became a wide arc, so the light ran out at 77% of the height on the right
+     against 92% on the left and the band ended on a visible slope.
+
+     So the fade down is a mask, which is uniform across the width and gives a level bottom edge,
+     and the background is left to do what only it can — carry the tone from sky blue at the corner
+     to a deep royal blue where the divider cuts it.
+
+     That depth is carried by the colour and almost not at all by the alpha, which matters more than
+     it looks: the two alphas multiply, so a background that faded from 1.0 to 0.62 across the width
+     pulled the right-hand side under the eye's threshold 15px early and tilted the bottom edge
+     again, just less than the radial did. Holding alpha near flat and darkening the colour instead
+     gives the same depth with 4px of slope. */
+  background: linear-gradient(
+    105deg,
+    rgba(150, 205, 255, 1) 0%,
+    rgba(94, 164, 250, 0.96) 26%,
+    rgba(44, 108, 224, 0.9) 60%,
+    rgba(20, 58, 150, 0.86) 100%
+  );
+  /* Reaches nothing at 96%, inside the element, so its own bottom edge is never a straight line you
+     can see. Perceptible light stops around 87% of the height — the figure the height above is
+     solved against. */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    rgba(0, 0, 0, 0.92) 22%,
+    rgba(0, 0, 0, 0.62) 48%,
+    rgba(0, 0, 0, 0.26) 72%,
+    transparent 96%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    rgba(0, 0, 0, 0.92) 22%,
+    rgba(0, 0, 0, 0.62) 48%,
+    rgba(0, 0, 0, 0.26) 72%,
+    transparent 96%
   );
 }
 .lp-eco__h2,
@@ -1038,10 +1132,53 @@ body::-webkit-scrollbar,
 .lp-eco__card:last-child {
   border-bottom: 0;
 }
+
+/* The panel shows one step at a time, driven by scroll. The column is given a runway one screen
+   deep per step; the stage inside it pins to the viewport and holds the card in the middle, so the
+   card stays put while the page travels and only its contents change. */
+.lp-eco__right {
+  min-height: 300vh;
+}
+.lp-eco__stage {
+  position: sticky;
+  top: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  /* Centred across the column as well as down it. The card is only as wide as its figure and copy,
+     so left-aligned it hugged the divider and left the outer third of a wide screen empty. */
+  justify-content: center;
+}
+.lp-eco__card--active {
+  border-bottom: 0;
+  /* Even padding either side, now that it is centred rather than pinned to the divider. */
+  padding-inline: clamp(1.5rem, 3.4vw, 3.25rem);
+  /* A share of the stage rather than a fixed width. The figure's own cap decides the size on a wide
+     screen; here the column is narrower than the figure wants, and without this the card grew to
+     the full stage and sat flush against the divider with no air either side. */
+  max-width: 86%;
+  animation: lp-eco-swap 0.5s cubic-bezier(0.22, 0.68, 0.32, 1) both;
+}
+@keyframes lp-eco-swap {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-eco__card--active {
+    animation: none;
+  }
+}
 .lp-eco__art {
-  /* The figure is illustrative, not a screenshot — at the full width of this column it rendered
-     nearly 470px tall and swamped the copy it belongs to. */
-  max-width: 30rem;
+  /* The figure is illustrative, not a screenshot — at the full width of this column it renders
+     nearly 470px tall and swamps the copy it belongs to. This is the largest it goes before that
+     starts happening; the card's own cap below is what keeps it off the divider on narrow screens. */
+  max-width: 36rem;
   border: 1px solid var(--lp-line-2);
   border-radius: 3px;
   background: linear-gradient(162deg, #0b0f18 0%, #05070d 72%);
@@ -1050,8 +1187,8 @@ body::-webkit-scrollbar,
   overflow: hidden;
 }
 .lp-eco__card h4 {
-  margin: 0 0 0.6rem;
-  font-size: 1.0625rem;
+  margin: 0 0 0.7rem;
+  font-size: 1.1875rem;
   font-weight: 500;
   letter-spacing: -0.018em;
   color: #fff;
@@ -1059,9 +1196,9 @@ body::-webkit-scrollbar,
 .lp-eco__card p {
   margin: 0;
   color: rgba(255, 255, 255, 0.55);
-  font-size: 0.9375rem;
+  font-size: 1rem;
   line-height: 1.65;
-  max-width: 58ch;
+  max-width: 60ch;
 }
 
 /* ── the inline diagrams ────────────────────────────────────────────────────────────────────── */
@@ -1139,13 +1276,16 @@ body::-webkit-scrollbar,
 }
 
 /* ── faq ────────────────────────────────────────────────────────────────────────────────────── */
+/* Heading, then its lede directly underneath, both on the page's left edge. It sat out to the
+   right for a while — first mid-page aligned to nothing, then on the questions' column — and in
+   both places it read as a loose fragment rather than as the sentence under the title. */
 .lp-faq__head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: clamp(2rem, 5vw, 4.5rem);
-  align-items: end;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
   margin-bottom: clamp(2rem, 4.5vw, 3.25rem);
 }
+/* The heading keeps the full width; only the lede sits in the questions' column. */
 .lp-faq__lede {
   max-width: 44ch;
 }
@@ -1381,9 +1521,23 @@ body::-webkit-scrollbar,
     position: static;
     border-right: 0;
     border-bottom: 1px solid var(--lp-line-2);
+    /* Nothing to centre against in one column: the intro is just the block above the cards. */
+    min-height: 0;
+    display: block;
+    /* Room for the band to land in. The desktop column gives the heading a few hundred pixels of
+       air above it; at 48px the heading sat inside the bright part of the light instead of below
+       it, at 3.9:1 against white — legible for display type, but not the design. */
+    padding-top: 9rem;
   }
+  /* One column here, so there is no second pane to pin a card against. The runway and the stage
+     both collapse and the step becomes an ordinary block under the accordion that selects it. */
   .lp-eco__right {
     border-left: 0;
+    min-height: 0;
+  }
+  .lp-eco__stage {
+    position: static;
+    min-height: 0;
   }
   .lp-pillars {
     grid-template-columns: repeat(2, minmax(0, 1fr));

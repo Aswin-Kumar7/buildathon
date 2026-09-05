@@ -20,6 +20,7 @@ const safe: AttemptRow = {
   incidentId: null,
   incidentRef: null,
   incidentTitle: null,
+  incidentSeverity: null,
   at: '2026-08-25T11:16:09.000Z',
 };
 
@@ -34,6 +35,7 @@ const flagged: AttemptRow = {
   incidentId: 'inc-1',
   incidentRef: 'INC-3F9A',
   incidentTitle: 'Coordinated card testing',
+  incidentSeverity: 'high',
   at: '2026-08-25T11:18:56.000Z',
 };
 
@@ -76,7 +78,8 @@ describe('AttemptsPage', () => {
 
     // The two KPI labels that do not also appear as filter options.
     expect(await screen.findByText('Total attempts')).toBeInTheDocument();
-    expect(screen.getByText('In an incident')).toBeInTheDocument();
+    // The incident-linked count is stated as a proportion of the total, not as a bare second label.
+    expect(screen.getByText(/of these belong to an incident/)).toBeInTheDocument();
   });
 
   it('renders one row per resolved attempt with a single status', async () => {

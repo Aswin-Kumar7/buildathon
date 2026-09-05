@@ -454,11 +454,32 @@
 .lg-storefront:hover .lg-storefront__go {
   transform: translateX(2px);
 }
-.lg-legal {
-  margin: 0.9rem 0 0;
-  font-size: 0.75rem;
-  line-height: 1.5;
+/* The one route off this page for someone who did not mean to be here. */
+.lg-home {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 1rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
   color: #9aa1b1;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.lg-home:hover {
+  color: #dfe4ee;
+}
+
+.lg-home__arrow {
+  font-size: 0.9375rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.lg-home:hover .lg-home__arrow {
+  transform: translateX(-3px);
 }
 
 /* ── responsive ─────────────────────────────────────────────────────────────────────────────── */

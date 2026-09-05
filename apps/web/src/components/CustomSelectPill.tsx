@@ -15,6 +15,8 @@ export interface CustomSelectPillProps<T extends string = string> {
   icon?: ReactNode;
   className?: string;
   variant?: 'pill' | 'field';
+  direction?: 'down' | 'up';
+  menuMinWidth?: number | string;
   disabled?: boolean;
 }
 
@@ -26,6 +28,8 @@ export function CustomSelectPill<T extends string = string>({
   icon,
   className,
   variant = 'pill',
+  direction = 'down',
+  menuMinWidth,
   disabled = false,
 }: CustomSelectPillProps<T>): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
@@ -63,18 +67,45 @@ export function CustomSelectPill<T extends string = string>({
       className={[
         'csp-container',
         variant === 'field' ? 'csp-container--field' : 'csp-container--pill',
+        direction === 'up' ? 'csp-container--dropup' : '',
         isOpen ? 'is-open' : '',
         className,
       ]
         .filter(Boolean)
         .join(' ')}
     >
+      {/* Hidden standard <select> element for accessibility and testing-library support */}
+      <select
+        aria-label={ariaLabel}
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value as T)}
+        style={{
+          position: 'absolute',
+          width: '1px',
+          height: '1px',
+          padding: 0,
+          margin: '-1px',
+          overflow: 'hidden',
+          clip: 'rect(0, 0, 0, 0)',
+          whiteSpace: 'nowrap',
+          border: 0,
+          opacity: 0,
+          pointerEvents: 'none',
+        }}
+      >
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+
       {/* Custom Styled Trigger Button */}
       <button
         type="button"
         className={`csp-trigger ${isOpen ? 'is-open' : ''}`}
         onClick={() => !disabled && setIsOpen((prev) => !prev)}
-        aria-label={ariaLabel}
         aria-expanded={isOpen}
         disabled={disabled}
       >
@@ -87,7 +118,15 @@ export function CustomSelectPill<T extends string = string>({
 
       {/* Floating Dropdown Menu Card */}
       {isOpen && (
-        <div className="csp-dropdown-menu" role="listbox">
+        <div
+          className="csp-dropdown-menu"
+          role="listbox"
+          style={
+            menuMinWidth !== undefined
+              ? { minWidth: typeof menuMinWidth === 'number' ? `${menuMinWidth}px` : menuMinWidth }
+              : undefined
+          }
+        >
           {options.map((opt) => {
             const isSelected = opt.value === value;
             return (

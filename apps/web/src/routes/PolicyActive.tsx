@@ -15,7 +15,8 @@ export function ActivePolicyCard({
     <section className="pol-active-card">
       <header className="pol-active-card__head">
         <h2 className="pol-active-card__title">Active policy</h2>
-        <span className="pol-active-card__badge">{isFromFile ? 'From file' : record.status}</span>
+        {/* What this policy is, not the raw column value — that printed a lower-case "published". */}
+        <span className="pol-active-card__badge">{isFromFile ? 'From file' : 'Live'}</span>
       </header>
 
       <div className="pol-active-card__rows">
@@ -25,18 +26,33 @@ export function ActivePolicyCard({
             v{policy.version}
           </span>
         </div>
-        <div className="pol-active-card__row">
-          <span className="pol-active-card__label">Published on</span>
-          <span className="pol-active-card__value">
-            {record?.publishedAt ? fmtDateTime(record.publishedAt) : '—'}
-          </span>
-        </div>
-        <div className="pol-active-card__row">
-          <span className="pol-active-card__label">Approved by</span>
-          <span className="pol-active-card__value">
-            {record?.approvedByName ?? record?.createdByName ?? '—'}
-          </span>
-        </div>
+        {/*
+         * A policy loaded from the file shipped with the build has no publish date and no approver,
+         * because nobody ever published it. These rows used to print two bare em-dashes, which read
+         * as missing data rather than as the truth: this policy never went through the workflow.
+         */}
+        {isFromFile ? (
+          <div className="pol-active-card__row pol-active-card__row--note">
+            <span className="pol-active-card__label">Provenance</span>
+            <span className="pol-active-card__value">
+              Never published — running the default shipped with this build
+            </span>
+          </div>
+        ) : (
+          <>
+            <div className="pol-active-card__row">
+              <span className="pol-active-card__label">Published on</span>
+              <span className="pol-active-card__value">
+                {record.publishedAt ? fmtDateTime(record.publishedAt) : 'Not yet published'}
+              </span>
+            </div>
+            <div className="pol-active-card__row">
+              {/* There is no approval step any more, so this names who made it live. */}
+              <span className="pol-active-card__label">Saved by</span>
+              <span className="pol-active-card__value">{record.createdByName ?? '—'}</span>
+            </div>
+          </>
+        )}
         <div className="pol-active-card__row">
           <span className="pol-active-card__label">Policy hash</span>
           <span className="pol-active-card__hash">{policy.hash}</span>

@@ -15,22 +15,24 @@ import {
   CalendarBlank,
   Funnel,
   User,
-  CaretDown,
+  CaretLeft,
+  CaretRight,
 } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
 import {
   auditListResponseSchema,
   auditVerifyResponseSchema,
-  simulationStatusSchema,
   type AuditEntry,
   type AuditVerifyResponse,
-  type SimulationStatus,
 } from '@sentinel/contracts';
 import { kindLabel, reasonText } from '../incidents/audit-words.js';
 import { AuditDrawer } from './AuditDrawer.js';
 import { SimulationPopup } from './SimulationPopup.js';
 import { SimulationPanel } from './SimulationPanel.js';
 import './AuditPage.css';
+import { fetchSimulationStatus as fetchStatus } from '../shared/fetchers.js';
+import { csrfHeaders } from '../auth/api.js';
+import { CustomSelectPill } from '../components/CustomSelectPill.js';
 
 const PAGE_SIZE = 25;
 
@@ -90,8 +92,19 @@ async function fetchAuditEntries(): Promise<AuditEntry[]> {
   return auditListResponseSchema.parse(await response.json()).entries;
 }
 
+/**
+ * Verification is a POST so the answer is always computed fresh rather than served from a cache
+ * that could itself be the thing that was tampered with — which means it needs the CSRF header like
+ * every other write. It was sent without one, so the call was rejected 403 on every load and the
+ * badge sat on its "Not verified" fallback: the page advertised a tamper-evident record while the
+ * check that backs the claim had never once run.
+ */
 async function fetchVerify(): Promise<AuditVerifyResponse> {
-  const response = await fetch('/api/audit/verify', { method: 'POST', credentials: 'include' });
+  const response = await fetch('/api/audit/verify', {
+    method: 'POST',
+    credentials: 'include',
+    headers: csrfHeaders(),
+  });
   if (!response.ok) throw new Error(`api returned ${response.status}`);
   return auditVerifyResponseSchema.parse(await response.json());
 }
@@ -130,12 +143,6 @@ function exportCsv(entries: AuditEntry[]): void {
   URL.revokeObjectURL(url);
 }
 
-async function fetchStatus(): Promise<SimulationStatus> {
-  const response = await fetch('/api/simulation/status', { credentials: 'include' });
-  if (!response.ok) throw new Error(`api returned ${response.status}`);
-  return simulationStatusSchema.parse(await response.json());
-}
-
 export function AuditPage(): React.JSX.Element {
   const entriesQuery = useQuery({ queryKey: ['audit-entries'], queryFn: fetchAuditEntries });
   const verify = useQuery({ queryKey: ['audit-verify'], queryFn: fetchVerify });
@@ -148,7 +155,9 @@ export function AuditPage(): React.JSX.Element {
   const [filters, setFilters] = useState<Filters>(INITIAL_FILTERS);
   const [selectedSeq, setSelectedSeq] = useState<number | null>(null);
   const [page, setPage] = useState(1);
-  const [showTechnical, setShowTechnical] = useState(false);
+  // On by default: this page exists to prove the record, and the hash and sequence are the
+  // proof — hiding them behind a toggle made the default view the least evidential one.
+  const [showTechnical, setShowTechnical] = useState(true);
   const [showSimModal, setShowSimModal] = useState(false);
   const [simPanelOpen, setSimPanelOpen] = useState(false);
 
@@ -199,13 +208,7 @@ export function AuditPage(): React.JSX.Element {
 
   return (
     <div className="aud">
-      <AuditHeader
-        pending={verify.isPending}
-        error={verify.isError}
-        result={verify.data}
-        isRunning={isRunning}
-        onRunSim={() => setShowSimModal(true)}
-      />
+      <AuditHeader pending={verify.isPending} error={verify.isError} result={verify.data} />
 
       {showSimModal && (
         <SimulationPopup
@@ -286,14 +289,10 @@ function AuditHeader({
   pending,
   error,
   result,
-  isRunning,
-  onRunSim,
 }: {
   pending: boolean;
   error: boolean;
   result: AuditVerifyResponse | undefined;
-  isRunning: boolean;
-  onRunSim: () => void;
 }): React.JSX.Element {
   return (
     <header className="aud-head">
@@ -302,9 +301,6 @@ function AuditHeader({
           <h1>Audit trail</h1>
           <TamperBadge pending={pending} error={error} result={result} />
         </div>
-        <button type="button" className="aud-btn-sim" onClick={onRunSim}>
-          <Play size={14} weight="bold" /> Run simulation scenarios
-        </button>
       </div>
       <p>
         Every decision and every hand that touched one, kept as a tamper-evident record — if a past
@@ -325,8 +321,17 @@ function TamperBadge({
   result: AuditVerifyResponse | undefined;
 }): React.JSX.Element {
   if (pending) return <span className="aud-tamper aud-tamper--pending">Checking record…</span>;
+  // The check could not be run. That is a statement about the check, not about the record, so it
+  // says so rather than leaving "Not verified" to be read as "this log looks altered".
   if (error || result === undefined) {
-    return <span className="aud-tamper aud-tamper--warn">Not verified</span>;
+    return (
+      <span
+        className="aud-tamper aud-tamper--warn"
+        title="The integrity check could not be run just now. This does not mean the record is altered — run pnpm audit:verify to check offline."
+      >
+        Check unavailable
+      </span>
+    );
   }
   if (result.valid) {
     return (
@@ -381,57 +386,45 @@ function Toolbar({
         />
       </label>
 
-      {/* Date filter pill */}
-      <div className="aud-pill-select">
-        <CalendarBlank size={14} />
-        <select
-          value={filters.range}
-          onChange={(e) => onChange({ range: e.target.value as Filters['range'] })}
-          aria-label="Date range"
-        >
-          <option value="all">All time</option>
-          <option value="24h">Last 24 hours</option>
-          <option value="7d">Last 7 days</option>
-          <option value="30d">Last 30 days</option>
-        </select>
-        <CaretDown size={12} className="aud-pill-caret" />
-      </div>
+      {/*
+       * The same dropdown component the Attempts and Incidents toolbars use, rather than three
+       * native <select>s dressed to look like it — so the three filter bars behave identically as
+       * well as matching.
+       */}
+      <CustomSelectPill
+        value={filters.range}
+        options={[
+          { value: 'all', label: 'All time' },
+          { value: '24h', label: 'Last 24 hours' },
+          { value: '7d', label: 'Last 7 days' },
+          { value: '30d', label: 'Last 30 days' },
+        ]}
+        onChange={(value) => onChange({ range: value as Filters['range'] })}
+        ariaLabel="Date range"
+        icon={<CalendarBlank size={14} />}
+      />
 
-      {/* Event type filter pill */}
-      <div className="aud-pill-select">
-        <Funnel size={14} />
-        <select
-          value={filters.type}
-          onChange={(e) => onChange({ type: e.target.value })}
-          aria-label="Event type"
-        >
-          <option value="all">All event types</option>
-          {types.map((type) => (
-            <option key={type} value={type}>
-              {kindLabel(type)}
-            </option>
-          ))}
-        </select>
-        <CaretDown size={12} className="aud-pill-caret" />
-      </div>
+      <CustomSelectPill
+        value={filters.type}
+        options={[
+          { value: 'all', label: 'All event types' },
+          ...types.map((type) => ({ value: type, label: kindLabel(type) })),
+        ]}
+        onChange={(value) => onChange({ type: value })}
+        ariaLabel="Event type"
+        icon={<Funnel size={14} />}
+      />
 
-      {/* User filter pill */}
-      <div className="aud-pill-select">
-        <User size={14} />
-        <select
-          value={filters.actor}
-          onChange={(e) => onChange({ actor: e.target.value })}
-          aria-label="User"
-        >
-          <option value="all">All users</option>
-          {actors.map((actor) => (
-            <option key={actor} value={actor}>
-              {actor}
-            </option>
-          ))}
-        </select>
-        <CaretDown size={12} className="aud-pill-caret" />
-      </div>
+      <CustomSelectPill
+        value={filters.actor}
+        options={[
+          { value: 'all', label: 'All users' },
+          ...actors.map((actor) => ({ value: actor, label: actor })),
+        ]}
+        onChange={(value) => onChange({ actor: value })}
+        ariaLabel="User"
+        icon={<User size={14} />}
+      />
 
       <button
         type="button"
@@ -656,67 +649,42 @@ function Pagination({
   pageSize: number;
   onPage: (page: number) => void;
 }): React.JSX.Element {
-  const from = (page - 1) * pageSize + 1;
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
   return (
     <div className="aud-foot">
       <span className="aud-foot__count">
         Showing <strong className="aud-foot__strong">{from}</strong> to{' '}
-        <strong className="aud-foot__strong">{to}</strong> of {total} entries
+        <strong className="aud-foot__strong">{to}</strong> of{' '}
+        <strong className="aud-foot__strong">{total}</strong> {total === 1 ? 'entry' : 'entries'}
       </span>
-      {totalPages > 1 && (
-        <div className="aud-pager">
-          <button
-            type="button"
-            onClick={() => onPage(page - 1)}
-            disabled={page <= 1}
-            aria-label="Previous page"
-          >
-            ‹
-          </button>
-          {pagesToShow(page, totalPages).map((entry, index) =>
-            entry === null ? (
-              <span key={`gap-${index}`} className="aud-pager__gap">
-                …
-              </span>
-            ) : (
-              <button
-                key={entry}
-                type="button"
-                className={entry === page ? 'is-active' : undefined}
-                onClick={() => onPage(entry)}
-              >
-                {entry}
-              </button>
-            ),
-          )}
-          <button
-            type="button"
-            onClick={() => onPage(page + 1)}
-            disabled={page >= totalPages}
-            aria-label="Next page"
-          >
-            ›
-          </button>
-        </div>
-      )}
+      <div className="aud-pager">
+        <button
+          type="button"
+          className="aud-pager-btn"
+          disabled={page <= 1}
+          onClick={() => onPage(page - 1)}
+          aria-label="Previous page"
+        >
+          <CaretLeft size={13} />
+        </button>
+        <span className="aud-pager-page">{page}</span>
+        <span className="aud-pager-of">of {totalPages}</span>
+        <button
+          type="button"
+          className="aud-pager-btn"
+          disabled={page >= totalPages}
+          onClick={() => onPage(page + 1)}
+          aria-label="Next page"
+        >
+          <CaretRight size={13} />
+        </button>
+      </div>
       <span className="aud-foot__append-note">
         Entries are append‑only — nothing here can be edited or removed
       </span>
     </div>
   );
-}
-
-function pagesToShow(page: number, total: number): (number | null)[] {
-  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
-  const pages = new Set([1, total, page, page - 1, page + 1]);
-  const sorted = [...pages].filter((value) => value >= 1 && value <= total).sort((a, b) => a - b);
-  const out: (number | null)[] = [];
-  for (let index = 0; index < sorted.length; index += 1) {
-    if (index > 0 && sorted[index]! - sorted[index - 1]! > 1) out.push(null);
-    out.push(sorted[index]!);
-  }
-  return out;
 }
 
 function TableSkeleton(): React.JSX.Element {

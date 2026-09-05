@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { Link, useNavigate, useSearch } from '@tanstack/react-router';
 import { loginRequestSchema } from '@sentinel/contracts';
 import { useLogin } from '../auth/useSession.js';
-import { STOREFRONT_URL } from '../links.js';
+import { StorefrontLink } from '../components/StorefrontLink.js';
 import { Eye, EyeSlash, Plus } from '@phosphor-icons/react';
 import razorpayLogo from '../assets/white.png';
 import { LightStreaks } from '../components/LightStreaks.js';
@@ -160,7 +160,7 @@ function DemoAccess({ onFill }: { onFill: () => void }): React.JSX.Element {
 function LoginAside(): React.JSX.Element {
   return (
     <div className="lg-aside">
-      <a className="lg-storefront" href={STOREFRONT_URL} target="_blank" rel="noreferrer">
+      <StorefrontLink className="lg-storefront">
         <span className="lg-storefront__text">
           <strong>Access the storefront</strong>
           Simulate payments against the demo checkout
@@ -168,8 +168,13 @@ function LoginAside(): React.JSX.Element {
         <span className="lg-storefront__go" aria-hidden="true">
           →
         </span>
-      </a>
-      <p className="lg-legal">New account? Contact your administrator.</p>
+      </StorefrontLink>
+      <Link to="/" className="lg-home">
+        <span className="lg-home__arrow" aria-hidden="true">
+          ←
+        </span>
+        Back to home
+      </Link>
     </div>
   );
 }

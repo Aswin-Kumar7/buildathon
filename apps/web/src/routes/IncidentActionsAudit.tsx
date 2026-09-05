@@ -57,8 +57,16 @@ export function ActionsAuditTab({
   const terminal = TERMINAL.has(incident.status);
 
   return (
-    <div className="aa">
-      <div className="aa-main">
+    <section
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1.15fr) minmax(0, 1fr)',
+        gap: '12px',
+        marginBottom: '14px',
+        alignItems: 'start',
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <AiRecommendationCard
           state={queryState(recommendation)}
           recommendation={recommendation.data ?? null}
@@ -72,7 +80,7 @@ export function ActionsAuditTab({
           reject={reject}
         />
       </div>
-      <div className="aa-side">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <AuditLog state={queryState(audit)} entries={audit.data ?? []} />
         <ActionHistory
           incident={incident}
@@ -94,7 +102,7 @@ export function ActionsAuditTab({
           onClose={() => setModalOpen(false)}
         />
       )}
-    </div>
+    </section>
   );
 }
 

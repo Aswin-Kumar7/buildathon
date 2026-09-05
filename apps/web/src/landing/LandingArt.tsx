@@ -90,21 +90,62 @@ export function ArtPolicy(): React.JSX.Element {
 /* ── pipeline diagrams ──────────────────────────────────────────────────────────────────────── */
 
 /** Correlate: three ports feeding traces into one board — the reference's circuit-board figure. */
-export function ArtCorrelate(): React.JSX.Element {
+/**
+ * One correlation source — a small slab carrying a few attempts.
+ *
+ * The rules on it are the point: a source is never a single event, it is several that only mean
+ * something once they are read together.
+ */
+function Source({ x, y }: { x: number; y: number }): React.JSX.Element {
   return (
-    <svg viewBox="0 0 320 192" className="lp-art" role="img" aria-label="Signals correlated">
+    <g transform={iso(x, y)}>
+      <rect x="-16" y="-16" width="32" height="32" rx="2.5" className="lp-art__slab" />
+      <path d="M-16 -5.5 H16 M-16 5.5 H16" className="lp-art__grid" />
+    </g>
+  );
+}
+
+/**
+ * Correlate: three separate sources — session, device, network — joined into one case.
+ *
+ * The earlier drawing was three unlabelled ports wired to a slab, which read as "some things
+ * connect to a thing". This one carries the actual claim: each source arrives holding several
+ * attempts, the dashed runs converge rather than merely touch, and what they land on is a single
+ * lit case rather than another anonymous box.
+ */
+export function ArtCorrelate(): React.JSX.Element {
+  // Placed to meet the central diamond's left, upper-left and right faces respectively.
+  const sources = [
+    { x: 44, y: 52 },
+    { x: 40, y: 142 },
+    { x: 276, y: 72 },
+  ];
+  return (
+    <svg
+      viewBox="0 0 320 192"
+      className="lp-art"
+      role="img"
+      aria-label="Session, device and network signals converging into one case"
+    >
       <Lattice />
-      <g transform={iso(160, 100)}>
-        <rect x="-54" y="-42" width="108" height="84" rx="6" className="lp-art__slab" />
-        <path d="M-54 -20 H-30 V20 H10 M54 8 H30 V-24 H-8" className="lp-art__trace" />
-        <rect x="-14" y="-12" width="28" height="24" rx="3" className="lp-art__chip" />
+      {sources.map((s) => (
+        <Source key={`${s.x}-${s.y}`} x={s.x} y={s.y} />
+      ))}
+
+      {/* The joins. Straight runs, as everywhere else in this set. */}
+      <path d="M66 58 L127 86 M62 147 L129 114 M254 79 L207 100" className="lp-art__dash" />
+
+      {/* The case they land on. */}
+      <g transform={iso(162, 102)}>
+        <rect x="-46" y="-36" width="92" height="72" rx="5" className="lp-art__slab" />
+        <path d="M-46 -14 H-22 V14 H10 M46 6 H24 V-20 H-4" className="lp-art__trace" />
+        <rect x="-13" y="-11" width="26" height="22" rx="3" className="lp-art__chip" />
       </g>
-      <g className="lp-art__ports">
-        <rect x="40" y="52" width="17" height="12" rx="2" className="lp-art__slab" />
-        <rect x="262" y="60" width="17" height="12" rx="2" className="lp-art__slab" />
-        <rect x="50" y="132" width="17" height="12" rx="2" className="lp-art__slab" />
-      </g>
-      <path d="M57 58 L118 84 M262 66 L206 92 M67 138 L124 116" className="lp-art__dash" />
+
+      {/* Where each run meets the case — the moment three things become one. */}
+      <circle cx="127" cy="86" r="2.6" className="lp-art__node" />
+      <circle cx="129" cy="114" r="2.6" className="lp-art__node" />
+      <circle cx="207" cy="100" r="2.6" className="lp-art__node" />
     </svg>
   );
 }

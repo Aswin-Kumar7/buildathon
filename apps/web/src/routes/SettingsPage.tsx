@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { UseMutationResult } from '@tanstack/react-query';
 import {
   ingestionMetricsSchema,
   modelRegistryResponseSchema,
@@ -9,16 +10,39 @@ import {
   type ModelRegistryResponse,
   type NotificationPrefs,
   type NotifySeverity,
-  type UpdateNotificationPrefsRequest,
   type WorkspaceResponse,
 } from '@sentinel/contracts';
-import { SESSION_KEY, useLogout, useSession } from '../auth/useSession.js';
-import { apiMutate, csrfHeaders } from '../auth/api.js';
+import {
+  SESSION_KEY,
+  useConfirmedLogout,
+  useSession,
+  type ConfirmedLogout,
+} from '../auth/useSession.js';
+import { apiMutate } from '../auth/api.js';
 import { NOTIFY_PREFS_KEY } from '../shell/NotificationBell.js';
 import { Toggle } from './policy-ui.js';
-import './SettingsPage.css';
 import { CustomSelectPill } from '../components/CustomSelectPill.js';
-import { User, Cpu, Bell, Shield, ArrowSquareOut } from '@phosphor-icons/react';
+import {
+  User,
+  Cpu,
+  Bell,
+  ShieldCheck,
+  Buildings,
+  LockSimple,
+  SignOut,
+  Info,
+  Trash,
+} from '@phosphor-icons/react';
+import './SettingsPage.css';
+
+/**
+ * Settings.
+ *
+ * One column of panels beside a sticky section rail. Every value shown is read from the API — the
+ * workspace, the model registry, the ingestion metrics and the notification preferences — and the
+ * read-only panels say plainly that they describe the environment rather than offering a control
+ * that does not exist.
+ */
 
 async function getJson<T>(path: string, parse: (value: unknown) => T): Promise<T> {
   const response = await fetch(path, { credentials: 'include' });
@@ -57,8 +81,99 @@ function ago(iso: string | null): string {
   if (seconds < 86_400) return `${Math.round(seconds / 3600)}h ago`;
   return `${Math.round(seconds / 86_400)}d ago`;
 }
-const pillClass = (cls: string): string => (cls === '' ? 'set-pill' : `set-pill set-pill--${cls}`);
 
+type ProfileDraft = { displayName: string; role: 'analyst' | 'admin' };
+
+/** The panel shell every section wears, so they cannot drift apart. */
+function Panel({
+  id,
+  icon,
+  title,
+  sub,
+  children,
+  foot,
+}: {
+  id: string;
+  icon: React.ReactNode;
+  title: string;
+  sub: string;
+  children: React.ReactNode;
+  foot?: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <section className="set-panel" id={id} aria-labelledby={`${id}-title`}>
+      <header className="set-panel__head">
+        <h2 className="set-panel__title" id={`${id}-title`}>
+          {icon}
+          {title}
+        </h2>
+        <p className="set-panel__sub">{sub}</p>
+      </header>
+      <div className="set-panel__main">
+        <div className="set-panel__body">{children}</div>
+        {foot !== undefined && <div className="set-panel__foot">{foot}</div>}
+      </div>
+    </section>
+  );
+}
+
+/** An editable field: its label above a control that uses the full width of the card. */
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <div className="set-field">
+      <span className="set-field__label">{label}</span>
+      {children}
+      {hint !== undefined && <span className="set-field__hint">{hint}</span>}
+    </div>
+  );
+}
+
+/** A switch or a choice: what it does on the left, the control on the right. */
+function Row({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <div className="set-row">
+      <div className="set-row__text">
+        <span className="set-row__label">{label}</span>
+        {hint !== undefined && <span className="set-row__hint">{hint}</span>}
+      </div>
+      <div className="set-row__control">{children}</div>
+    </div>
+  );
+}
+
+function Note({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <p className="set-note">
+      <Info size={13} />
+      <span>{children}</span>
+    </p>
+  );
+}
+
+/**
+ * Two columns that mean something.
+ *
+ * A vertical section rail sat beside the console's own sidebar and read as a sidebar inside a
+ * sidebar. The split is now by what you can do with a panel: the left column is everything you can
+ * change, the right is what this environment already is and cannot be edited from here. That is a
+ * real distinction rather than a decorative one, and it needs no second navigation.
+ */
 export function SettingsPage(): React.JSX.Element {
   const workspace = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspace });
   const registry = useQuery({ queryKey: ['model-registry'], queryFn: fetchRegistry });
@@ -66,66 +181,80 @@ export function SettingsPage(): React.JSX.Element {
 
   return (
     <div className="set-page">
-      <header className="set-header">
-        <div className="set-header__left">
+      <header className="set-head">
+        <div>
           <h1>Settings</h1>
-          <p>
-            Manage your profile, AI detection models, notification triggers, and live integrations.
-          </p>
+          <p>Your profile, what raises the bell, the models in use, and what is connected.</p>
         </div>
-        <div className="set-header__badges">
-          <span className="set-env-badge">
-            <span className="set-env-dot" />
+        <div className="set-head__badges">
+          <span className="set-env">
+            <span className="set-env__dot" aria-hidden="true" />
             {workspace.data?.environment ?? 'development'}
           </span>
-          <span className="set-mode-badge">
-            {workspace.data?.liveMode ? 'Live Mode' : 'Test Mode'}
+          <span className="set-mode">
+            {workspace.data?.liveMode === true ? 'Live mode' : 'Test mode'}
           </span>
         </div>
       </header>
 
-      <div className="set-grid">
-        <div className="set-grid__main">
+      <div className="set-body">
+        <div className="set-col">
+          <h2 className="set-col__cap">What you can change</h2>
           <AccountSection />
           <NotificationsSection />
           <DataSection retentionDays={workspace.data?.retentionDays ?? null} />
         </div>
 
-        <aside className="set-grid__sidebar">
+        <div className="set-col">
+          <h2 className="set-col__cap">This environment</h2>
           <AiModelSection ai={workspace.data?.ai ?? null} registry={registry.data} />
-          <IntegrationsSection
-            workspace={workspace.data}
-            metrics={metrics.data}
-            metricsError={metrics.isError ? metrics.error.message : null}
-          />
+          <IntegrationsSection workspace={workspace.data} metrics={metrics.data} />
           <WorkspaceSummaryCard workspace={workspace.data} />
-        </aside>
+        </div>
       </div>
     </div>
   );
 }
 
-function Fact({
-  label,
-  children,
+/** The profile card's footer: save, sign out, and whatever the last save had to say. */
+function ProfileActions({
+  dirty,
+  save,
+  logout,
 }: {
-  label: string;
-  children: React.ReactNode;
+  dirty: boolean;
+  save: UseMutationResult<unknown, Error, void, unknown>;
+  logout: ConfirmedLogout;
 }): React.JSX.Element {
   return (
-    <div className="set-fact">
-      <dt>{label}</dt>
-      <dd>{children}</dd>
-    </div>
+    <>
+      <button
+        type="button"
+        className="set-btn set-btn--primary"
+        disabled={!dirty || save.isPending}
+        onClick={() => save.mutate()}
+      >
+        {save.isPending ? 'Saving…' : 'Save changes'}
+      </button>
+      <button
+        type="button"
+        className={`set-btn${logout.armed ? ' set-btn--danger' : ''}`}
+        onClick={logout.press}
+        onBlur={logout.cancel}
+        disabled={logout.isPending}
+      >
+        <SignOut size={14} /> {logout.armed ? 'Press again to sign out' : 'Sign out'}
+      </button>
+      {save.isSuccess && !dirty && <span className="set-msg set-msg--ok">Saved</span>}
+      {save.isError && <span className="set-msg set-msg--bad">{save.error.message}</span>}
+    </>
   );
 }
-
-type ProfileDraft = { displayName: string; role: 'analyst' | 'admin' };
 
 function AccountSection(): React.JSX.Element {
   const { user } = useSession();
   const client = useQueryClient();
-  const logout = useLogout();
+  const logout = useConfirmedLogout();
   const [draft, setDraft] = useState<ProfileDraft | null>(null);
 
   useEffect(() => {
@@ -138,357 +267,184 @@ function AccountSection(): React.JSX.Element {
     onSuccess: () => void client.invalidateQueries({ queryKey: SESSION_KEY }),
   });
 
-  if (user === null || draft === null)
+  if (user === null || draft === null) {
     return (
-      <section className="set-card">
-        <p className="set-note">Loading your profile…</p>
-      </section>
+      <Panel id="profile" icon={<User size={15} />} title="Your profile" sub="Loading…">
+        <p className="set-row__hint">Loading your profile…</p>
+      </Panel>
     );
+  }
 
-  const dirty = draft.displayName.trim() !== user.displayName || draft.role !== user.role;
-  const valid = draft.displayName.trim() !== '';
+  const dirty = draft.displayName !== user.displayName || draft.role !== user.role;
 
   return (
-    <section className="set-card">
-      <header className="set-card__head">
-        <div className="set-card__title-group">
-          <span className="set-card__badge set-card__badge--blue">
-            <User />
-          </span>
-          <div>
-            <h2>Your profile</h2>
-            <p>Your name, access level and password.</p>
-          </div>
-        </div>
-      </header>
+    <Panel
+      id="profile"
+      icon={<User size={15} />}
+      title="Your profile"
+      sub="Your name, access level and password."
+      foot={<ProfileActions dirty={dirty} save={save} logout={logout} />}
+    >
+      <div className="set-pair">
+        <Field label="Full name">
+          <input
+            className="set-input"
+            value={draft.displayName}
+            aria-label="Full name"
+            onChange={(event) => setDraft({ ...draft, displayName: event.target.value })}
+          />
+        </Field>
 
-      <ProfileFields draft={draft} setDraft={setDraft} email={user.email} />
-
-      <p className="set-note">
-        An <strong>analyst</strong> reviews incidents and proposes actions. An{' '}
-        <strong>admin</strong> can also approve blocks and publish policy. Changing this changes
-        what you can do.
-      </p>
-      {save.isError && (
-        <p className="set-note set-note--bad" role="alert">
-          Couldn't save your profile. {save.error.message}
-        </p>
-      )}
-
-      <div className="set-card__foot">
-        <button
-          type="button"
-          className="set-btn set-btn--primary"
-          onClick={() => save.mutate()}
-          disabled={!dirty || !valid || save.isPending}
-        >
-          {save.isPending ? 'Saving…' : save.isSuccess && !dirty ? 'Saved' : 'Save changes'}
-        </button>
-        <ChangePassword />
-        <button
-          type="button"
-          className="set-btn set-btn--ghost"
-          onClick={() => logout.mutate()}
-          disabled={logout.isPending}
-        >
-          {logout.isPending ? 'Signing out…' : 'Sign out'}
-        </button>
+        <Field label="Email" hint="Your sign-in address. Changing it is not offered here.">
+          <input className="set-input" value={user.email} readOnly aria-label="Email" />
+        </Field>
       </div>
-    </section>
-  );
-}
 
-function ProfileFields({
-  draft,
-  setDraft,
-  email,
-}: {
-  draft: ProfileDraft;
-  setDraft: React.Dispatch<React.SetStateAction<ProfileDraft | null>>;
-  email: string;
-}): React.JSX.Element {
-  return (
-    <div className="set-profile">
-      <label>
-        <span>Full name</span>
-        <input
-          type="text"
-          value={draft.displayName}
-          onChange={(event) => setDraft({ ...draft, displayName: event.target.value })}
-          maxLength={80}
-        />
-      </label>
-      <label>
-        <span>Email</span>
-        <input
-          type="email"
-          value={email}
-          disabled
-          title="Your email is your sign-in and can't be changed here."
-        />
-      </label>
-      <label>
-        <span>Access level</span>
+      <div className="set-sep" />
+
+      <Row
+        label="Access level"
+        hint="An analyst reviews incidents and proposes actions. An admin can also approve blocks and save policy."
+      >
         <CustomSelectPill
           value={draft.role}
           options={[
             { value: 'analyst', label: 'Analyst' },
             { value: 'admin', label: 'Admin' },
           ]}
-          onChange={(val) => setDraft({ ...draft, role: val as 'analyst' | 'admin' })}
+          onChange={(value) => setDraft({ ...draft, role: value as ProfileDraft['role'] })}
           ariaLabel="Access level"
-          variant="field"
         />
-      </label>
-    </div>
+      </Row>
+
+      <div className="set-sep" />
+
+      <ChangePassword />
+    </Panel>
   );
 }
-
-type PasswordForm = { current: string; next: string; confirm: string };
 
 function ChangePassword(): React.JSX.Element {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<PasswordForm>({ current: '', next: '', confirm: '' });
-  const change = useMutation({
+  const [form, setForm] = useState({ current: '', next: '', confirm: '' });
+
+  const mut = useMutation({
     mutationFn: () =>
-      postMutation('/api/auth/password', {
-        currentPassword: form.current,
-        newPassword: form.next,
-      }),
+      postMutation('/api/auth/password', { current: form.current, next: form.next }),
     onSuccess: () => {
-      setForm({ current: '', next: '', confirm: '' });
       setOpen(false);
+      setForm({ current: '', next: '', confirm: '' });
     },
   });
-  const valid = form.current !== '' && form.next.length >= 8 && form.next === form.confirm;
 
-  if (!open) {
-    return (
-      <span className="set-pw">
-        <button type="button" className="set-linkbtn" onClick={() => setOpen(true)}>
-          Change password
-        </button>
-        {change.isSuccess && <span className="set-pw__done">Password changed.</span>}
-      </span>
-    );
-  }
-  return (
-    <form
-      className="set-pwform"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (valid) change.mutate();
-      }}
-    >
-      <PasswordFields form={form} setForm={setForm} />
-      {form.confirm !== '' && form.next !== form.confirm && (
-        <p className="set-note set-note--bad">The new passwords don't match.</p>
-      )}
-      {change.isError && (
-        <p className="set-note set-note--bad" role="alert">
-          {change.error.message}
-        </p>
-      )}
-      <div className="set-formfoot">
-        <button
-          type="button"
-          className="set-btn set-btn--ghost"
-          onClick={() => setOpen(false)}
-          disabled={change.isPending}
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="set-btn set-btn--primary"
-          disabled={!valid || change.isPending}
-        >
-          {change.isPending ? 'Saving…' : 'Update password'}
-        </button>
-      </div>
-    </form>
-  );
-}
+  const valid = form.current.length > 0 && form.next.length >= 8 && form.next === form.confirm;
 
-function PasswordFields({
-  form,
-  setForm,
-}: {
-  form: PasswordForm;
-  setForm: React.Dispatch<React.SetStateAction<PasswordForm>>;
-}): React.JSX.Element {
   return (
     <>
-      <label>
-        <span>Current password</span>
-        <input
-          type="password"
-          value={form.current}
-          onChange={(event) => setForm({ ...form, current: event.target.value })}
-          autoComplete="current-password"
-        />
-      </label>
-      <label>
-        <span>New password</span>
-        <input
-          type="password"
-          value={form.next}
-          onChange={(event) => setForm({ ...form, next: event.target.value })}
-          placeholder="At least 8 characters"
-          autoComplete="new-password"
-        />
-      </label>
-      <label>
-        <span>Confirm new password</span>
-        <input
-          type="password"
-          value={form.confirm}
-          onChange={(event) => setForm({ ...form, confirm: event.target.value })}
-          autoComplete="new-password"
-        />
-      </label>
+      <Row label="Password" hint="At least 8 characters. You will stay signed in on this device.">
+        <button type="button" className="set-btn" onClick={() => setOpen(!open)}>
+          <LockSimple size={14} /> {open ? 'Cancel' : 'Change password'}
+        </button>
+      </Row>
+
+      {open && (
+        <div className="set-pw">
+          {(
+            [
+              ['current', 'Current password'],
+              ['next', 'New password'],
+              ['confirm', 'Confirm new password'],
+            ] as const
+          ).map(([key, label]) => (
+            <div className="set-pw__field" key={key}>
+              <label htmlFor={`pw-${key}`}>{label}</label>
+              <input
+                id={`pw-${key}`}
+                className="set-input"
+                type="password"
+                value={form[key]}
+                onChange={(event) => setForm({ ...form, [key]: event.target.value })}
+              />
+            </div>
+          ))}
+          {form.next.length > 0 && form.next.length < 8 && (
+            <span className="set-msg set-msg--bad">Use at least 8 characters.</span>
+          )}
+          {form.confirm.length > 0 && form.next !== form.confirm && (
+            <span className="set-msg set-msg--bad">The two new passwords do not match.</span>
+          )}
+          {mut.isError && <span className="set-msg set-msg--bad">{mut.error.message}</span>}
+          <div className="set-pw__actions">
+            <button
+              type="button"
+              className="set-btn set-btn--primary"
+              disabled={!valid || mut.isPending}
+              onClick={() => mut.mutate()}
+            >
+              {mut.isPending ? 'Updating…' : 'Update password'}
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
 
 function NotificationsSection(): React.JSX.Element {
+  const prefs = useQuery({ queryKey: [NOTIFY_PREFS_KEY], queryFn: fetchNotifyPrefs });
   const client = useQueryClient();
-  const prefs = useQuery({ queryKey: NOTIFY_PREFS_KEY, queryFn: fetchNotifyPrefs });
-  const save = useMutation({
-    mutationFn: (patch: UpdateNotificationPrefsRequest) =>
-      postMutation('/api/notifications/prefs', patch),
-    onSuccess: () => void client.invalidateQueries({ queryKey: NOTIFY_PREFS_KEY }),
-  });
 
-  return (
-    <section className="set-card">
-      <header className="set-card__head">
-        <div className="set-card__title-group">
-          <span className="set-card__badge set-card__badge--purple">
-            <Bell />
-          </span>
-          <div>
-            <h2>Notifications</h2>
-            <p>
-              What raises the notification bell in the top bar. Each notification is a real incident
-              the moment it&rsquo;s detected — there&rsquo;s no email or chat delivery in this
-              environment.
-            </p>
-          </div>
-        </div>
-      </header>
-      {prefs.isError ? (
-        <p className="set-note set-note--bad" role="alert">
-          Couldn&rsquo;t load your notification settings. {prefs.error.message}
-        </p>
-      ) : prefs.data === undefined ? (
-        <p className="set-note" role="status">
-          Loading…
-        </p>
-      ) : (
-        <>
-          <div className="set-field-group">
-            <label className="set-field">
-              <span>Notify me about</span>
-              <CustomSelectPill
-                value={prefs.data.minSeverity}
-                options={SEVERITY_OPTIONS}
-                onChange={(val) => save.mutate({ minSeverity: val as NotifySeverity })}
-                ariaLabel="Notify me about"
-                variant="field"
-              />
-            </label>
-          </div>
-          <div className="set-switchrow">
-            <div>
-              <strong>Include simulated incidents</strong>
-              <span>Get notified about incidents from simulation runs, not only live traffic.</span>
-            </div>
-            <Toggle
-              checked={prefs.data.simulated}
-              onChange={(next) => save.mutate({ simulated: next })}
-              disabled={save.isPending}
-              label="Include simulated incidents"
-            />
-          </div>
-          {save.isError && (
-            <p className="set-note set-note--bad" role="alert">
-              Couldn&rsquo;t save. {save.error.message}
-            </p>
-          )}
-          <p className="set-note">
-            Notifications appear in the <strong>bell</strong> at the top of the console. Email and
-            chat delivery aren&rsquo;t connected in this environment.
-          </p>
-        </>
-      )}
-    </section>
-  );
-}
-
-function DataSection({ retentionDays }: { retentionDays: number | null }): React.JSX.Element {
-  const client = useQueryClient();
-  const reset = useMutation({
-    mutationFn: async () => {
-      const response = await fetch('/api/replay/all', {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: csrfHeaders(),
+  const update = useMutation({
+    mutationFn: (req: Partial<NotificationPrefs>) => {
+      const current = prefs.data ?? { minSeverity: 'medium', simulated: true, seenAt: null };
+      return postMutation('/api/notifications/prefs', {
+        minSeverity: req.minSeverity ?? current.minSeverity,
+        simulated: req.simulated ?? current.simulated,
       });
-      if (!response.ok) throw new Error(`api returned ${response.status}`);
-      return response.json() as Promise<{ removed: number }>;
     },
-    onSuccess: () => void client.invalidateQueries(),
+    onSuccess: () => void client.invalidateQueries({ queryKey: [NOTIFY_PREFS_KEY] }),
   });
-  const confirmReset = (): void => {
-    if (
-      window.confirm(
-        'Delete all incidents and payment-attempt data (live and simulated)? This cannot be undone.',
-      )
-    )
-      reset.mutate();
-  };
+
+  const p = prefs.data ?? { minSeverity: 'medium' as NotifySeverity, simulated: true };
+
   return (
-    <section className="set-card">
-      <header className="set-card__head">
-        <div className="set-card__title-group">
-          <span className="set-card__badge set-card__badge--green">
-            <Shield />
-          </span>
-          <div>
-            <h2>Data &amp; privacy</h2>
-            <p>What Sentinel keeps, and how to clear it.</p>
-          </div>
-        </div>
-      </header>
-      <dl className="set-facts">
-        <Fact label="Data retention">{retentionDays === null ? '—' : `${retentionDays} days`}</Fact>
-        <Fact label="What's stored">
-          Pseudonymised signals only — never card numbers, names, or full IP addresses.
-        </Fact>
-      </dl>
-      <div className="set-danger">
-        <div>
-          <strong>Reset demo data</strong>
-          <span>
-            Deletes every incident and payment attempt, live and simulated. Your account and
-            policies are untouched.
-          </span>
-        </div>
-        <button
-          type="button"
-          className="set-btn set-btn--danger"
-          onClick={confirmReset}
-          disabled={reset.isPending}
-        >
-          {reset.isPending
-            ? 'Resetting…'
-            : reset.isSuccess
-              ? `Cleared ${reset.data?.removed ?? 0}`
-              : 'Reset demo data'}
-        </button>
-      </div>
-    </section>
+    <Panel
+      id="notifications"
+      icon={<Bell size={15} />}
+      title="Notifications"
+      sub="What raises the bell in the top bar."
+    >
+      <Row label="Notify me about" hint="The lowest severity that raises the bell.">
+        <CustomSelectPill
+          value={p.minSeverity}
+          options={SEVERITY_OPTIONS.map((option) => ({
+            value: option.value,
+            label: option.label,
+          }))}
+          onChange={(value) => update.mutate({ minSeverity: value as NotifySeverity })}
+          // The accessible name matches the visible label rather than restating it differently.
+          ariaLabel="Notify me about"
+        />
+      </Row>
+
+      <div className="set-sep" />
+
+      <Row
+        label="Include simulated incidents"
+        hint="Incidents raised by simulation runs, not only live traffic."
+      >
+        <Toggle
+          checked={p.simulated}
+          onChange={(checked) => update.mutate({ simulated: checked })}
+          label="Include simulated incidents"
+        />
+      </Row>
+
+      <Note>
+        Notifications appear in the bell at the top of the console. Email and chat delivery are not
+        connected in this environment.
+      </Note>
+    </Panel>
   );
 }
 
@@ -499,155 +455,204 @@ function AiModelSection({
   ai: WorkspaceResponse['ai'] | null;
   registry: ModelRegistryResponse | undefined;
 }): React.JSX.Element {
-  const model = registry?.available === true ? registry.registry.version : '—';
+  const model = registry?.available === true ? registry.registry : null;
+  const pct = (value: number): string => `${(value * 100).toFixed(1)}%`;
+
   return (
-    <section className="set-card">
-      <header className="set-card__head">
-        <div className="set-card__title-group">
-          <span className="set-card__badge set-card__badge--blue">
-            <Cpu />
-          </span>
+    <Panel
+      id="models"
+      icon={<Cpu size={15} />}
+      title="AI model"
+      sub="The two models Sentinel runs: the detector and the advisory assistant."
+    >
+      <Row
+        label="Detection model"
+        hint="Scores incidents. Its decision can be overridden by policy."
+      >
+        <span className="set-pill set-pill--muted">{model?.version ?? 'not loaded'}</span>
+      </Row>
+
+      {/* The scores the registry recorded when this version was trained — the same numbers the
+          model report is built from, not a restatement of anything on screen. */}
+      {model !== null && (
+        <dl className="set-facts set-facts--tight">
           <div>
-            <h2>AI model</h2>
-            <p>The two models Sentinel runs: detector and advisory assistant.</p>
+            <dt>PR-AUC</dt>
+            <dd>{model.metricsSnapshot.prAuc.toFixed(3)}</dd>
           </div>
-        </div>
-      </header>
-      <dl className="set-facts set-facts--column">
-        <Fact label="Detection model">
-          <code className="set-code">{model}</code>
-        </Fact>
-        <Fact label="Assistant">
-          {ai === null ? (
-            '—'
-          ) : (
-            <span className={ai.enabled ? 'set-pill set-pill--ok' : 'set-pill'}>
-              {ai.enabled ? 'Answering live' : 'Local explanations'}
-            </span>
-          )}
-        </Fact>
-        {ai !== null && ai.provider !== null && <Fact label="Provider">{ai.provider}</Fact>}
-        {ai !== null && ai.model !== null && (
-          <Fact label="Assistant model">
-            <code className="set-code">{ai.model}</code>
-          </Fact>
-        )}
-      </dl>
-      <p className="set-note">
+          <div>
+            <dt>Precision</dt>
+            <dd>{pct(model.metricsSnapshot.precision)}</dd>
+          </div>
+          <div>
+            <dt>Recall</dt>
+            <dd>{pct(model.metricsSnapshot.recall)}</dd>
+          </div>
+        </dl>
+      )}
+
+      <div className="set-sep" />
+
+      <Row
+        label="Assistant"
+        hint={
+          ai?.enabled === true
+            ? `Answering through ${ai.provider ?? 'the configured provider'}.`
+            : 'Not configured in this environment.'
+        }
+      >
+        <span className={`set-pill set-pill--${ai?.enabled === true ? 'ok' : 'muted'}`}>
+          {ai?.model ?? 'none'}
+        </span>
+      </Row>
+
+      <Note>
         The assistant is advisory only — it explains and recommends, but never blocks a shopper on
         its own.
-      </p>
-    </section>
+      </Note>
+    </Panel>
+  );
+}
+
+function DataSection({ retentionDays }: { retentionDays: number | null }): React.JSX.Element {
+  const client = useQueryClient();
+  const [confirming, setConfirming] = useState(false);
+
+  const reset = useMutation({
+    // Wipes every stored event and incident so the demo starts clean. Dev-only server-side; in
+    // production the API refuses and the error surfaces here rather than silently doing nothing.
+    mutationFn: async () => {
+      const response = await apiMutate('/api/replay/all', undefined, 'DELETE');
+      if (!response.ok) throw new Error(`api returned ${response.status}`);
+    },
+    onSuccess: () => {
+      setConfirming(false);
+      void client.invalidateQueries();
+    },
+  });
+
+  return (
+    <Panel
+      id="data"
+      icon={<ShieldCheck size={15} />}
+      title="Data & privacy"
+      sub="What Sentinel keeps, and how to clear it."
+    >
+      <Row label="Data retention" hint="How long forensic detail is kept before it is dropped.">
+        <span className="set-pill set-pill--muted">
+          {retentionDays === null ? '—' : `${retentionDays} days`}
+        </span>
+      </Row>
+
+      <div className="set-sep" />
+
+      <Row
+        label="What is stored"
+        hint="Pseudonymised signals only — never card numbers, names, or full IP addresses."
+      >
+        <span className="set-pill set-pill--ok">No raw PII</span>
+      </Row>
+
+      <div className="set-sep" />
+
+      <Row
+        label="Reset demo data"
+        hint="Deletes every incident and payment attempt, live and simulated. Your account and policies are untouched."
+      >
+        {confirming ? (
+          <>
+            <button
+              type="button"
+              className="set-btn set-btn--danger"
+              disabled={reset.isPending}
+              onClick={() => reset.mutate()}
+            >
+              {reset.isPending ? 'Deleting…' : 'Yes, delete it all'}
+            </button>
+            <button type="button" className="set-btn" onClick={() => setConfirming(false)}>
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="set-btn set-btn--danger"
+            onClick={() => setConfirming(true)}
+          >
+            <Trash size={14} /> Reset demo data
+          </button>
+        )}
+      </Row>
+
+      {reset.isError && <span className="set-msg set-msg--bad">{reset.error.message}</span>}
+    </Panel>
+  );
+}
+
+/** One connected service: what it is, what it has done, and whether it is working. */
+function Integration({
+  mark,
+  name,
+  detail,
+  ready,
+  readyWord,
+}: {
+  mark: string;
+  name: string;
+  detail: string;
+  ready: boolean;
+  readyWord: [on: string, off: string];
+}): React.JSX.Element {
+  return (
+    <div className="set-int">
+      <span className="set-int__mark" aria-hidden="true">
+        {mark}
+      </span>
+      <div className="set-int__text">
+        <span className="set-row__label">{name}</span>
+        <span className="set-row__hint">{detail}</span>
+      </div>
+      <span className={`set-pill set-pill--${ready ? 'ok' : 'muted'}`}>
+        {ready ? readyWord[0] : readyWord[1]}
+      </span>
+    </div>
   );
 }
 
 function IntegrationsSection({
   workspace,
   metrics,
-  metricsError,
 }: {
   workspace: WorkspaceResponse | undefined;
   metrics: IngestionMetrics | undefined;
-  metricsError: string | null;
 }): React.JSX.Element {
-  return (
-    <section className="set-card">
-      <header className="set-card__head">
-        <div className="set-card__title-group">
-          <span className="set-card__badge set-card__badge--purple">
-            <ArrowSquareOut />
-          </span>
-          <div>
-            <h2>Integrations</h2>
-            <p>Outside services Sentinel is connected to.</p>
-          </div>
-        </div>
-      </header>
-      <div className="set-integrations">
-        <RazorpayIntegration workspace={workspace} metrics={metrics} error={metricsError} />
-        <GroqIntegration ai={workspace?.ai ?? null} />
-      </div>
-    </section>
-  );
-}
+  const ai = workspace?.ai ?? null;
+  const stored = metrics === undefined ? '—' : metrics.eventsStored.toLocaleString('en-IN');
 
-function RazorpayIntegration({
-  workspace,
-  metrics,
-  error,
-}: {
-  workspace: WorkspaceResponse | undefined;
-  metrics: IngestionMetrics | undefined;
-  error: string | null;
-}): React.JSX.Element {
-  const status =
-    error !== null
-      ? { cls: 'bad', text: 'Unavailable' }
-      : metrics === undefined
-        ? { cls: '', text: '—' }
-        : metrics.configured
-          ? { cls: 'ok', text: 'Connected' }
-          : { cls: 'warn', text: 'Not configured' };
   return (
-    <div className="set-integration">
-      <span className="set-integration__mark" aria-hidden="true">
-        R
-      </span>
-      <div className="set-integration__body">
-        <div className="set-integration__top">
-          <strong>Razorpay</strong>
-          <span className={pillClass(status.cls)}>{status.text}</span>
-        </div>
-        <p>Payment webhooks feed.</p>
-        <dl className="set-facts set-facts--tight">
-          <Fact label="Mode">
-            {workspace === undefined ? '—' : workspace.liveMode ? 'Live keys' : 'Test keys'}
-          </Fact>
-          <Fact label="Events received">
-            {metrics === undefined ? '—' : metrics.eventsStored.toLocaleString('en-IN')}
-          </Fact>
-          <Fact label="Last delivery">
-            {metrics === undefined ? '—' : ago(metrics.lastEventReceivedAt)}
-          </Fact>
-        </dl>
-      </div>
-    </div>
-  );
-}
+    <Panel
+      id="integrations"
+      icon={<Buildings size={15} />}
+      title="Integrations"
+      sub="Outside services Sentinel is connected to."
+    >
+      <Integration
+        mark="RP"
+        name="Razorpay"
+        detail={`Payment webhooks. ${stored} events stored · last ${ago(metrics?.lastEventReceivedAt ?? null)}`}
+        ready={metrics?.configured ?? false}
+        readyWord={['Configured', 'Not configured']}
+      />
+      <div className="set-sep" />
 
-function GroqIntegration({ ai }: { ai: WorkspaceResponse['ai'] | null }): React.JSX.Element {
-  const configured = ai !== null && ai.provider !== null;
-  const status =
-    ai === null
-      ? { cls: '', text: '—' }
-      : ai.enabled
-        ? { cls: 'ok', text: 'Connected' }
-        : configured
-          ? { cls: 'warn', text: 'Standby' }
-          : { cls: '', text: 'Not configured' };
-  return (
-    <div className="set-integration">
-      <span className="set-integration__mark set-integration__mark--groq" aria-hidden="true">
-        AI
-      </span>
-      <div className="set-integration__body">
-        <div className="set-integration__top">
-          <strong>{ai?.provider ?? 'AI provider'}</strong>
-          <span className={pillClass(status.cls)}>{status.text}</span>
-        </div>
-        <p>Language model behind advisory assistant.</p>
-        <dl className="set-facts set-facts--tight">
-          <Fact label="Model">
-            {ai?.model === null || ai?.model === undefined ? (
-              '—'
-            ) : (
-              <code className="set-code">{ai.model}</code>
-            )}
-          </Fact>
-          <Fact label="Mode">{ai === null ? '—' : ai.mode}</Fact>
-        </dl>
-      </div>
-    </div>
+      <Integration
+        mark="AI"
+        name={ai?.provider ?? 'Language model'}
+        detail={`Behind the advisory assistant. ${ai?.model ?? 'No model configured'}`}
+        ready={ai?.enabled === true}
+        readyWord={['Answering', 'Off']}
+      />
+    </Panel>
   );
 }
 
@@ -656,30 +661,41 @@ function WorkspaceSummaryCard({
 }: {
   workspace: WorkspaceResponse | undefined;
 }): React.JSX.Element {
+  const facts: { label: string; value: string }[] = [
+    { label: 'Currency', value: workspace?.currency ?? '—' },
+    {
+      label: 'Session timeout',
+      value: workspace === undefined ? '—' : `${workspace.sessionHours} hours`,
+    },
+    {
+      label: 'Login lockout',
+      value:
+        workspace === undefined
+          ? '—'
+          : `${workspace.loginMaxAttempts} / ${workspace.loginWindowMinutes}m`,
+    },
+    {
+      label: 'Retention',
+      value: workspace === undefined ? '—' : `${workspace.retentionDays}d`,
+    },
+  ];
+
   return (
-    <section className="set-card set-card--summary">
-      <header className="set-card__head">
-        <div className="set-card__title-group">
-          <span className="set-card__badge set-card__badge--green">
-            <Shield />
-          </span>
-          <div>
-            <h2>Workspace overview</h2>
-            <p>System configuration &amp; rules.</p>
+    // These come from the server's own configuration; there is nothing to edit here.
+    <Panel
+      id="workspace"
+      icon={<LockSimple size={15} />}
+      title="Workspace"
+      sub="How this environment is configured. Read-only."
+    >
+      <dl className="set-facts set-facts--pairs">
+        {facts.map((fact) => (
+          <div key={fact.label}>
+            <dt>{fact.label}</dt>
+            <dd>{fact.value}</dd>
           </div>
-        </div>
-      </header>
-      <dl className="set-facts set-facts--column">
-        <Fact label="Currency">{workspace?.currency ?? 'INR'}</Fact>
-        <Fact label="Session timeout">
-          {workspace === undefined ? '—' : `${workspace.sessionHours} hours`}
-        </Fact>
-        <Fact label="Login attempt limit">
-          {workspace === undefined
-            ? '—'
-            : `${workspace.loginMaxAttempts} in ${workspace.loginWindowMinutes}m`}
-        </Fact>
+        ))}
       </dl>
-    </section>
+    </Panel>
   );
 }

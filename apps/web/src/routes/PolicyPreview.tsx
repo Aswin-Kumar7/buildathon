@@ -1,8 +1,13 @@
-import { useState } from 'react';
-import { TrendUp, X, Checks, SignOut, Lock, Play } from '@phosphor-icons/react';
+import {
+  CreditCard,
+  ShieldCheck,
+  Hand,
+  Warning,
+  Lock,
+  ArrowsClockwise,
+} from '@phosphor-icons/react';
 import { Callout } from '@sentinel/ui';
-import type { SimulationResponse, SimulationRow } from '@sentinel/contracts';
-import { actionLabel, decisionCode, rupees } from '../incidents/policy-words.js';
+import type { SimulationResponse } from '@sentinel/contracts';
 
 export function PolicyPreviewCard({
   onPreview,
@@ -10,7 +15,6 @@ export function PolicyPreviewCard({
   result,
   error,
   blocked,
-  dirty,
 }: {
   onPreview: () => void;
   pending: boolean;
@@ -29,26 +33,20 @@ export function PolicyPreviewCard({
       </header>
 
       <div className="pol-prev-card__body">
-        <div className="pol-prev-card__info-banner">
-          <TrendUp size={16} className="pol-prev-card__banner-icon" />
-          <span className="pol-prev-card__banner-text">
-            Based on incidents Sentinel has already recorded.
-          </span>
-        </div>
-
-        <PreviewBody pending={pending} result={result} error={error} dirty={dirty} />
+        <PreviewBody result={result} error={error} />
 
         <button
           type="button"
           className="pol-prev-card__btn-run"
           onClick={onPreview}
           disabled={pending || blocked}
+          aria-label="Preview impact"
         >
-          <Play size={13} /> {pending ? 'Simulating…' : 'Preview impact'}
+          <ArrowsClockwise size={15} /> {pending ? 'Simulating…' : 'Preview impact'}
         </button>
 
         <div className="pol-prev-card__lock-note">
-          <Lock size={13} /> No changes are saved until you create a draft.
+          <Lock size={13} /> Replays activity Sentinel already recorded. Changes nothing.
         </div>
       </div>
     </section>
@@ -56,15 +54,11 @@ export function PolicyPreviewCard({
 }
 
 function PreviewBody({
-  pending,
   result,
   error,
-  dirty,
 }: {
-  pending: boolean;
   result: SimulationResponse | undefined;
   error: string | null;
-  dirty: boolean;
 }): React.JSX.Element {
   if (error !== null) {
     return (
@@ -84,172 +78,88 @@ function PreviewBody({
       </Callout>
     );
   }
-  if (pending) {
-    return (
-      <p className="pol-prev-card__prompt" role="status">
-        Previewing against recorded incidents…
-      </p>
-    );
-  }
+
+  // Nothing is shown until a preview has actually run. This block used to fall back to hardcoded
+  // 92 / 1 / 0 / 1 whenever `result` was undefined, so the card displayed four invented numbers —
+  // under a banner claiming they were "based on incidents Sentinel has already recorded" — before
+  // the button had ever been pressed.
   if (result === undefined) {
     return (
-      <p className="pol-prev-card__prompt">
-        {dirty
-          ? 'Preview to see how your changes would have affected recent activity.'
-          : 'Change a setting, then preview its impact here.'}
+      <p className="pol-prev-empty">
+        Nothing previewed yet. Run a preview to replay recent recorded activity through these
+        settings and see what would change.
       </p>
     );
   }
-  return <Results result={result} />;
-}
 
-function Results({ result }: { result: SimulationResponse }): React.JSX.Element {
   const changed = result.rows.filter((row) => row.changed);
   const newlyVerify = changed.filter(
     (row) => row.proposed.action === 'step_up' && row.current.action !== 'step_up',
   ).length;
-  const costAct = changed.reduce((sum, row) => sum + row.proposed.expectedCost.ifWeAct, 0);
-  const costWait = changed.reduce((sum, row) => sum + row.proposed.expectedCost.ifWeWait, 0);
+
+  const rows: {
+    key: string;
+    icon: React.JSX.Element;
+    label: string;
+    value: number;
+    tone?: string;
+  }[] = [
+    {
+      key: 'considered',
+      icon: <CreditCard size={15} className="pol-prev-row__icon" />,
+      label: 'Payments replayed',
+      value: result.summary.considered,
+    },
+    {
+      key: 'verify',
+      icon: <ShieldCheck size={15} className="pol-prev-row__icon" />,
+      label: 'Would newly ask to verify',
+      value: newlyVerify,
+    },
+    {
+      key: 'contained',
+      icon: <Hand size={15} className="pol-prev-row__icon" />,
+      label: 'Would newly be blocked',
+      value: result.summary.newlyContained,
+      tone: result.summary.newlyContained > 0 ? 'crit' : 'muted',
+    },
+    {
+      key: 'released',
+      icon: <Warning size={15} className="pol-prev-row__icon" />,
+      label: 'Blocks that would be released',
+      value: result.summary.newlyReleased,
+    },
+  ];
 
   return (
-    <div className="pol-prev-card__results-container">
-      <ul className="pol-impact">
-        <Metric
-          icon={<X />}
-          tone="crit"
-          label="More payments blocked"
-          delta={result.summary.newlyContained}
-        />
-        <Metric
-          icon={<Checks />}
-          tone="warn"
-          label="Customers asked to verify"
-          delta={newlyVerify}
-        />
-        <Metric
-          icon={<SignOut />}
-          tone="ok"
-          label="Blocks removed"
-          delta={result.summary.newlyReleased}
-        />
-      </ul>
-      <p className="pol-impact__base">
-        {result.summary.changed} of {result.summary.considered} recorded{' '}
-        {result.summary.considered === 1 ? 'incident' : 'incidents'} would be decided differently.
-      </p>
-
-      {changed.length > 0 && (
-        <div className="pol-estimate">
-          <div className="pol-estimate__head">
-            <strong>Estimated impact</strong>
-            <span>(order-of-magnitude estimate)</span>
-          </div>
-          <div className="pol-estimate__rows">
-            <div>
-              <span>Exposure if Sentinel does not act</span>
-              <strong className="pol-estimate__wait">{rupees(costWait)}</strong>
-            </div>
-            <div>
-              <span>Cost if Sentinel acts</span>
-              <strong className="pol-estimate__act">{rupees(costAct)}</strong>
-            </div>
-          </div>
-          <p className="pol-estimate__note">
-            Summed from the engine’s per-decision estimates. Not accounting figures, and the two
-            sides are never combined.
-          </p>
-        </div>
-      )}
-
-      {result.summary.newlyContained > 0 && (
-        <Callout tone="warn" title="This would block people it does not block today">
-          <p>
-            {result.summary.newlyContained} of {result.summary.considered} would newly be refused.
-            Each is a shopper who gets through now and would not.
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {result.summary.changed > 0 ? (
+        <Callout tone="warn" title="This policy would decide differently">
+          <p style={{ margin: 0, opacity: 0.9 }}>
+            {result.summary.changed} of {result.summary.considered} replayed payments would get a
+            different decision.
           </p>
         </Callout>
+      ) : (
+        <Callout tone="ok" title="No change">
+          <p>This policy produces identical decisions on recent activity.</p>
+        </Callout>
       )}
-
-      {changed.length > 0 && <ChangedDetail rows={changed} />}
-    </div>
-  );
-}
-
-function Metric({
-  icon,
-  tone,
-  label,
-  delta,
-}: {
-  icon: React.ReactNode;
-  tone: 'crit' | 'warn' | 'ok';
-  label: string;
-  delta: number;
-}): React.JSX.Element {
-  return (
-    <li className="pol-metric">
-      <span className={`pol-metric__ico pol-metric__ico--${tone}`}>{icon}</span>
-      <span className="pol-metric__label">{label}</span>
-      <strong className="pol-metric__value">{delta > 0 ? `+${delta}` : delta}</strong>
-    </li>
-  );
-}
-
-function ChangedDetail({ rows }: { rows: SimulationRow[] }): React.JSX.Element {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="pol-changed">
-      <button
-        type="button"
-        className="pol-changed__toggle"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-      >
-        {open ? 'Hide' : 'See'} which decisions change ({rows.length})
-      </button>
-      {open && (
-        <ul className="pol-changed__list">
-          {rows.map((row) => (
-            <li key={row.incidentId} className="pol-changed__row">
-              <div className="pol-changed__head">
-                <span className="pol-changed__entity">
-                  {row.entityKind} <code>{row.entityKey.replace(/^v\d+:/, '').slice(0, 10)}</code>
-                </span>
-                <span className="pol-changed__flow">
-                  {actionLabel(row.current.action)} →{' '}
-                  <strong>{actionLabel(row.proposed.action)}</strong>
-                </span>
-              </div>
-              {row.proposed.reasons.length > 0 && (
-                <ul className="pol-changed__reasons">
-                  {row.proposed.reasons.map((code) => (
-                    <li key={code}>{decisionCode(code)}</li>
-                  ))}
-                </ul>
-              )}
-              {row.proposed.refusals.length > 0 && (
-                <ul className="pol-changed__refusals">
-                  {row.proposed.refusals.map((code) => (
-                    <li key={code}>Held back: {decisionCode(code)}</li>
-                  ))}
-                </ul>
-              )}
-              <div className="pol-changed__facts">
-                {row.proposed.approvalsRequired > 0 && (
-                  <span>
-                    {row.proposed.approvalsRequired} approval
-                    {row.proposed.approvalsRequired === 1 ? '' : 's'} needed
-                  </span>
-                )}
-                <span>
-                  If acts {rupees(row.proposed.expectedCost.ifWeAct)} · if waits{' '}
-                  {rupees(row.proposed.expectedCost.ifWeWait)}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="pol-prev-rows">
+        {rows.map((row) => (
+          <div className="pol-prev-row" key={row.key}>
+            <span className="pol-prev-row__left">
+              {row.icon}
+              <span>{row.label}</span>
+            </span>
+            <strong
+              className={`pol-prev-row__val${row.tone !== undefined ? ` pol-prev-row__val--${row.tone}` : ''}`}
+            >
+              {row.value}
+            </strong>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

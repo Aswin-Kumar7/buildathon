@@ -1,11 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import type { PolicyResponse, PolicyVersion, SimulationResponse } from '@sentinel/contracts';
 import { PolicyPage } from './PolicyPage.js';
-import { actionLabel, decisionCode, rupees } from '../incidents/policy-words.js';
+
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({ children, role, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a role={role} {...props}>
+      {children}
+    </a>
+  ),
+}));
 
 function policy(overrides: Partial<PolicyResponse> = {}): PolicyResponse {
   return {
@@ -45,6 +52,14 @@ function version(overrides: Partial<PolicyVersion> = {}): PolicyVersion {
     createdAt: 1_772_000_000_000,
     approvedAt: 1_772_100_000_000,
     publishedAt: 1_772_200_000_000,
+    settings: {
+      stepUp: 0.55,
+      contain: 0.75,
+      defaultMinutes: 30,
+      maxMinutes: 120,
+      containmentAlwaysNeedsApproval: true,
+      dualApprovalAbovePaise: 50_000,
+    },
     ...overrides,
   };
 }
@@ -91,11 +106,10 @@ function stub(
   const fetchMock = vi.fn(async (url: string) => {
     if (url.includes('/api/policy/versions')) return body({ versions: opts.versions ?? [] });
     if (url.includes('/api/policy/simulate')) return body(opts.sim ?? simulation());
-    if (url.includes('/api/policy/drafts'))
-      return body({
-        version: version({ status: 'draft', approvedBy: null, approvedByName: null }),
-      });
-    if (url.includes('/submit')) return body({ version: version({ status: 'pending_approval' }) });
+    if (url.includes('/api/policy/save'))
+      return body({ version: version({ version: 2, status: 'published' }) });
+    if (url.includes('/revert'))
+      return body({ version: version({ version: 3, status: 'published' }) });
     if (url.endsWith('/api/policy')) return body(opts.policy ?? policy());
     return body({});
   });
@@ -131,7 +145,7 @@ describe('PolicyPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Preview impact' }));
 
-    expect(await screen.findByText('More payments blocked')).toBeInTheDocument();
+    expect(await screen.findByText('This policy would decide differently')).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/policy/simulate',
       expect.objectContaining({ method: 'POST' }),
@@ -150,10 +164,12 @@ describe('PolicyPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Preview impact' }));
 
+    expect(await screen.findByText('This policy would decide differently')).toBeInTheDocument();
     expect(
-      await screen.findByText(/would block people it does not block today/),
+      screen.getByText(/2 of 4 replayed payments would get a different decision/),
     ).toBeInTheDocument();
-    expect(screen.getByText(/2 of 4 would newly be refused/)).toBeInTheDocument();
+    // The count that matters is the real one from the summary, never floored to look non-zero.
+    expect(screen.getByText('Would newly be blocked').closest('div')).toHaveTextContent('2');
   });
 
   it('reports a broken candidate rather than fabricating a preview', async () => {
@@ -170,7 +186,7 @@ describe('PolicyPage', () => {
     expect(screen.getByText(/thresholds.contain must be a number/)).toBeInTheDocument();
   });
 
-  it('renders real policy history — version, readable status and who acted', async () => {
+  it('renders real policy history — version, whether it ever went live, and who saved it', async () => {
     stub({
       versions: [
         version(),
@@ -188,50 +204,59 @@ describe('PolicyPage', () => {
     render(wrap(<PolicyPage />));
     await screen.findByText('Active policy');
 
-    await userEvent.click(screen.getByRole('button', { name: /View history/i }));
+    await userEvent.click(screen.getByRole('button', { name: /History/i }));
 
     expect(await screen.findByText('Policy history')).toBeInTheDocument();
     expect(screen.getByText('Ops Team')).toBeInTheDocument();
-    expect(screen.getByText('Rejected')).toBeInTheDocument();
+    // Versions are labelled by whether they were ever live, not by the retired approval lifecycle.
+    expect(screen.getByText('Never live')).toBeInTheDocument();
+    expect(screen.queryByText('Rejected')).not.toBeInTheDocument();
+    expect(screen.queryByText('Pending approval')).not.toBeInTheDocument();
+
+    // The settings are there to be read before restoring, not hidden behind a version number.
+    // Scoped to the drawer: the same labels also name the editable rows on the settings card.
+    const drawer = screen.getByRole('dialog', { name: 'Policy history' });
+    await userEvent.click(
+      within(drawer).getAllByRole('button', { name: /What is in this version/i })[0]!,
+    );
+    expect(within(drawer).getByText('Block suspicious activity when')).toBeInTheDocument();
+    expect(within(drawer).getByText('75%')).toBeInTheDocument();
   });
 
-  it('keeps saving disabled until a real change is made, then creates a draft', async () => {
+  it('keeps saving disabled until a real change is made, then saves on confirm', async () => {
     const fetchMock = stub({ versions: [version()] });
     render(wrap(<PolicyPage />));
     await screen.findByText('Active policy');
 
-    expect(screen.getByRole('button', { name: /Save as draft/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Save policy/ })).toBeDisabled();
 
     // The verification level is a fixed-step slider; 0.55 → 0.5 is one notch down the ladder (index 2).
     fireEvent.change(screen.getByLabelText('Verification risk level'), { target: { value: '2' } });
-    const save = screen.getByRole('button', { name: /Save as draft/ });
+    const save = screen.getByRole('button', { name: /Save policy/ });
     expect(save).toBeEnabled();
     await userEvent.click(save);
 
+    // Saving is immediate, so it asks first — and nothing is written until it is confirmed.
+    expect(await screen.findByRole('dialog', { name: /Make this the live policy/ })).toBeVisible();
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/policy/save', expect.anything());
+
+    await userEvent.click(screen.getByRole('button', { name: 'Save and make live' }));
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/policy/drafts',
+      '/api/policy/save',
       expect.objectContaining({ method: 'POST' }),
     );
-    expect(await screen.findByText(/live policy is unchanged/)).toBeInTheDocument();
-  });
-});
-
-describe('policy wording', () => {
-  it('names each action in the terms somebody affected would use', () => {
-    expect(actionLabel('contain')).toBe('Refuse further attempts');
-    expect(actionLabel('step_up')).toBe('Ask for another factor');
+    expect(await screen.findByText(/Policy v2 is live/)).toBeInTheDocument();
   });
 
-  it('explains a refusal rather than printing its code', () => {
-    expect(decisionCode('feature_state_is_stale')).toMatch(/cannot see clearly/);
-    expect(decisionCode('would_contain_too_much_of_the_shop')).toMatch(/too much of the shop/);
-  });
+  it('cancelling the confirmation writes nothing', async () => {
+    const fetchMock = stub({ versions: [version()] });
+    render(wrap(<PolicyPage />));
+    await screen.findByText('Active policy');
 
-  it('renders a parameterised code with its number', () => {
-    expect(decisionCode('attack_supported_at_0.93')).toContain('93%');
-  });
+    fireEvent.change(screen.getByLabelText('Verification risk level'), { target: { value: '2' } });
+    await userEvent.click(screen.getByRole('button', { name: /Save policy/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
-  it('shows money as money', () => {
-    expect(rupees(48_000)).toBe('₹480');
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/policy/save', expect.anything());
   });
 });

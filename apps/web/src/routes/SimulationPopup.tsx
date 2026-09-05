@@ -2,10 +2,8 @@ import { useEffect, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
   scenarioListResponseSchema,
-  simulationRunsResponseSchema,
   simulationStartResponseSchema,
   type ScenarioSummary,
-  type SimulationRun,
 } from '@sentinel/contracts';
 import { apiMutate } from '../auth/api.js';
 import {
@@ -26,17 +24,12 @@ import {
   Browsers,
   Cards,
 } from '@phosphor-icons/react';
+import { fetchSimulationRuns as fetchRuns } from '../shared/fetchers.js';
 
 async function fetchScenarios(): Promise<ScenarioSummary[]> {
   const response = await fetch('/api/replay', { credentials: 'include' });
   if (!response.ok) throw new Error(`api returned ${response.status}`);
   return scenarioListResponseSchema.parse(await response.json()).scenarios;
-}
-
-async function fetchRuns(): Promise<SimulationRun[]> {
-  const response = await fetch('/api/simulation/runs', { credentials: 'include' });
-  if (!response.ok) throw new Error(`api returned ${response.status}`);
-  return simulationRunsResponseSchema.parse(await response.json()).runs;
 }
 
 async function startSimulation(family: string): Promise<void> {
@@ -54,24 +47,41 @@ const TONES: Record<ScenarioSummary['classification'], [string, string]> = {
   attack: ['oklch(0.958 0.026 22)', 'oklch(0.52 0.15 22)'],
 };
 
+/**
+ * Ordered, and the order is load-bearing: 'carding' must be tested before 'card' or every carding
+ * scenario would take the plain card icon. Kept as a table rather than a chain of ifs so adding a
+ * scenario is one row instead of another branch.
+ */
+const SCENARIO_ICONS: readonly (readonly [
+  readonly string[],
+  React.ComponentType<{ size: number }>,
+])[] = [
+  [['ordinary', 'benign'], Storefront],
+  [['mistype', 'keyboard'], Keyboard],
+  [['outage', 'plug'], PlugsConnected],
+  [['dunning'], ArrowsClockwise],
+  [['sale'], TrendUp],
+  [['enum'], ListNumbers],
+  [['account'], HourglassMedium],
+  [['proxy', 'network'], ShareNetwork],
+  [['carding', 'shopping'], ShoppingBag],
+  [['browser'], Browsers],
+  [['card'], Cards],
+];
+
+/** Used only when the family name matches nothing above. */
+const CLASSIFICATION_ICONS: Record<string, React.ComponentType<{ size: number }>> = {
+  attack: WarningCircle,
+  operational: Gear,
+};
+
 function getScenarioIcon(
   family: string,
   classification: ScenarioSummary['classification'],
 ): React.JSX.Element {
-  if (family.includes('ordinary') || family.includes('benign')) return <Storefront size={16} />;
-  if (family.includes('mistype') || family.includes('keyboard')) return <Keyboard size={16} />;
-  if (family.includes('outage') || family.includes('plug')) return <PlugsConnected size={16} />;
-  if (family.includes('dunning')) return <ArrowsClockwise size={16} />;
-  if (family.includes('sale')) return <TrendUp size={16} />;
-  if (family.includes('enum')) return <ListNumbers size={16} />;
-  if (family.includes('account')) return <HourglassMedium size={16} />;
-  if (family.includes('proxy') || family.includes('network')) return <ShareNetwork size={16} />;
-  if (family.includes('carding') || family.includes('shopping')) return <ShoppingBag size={16} />;
-  if (family.includes('browser')) return <Browsers size={16} />;
-  if (family.includes('card')) return <Cards size={16} />;
-  if (classification === 'attack') return <WarningCircle size={16} />;
-  if (classification === 'operational') return <Gear size={16} />;
-  return <Check size={16} />;
+  const matched = SCENARIO_ICONS.find(([keywords]) => keywords.some((k) => family.includes(k)));
+  const Icon = matched?.[1] ?? CLASSIFICATION_ICONS[classification] ?? Check;
+  return <Icon size={16} />;
 }
 
 export function SimulationPopup({

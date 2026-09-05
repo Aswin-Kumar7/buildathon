@@ -1,8 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import type { LoginRequest, SessionUser } from '@sentinel/contracts';
 import { fetchMe, login as loginRequest, logout as logoutRequest } from './api.js';
 
 export const SESSION_KEY = ['session'] as const;
+
+/** How long an armed sign-out waits for its second press before giving up. */
+const CONFIRM_WINDOW_MS = 4_000;
 
 export interface SessionState {
   user: SessionUser | null;
@@ -34,13 +39,58 @@ export function useLogin() {
 
 export function useLogout() {
   const client = useQueryClient();
+  const navigate = useNavigate();
   return useMutation({
     mutationFn: logoutRequest,
     onSettled: async () => {
       // Clear everything rather than only the session: cached console data belongs to
       // the person who just signed out.
       client.clear();
-      await client.invalidateQueries({ queryKey: SESSION_KEY });
+      // Clearing the cache does not move the page. The console's route guard only runs on
+      // navigation, so without this the shell stayed mounted with an empty cache and the person
+      // who had just signed out was still looking at it. Land them where a visitor starts.
+      await navigate({ to: '/' });
     },
   });
+}
+
+export interface ConfirmedLogout {
+  /** True once the first press has landed and the control is waiting to be pressed again. */
+  armed: boolean;
+  isPending: boolean;
+  /** First call arms, second signs out. */
+  press: () => void;
+  /** Drop the confirmation, for blur or for leaving the control. */
+  cancel: () => void;
+}
+
+/**
+ * Signing out is one stray click away from a bare icon in the sidebar, so it asks first. This is
+ * the confirmation itself rather than a way to open one: the control arms, relabels, and only the
+ * second press calls {@link useLogout}. It disarms on its own so a live confirm is never left
+ * sitting in the UI for someone who walked away mid-thought.
+ */
+export function useConfirmedLogout(): ConfirmedLogout {
+  const logout = useLogout();
+  const [armed, setArmed] = useState(false);
+
+  useEffect(() => {
+    if (!armed) return undefined;
+    const timer = window.setTimeout(() => setArmed(false), CONFIRM_WINDOW_MS);
+    return () => window.clearTimeout(timer);
+  }, [armed]);
+
+  return {
+    armed,
+    isPending: logout.isPending,
+    press: () => {
+      if (!armed) {
+        setArmed(true);
+        return;
+      }
+      setArmed(false);
+      logout.mutate();
+    },
+    cancel: () => setArmed(false),
+  };
 }

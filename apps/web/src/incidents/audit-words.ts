@@ -20,40 +20,16 @@ const KINDS: Record<string, string> = {
   'policy.submitted': 'Policy submitted',
   'policy.approved': 'Policy approved',
   'policy.rejected': 'Policy rejected',
-  'policy.published': 'Policy published',
+  'policy.published': 'Policy saved',
+  'policy.reverted': 'Policy reverted',
   // The operator emergency stop.
-  'enforcement.paused': 'Enforcement paused',
-  'enforcement.resumed': 'Enforcement resumed',
+  // "Enforcement paused/resumed" named an internal flag. What the kill switch actually does is stop
+  // Sentinel acting at all and release every live block, so the log says that instead.
+  'enforcement.paused': 'Protection stopped',
+  'enforcement.resumed': 'Protection resumed',
 };
 
 export const kindLabel = (kind: string): string => KINDS[kind] ?? kind.replace(/[._]/g, ' ');
-
-/** Restrained colour for an event badge: green for things that went through, amber for those that stopped. */
-export type AuditTone = 'ok' | 'warn' | 'info' | 'neutral';
-const TONES: Record<string, AuditTone> = {
-  'containment.approved': 'ok',
-  'containment.activated': 'ok',
-  'containment.released': 'ok',
-  'recommendation.accepted': 'ok',
-  'policy.approved': 'ok',
-  'policy.published': 'ok',
-  'containment.expired': 'warn',
-  'containment.rejected': 'warn',
-  'recommendation.rejected': 'warn',
-  'policy.rejected': 'warn',
-  'enforcement.paused': 'warn',
-  'enforcement.resumed': 'ok',
-  'incident.transition': 'info',
-  'containment.proposed': 'info',
-  'containment.extended': 'info',
-  'policy.submitted': 'info',
-  'policy.draft_created': 'info',
-};
-export const kindTone = (kind: string): AuditTone => TONES[kind] ?? 'neutral';
-
-/** A status code as a person reads it, e.g. `under_review` → "Under review". Used for before/after changes. */
-export const statusLabel = (status: string): string =>
-  status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
 
 const DATE_TIME: Intl.DateTimeFormatOptions = {
   day: '2-digit',

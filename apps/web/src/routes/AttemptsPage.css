@@ -1,8 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap');
-
 :root {
-  --ap-font: 'Instrument Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --ap-accent: #1E6FD9;
+  --ap-font: var(--s-font);
+  --ap-accent: #1e6fd9;
   --ap-bg-page: oklch(0.968 0.004 270);
   --ap-bg-card: oklch(1 0 0);
   --ap-border: oklch(0.925 0.006 280);
@@ -30,7 +28,7 @@
   min-height: 0;
   font-family: var(--ap-font);
   color: var(--ap-text-body);
-  font-feature-settings: "tnum" 1;
+  font-feature-settings: 'tnum' 1;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -67,10 +65,10 @@
   line-height: 1.35;
 }
 
-/* ── Metric Cards Row (Unified 5-column container) ── */
+/* ── Metric Cards Row (Unified 4-column container) ── */
 .ap-metrics {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   border-radius: 12px;
   background: var(--ap-bg-card);
   border: 1px solid var(--ap-border);
@@ -78,17 +76,41 @@
   margin-bottom: 10px;
 }
 
+/*
+ * Each tile is a button that filters the table to its own status, matching the incident queue's
+ * severity tiles. Button defaults (centred text, chrome background, inherited-but-not-really font)
+ * are reset here so it still reads as a panel rather than a control.
+ */
 .ap-metric-col {
   display: flex;
   flex-direction: column;
   gap: 9px;
   padding: 13px 16px;
+  border: none;
   border-left: 1px solid var(--ap-border-subtle);
   min-width: 0;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
 }
 
 .ap-metric-col:first-child {
   border-left: none;
+}
+
+.ap-metric-col:hover {
+  background: var(--ap-bg-hover);
+}
+
+.ap-metric-col.is-active {
+  background: color-mix(in oklab, var(--ap-accent) 6%, white);
+}
+
+.ap-metric-col:focus-visible {
+  outline: 2px solid var(--ap-accent);
+  outline-offset: -2px;
 }
 
 .ap-metric-col__header {
@@ -122,6 +144,10 @@
 
 .ap-metric-col__dot--safe {
   background: oklch(0.62 0.13 162);
+}
+
+.ap-metric-col__dot--incident {
+  background: oklch(0.62 0.17 38);
 }
 
 .ap-metric-col__dot--muted {
@@ -183,6 +209,10 @@
   color: oklch(0.44 0.11 162);
 }
 
+.ap-metric-col__share--incident {
+  color: oklch(0.5 0.14 38);
+}
+
 .ap-metric-col__share--faint {
   color: oklch(0.74 0.015 280);
 }
@@ -227,6 +257,10 @@
   background: oklch(0.62 0.13 162);
 }
 
+.ap-metric-col__bar-fill--incident {
+  background: oklch(0.62 0.17 38);
+}
+
 /* ── Main Attempts Panel ── */
 .ap-panel {
   display: flex;
@@ -268,7 +302,7 @@
 
 .ap-panel__head-badge {
   padding: 2px 8px;
-  border-radius: 99px;
+  border-radius: var(--s-radius-pill);
   font-size: 11px;
   font-weight: 600;
   color: var(--ap-text-badge);
@@ -337,7 +371,9 @@
   border-radius: 8px;
   width: 218px;
   background: oklch(1 0 0);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .ap-toolbar-search:focus-within {
@@ -381,7 +417,9 @@
   background: #ffffff;
   border: 1px solid var(--ap-border);
   border-radius: 10px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.1),
+    0 8px 10px -6px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -505,8 +543,16 @@
 
 .ap-table-head-row {
   display: grid;
-  grid-template-columns: minmax(190px, 1.5fr) minmax(180px, 1.4fr) minmax(104px, 0.7fr) minmax(140px, 0.95fr) minmax(96px, 0.7fr) minmax(96px, 0.7fr) minmax(84px, 0.6fr) 32px;
-  gap: 14px;
+  /*
+   * Weights track how much text each column actually holds, so the empty space left over is shared
+   * out in proportion instead of pooling behind the two id columns. Amount and Time are no longer
+   * right-aligned: a right-aligned column next to a left-aligned one pushed all of its slack to one
+   * side, which is what left a 280px gap before Amount and only 15px between Amount and Method.
+   */
+  grid-template-columns:
+    minmax(170px, 1.15fr) minmax(160px, 1.05fr) minmax(96px, 0.72fr) minmax(124px, 0.86fr)
+    minmax(96px, 0.72fr) minmax(96px, 0.72fr) minmax(84px, 0.68fr) 28px;
+  gap: 18px;
   min-width: 940px;
   padding: 10px 20px;
   font-size: 10.5px;
@@ -530,22 +576,25 @@
 }
 
 .ap-th-cell--right {
-  text-align: right;
-  padding-right: 14px;
+  text-align: left;
 }
 
 .ap-th-cell--time {
-  text-align: right;
-}
-
-.ap-th-cell--method {
-  padding-left: 2px;
+  text-align: left;
 }
 
 .ap-table-row {
   display: grid;
-  grid-template-columns: minmax(190px, 1.5fr) minmax(180px, 1.4fr) minmax(104px, 0.7fr) minmax(140px, 0.95fr) minmax(96px, 0.7fr) minmax(96px, 0.7fr) minmax(84px, 0.6fr) 32px;
-  gap: 14px;
+  /*
+   * Weights track how much text each column actually holds, so the empty space left over is shared
+   * out in proportion instead of pooling behind the two id columns. Amount and Time are no longer
+   * right-aligned: a right-aligned column next to a left-aligned one pushed all of its slack to one
+   * side, which is what left a 280px gap before Amount and only 15px between Amount and Method.
+   */
+  grid-template-columns:
+    minmax(170px, 1.15fr) minmax(160px, 1.05fr) minmax(96px, 0.72fr) minmax(124px, 0.86fr)
+    minmax(96px, 0.72fr) minmax(96px, 0.72fr) minmax(84px, 0.68fr) 28px;
+  gap: 18px;
   min-width: 940px;
   align-items: center;
   padding: 11px 20px;
@@ -568,7 +617,7 @@
 }
 
 .ap-id--order {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.005em;
@@ -596,91 +645,26 @@
 }
 
 .ap-amount-cell {
-  text-align: right;
-  padding-right: 14px;
-  font-size: 12.5px;
+  text-align: left;
+  font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   color: var(--ap-text-heading);
 }
 
-/* Method Cell */
-.ap-method-cell {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  padding-left: 2px;
-  min-width: 0;
-}
-
-.ap-method-logo-wrap {
-  flex: 0 0 28px;
-  width: 28px;
-  height: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  overflow: hidden;
-}
-
-.ap-method-logo {
-  max-height: 16px;
-  width: auto;
-  object-fit: contain;
-  user-select: none;
-  pointer-events: none;
-}
-
-.ap-method-logo--visa {
-  height: 14px;
-}
-
-.ap-method-logo--mc {
-  height: 14px;
-}
-
-.ap-method-logo--amex {
-  height: 14px;
-}
-
-.ap-method-logo--rupay {
-  height: 12px;
-  max-width: 26px;
-}
-
-.ap-method-logo--upi {
-  height: 13px;
-  max-width: 22px;
-  object-fit: contain;
-  flex-shrink: 0;
-}
-
-.ap-method-logo--netbanking {
-  height: 14px;
-}
-
-.ap-method-logo--wallet {
-  height: 14px;
-}
-
-.ap-method-label {
-  font-size: 12px;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--ap-text-body);
-}
-
-/* Status Chips */
+/*
+ * Status chips. Same shape, padding and size as every other status pill in the console (the
+ * severity pill on an incident, the health pill in the shell): fully rounded, 3px 10px, 11.5px.
+ * A status chip read as a different shape depending on which page you were looking at.
+ */
 .ap-chip {
   justify-self: start;
   display: inline-flex;
   align-items: center;
-  padding: 3px 9px;
-  border-radius: 6px;
-  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: var(--s-radius-pill);
+  font-size: 11.5px;
   font-weight: 600;
   white-space: nowrap;
   line-height: 1.25;
@@ -735,7 +719,7 @@
 
 /* Time Cell */
 .ap-time-cell {
-  text-align: right;
+  text-align: left;
   font-size: 11.5px;
   font-weight: 500;
   white-space: nowrap;
@@ -751,7 +735,9 @@
   color: oklch(0.72 0.015 280);
   font-size: 13px;
   text-decoration: none;
-  transition: transform 0.12s ease, color 0.12s ease;
+  transition:
+    transform 0.12s ease,
+    color 0.12s ease;
 }
 
 .ap-action-cell:hover {
@@ -799,6 +785,12 @@
   color: var(--ap-text-muted);
 }
 
+.ap-rows-per-page .csp-dropdown-menu {
+  min-width: 72px;
+  right: 0;
+  left: auto;
+}
+
 .ap-pager-ctrl {
   display: flex;
   align-items: center;
@@ -830,9 +822,17 @@
 }
 
 .ap-pager-page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  border-radius: 7px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--ap-text-body);
+  color: oklch(0.3 0.015 280);
+  background: oklch(0.962 0.006 280);
+  padding: 0 4px;
 }
 
 .ap-pager-of {
@@ -866,7 +866,9 @@
   padding: 1.15rem;
   border-radius: 12px;
   background: #ffffff;
-  box-shadow: 0px 4px 18px rgba(13, 21, 38, 0.04), 0px 1px 3px rgba(13, 21, 38, 0.02);
+  box-shadow:
+    0px 4px 18px rgba(13, 21, 38, 0.04),
+    0px 1px 3px rgba(13, 21, 38, 0.02);
 }
 
 .ap-kpi__icon {
@@ -908,7 +910,15 @@
   white-space: nowrap;
 }
 
-.ap-kpi__subtext--green { color: #16a34a; }
-.ap-kpi__subtext--blue { color: #0b72e7; }
-.ap-kpi__subtext--slate { color: #64748b; }
-.ap-kpi__subtext--purple { color: #0b72e7; }
+.ap-kpi__subtext--green {
+  color: #16a34a;
+}
+.ap-kpi__subtext--blue {
+  color: #0b72e7;
+}
+.ap-kpi__subtext--slate {
+  color: #64748b;
+}
+.ap-kpi__subtext--purple {
+  color: #0b72e7;
+}

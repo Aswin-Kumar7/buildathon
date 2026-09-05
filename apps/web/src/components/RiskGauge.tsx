@@ -11,6 +11,7 @@ interface RiskGaugeProps {
   hideBox?: boolean;
   hideScore?: boolean;
   hideTitle?: boolean;
+  hideReadout?: boolean;
 }
 
 type LevelMeta = { text: string; bg: string; border: string };
@@ -153,6 +154,7 @@ export function RiskGauge({
   hideBox = true,
   hideScore = false,
   hideTitle = false,
+  hideReadout = false,
 }: RiskGaugeProps): JSX.Element {
   const { pct, needleAngle, levelMeta, levelText } = resolveGauge(score, level);
   const boxClass = hideBox ? 'rg-gauge-card--nobox' : '';
@@ -162,7 +164,14 @@ export function RiskGauge({
       {!hideTitle && title && <GaugeHead title={title} subtitle={subtitle} />}
       <div className="rg-gauge-visual">
         <GaugeDial needleAngle={needleAngle} pct={pct} />
-        <GaugeReadout hideScore={hideScore} pct={pct} levelMeta={levelMeta} levelText={levelText} />
+        {!hideReadout && (
+          <GaugeReadout
+            hideScore={hideScore}
+            pct={pct}
+            levelMeta={levelMeta}
+            levelText={levelText}
+          />
+        )}
       </div>
     </div>
   );

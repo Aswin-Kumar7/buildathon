@@ -1,19 +1,19 @@
-import { useState } from 'react';
-import { Card } from '@sentinel/ui';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import type { IncidentDetail, IncidentGraph } from '@sentinel/contracts';
 import './IncidentRelationships.css';
-import { WarningCircle, Laptop, CreditCard, Globe, Clock } from '@phosphor-icons/react';
-
-/* ------------------------------------------------------------------------------------------------
- * Relationships tab
- *
- * A backend-only relationship view. Everything here comes from the incident detail payload
- * (GET /incidents/:id): `graph.entity` is the one entity the incident correlated on, `graph.cards`
- * are the distinct cards it touched (fingerprint + network + attempts + captured), `graph.sessions`
- * are the sessions for a network-level case, and `relatedOrders[].sensor` supplies distinct context
- * counts (devices / sessions / networks — as pseudonym fingerprints, never IP / ASN / BIN / last4,
- * none of which the backend has). No relationship is inferred in the frontend.
- * ---------------------------------------------------------------------------------------------- */
+import {
+  WarningCircle,
+  Laptop,
+  CreditCard,
+  Globe,
+  Clock,
+  GitFork,
+  LinkSimple,
+  Lightning,
+  ListDashes,
+  X,
+} from '@phosphor-icons/react';
+import { formatWindow } from '../shared/time.js';
 
 type EntityKind = IncidentGraph['entity']['kind'];
 type NodeKind = 'incident' | 'device' | 'session' | 'network' | 'card' | 'attempt';
@@ -26,23 +26,8 @@ const ENTITY_LABEL: Record<EntityKind, string> = {
 
 const incidentRef = (id: string): string => `INC-${id.replace(/-/g, '').slice(0, 4).toUpperCase()}`;
 
-/**
- * The card count shown everywhere in this tab. `distinctCards` is the authoritative count the
- * incident was decided on (the same value the other tabs show); `graph.cards.length` is the fallback
- * when the sketch was unconfirmed. The card *list* is a sample of this count, never a second count.
- */
 const cardCount = (it: IncidentDetail): number => it.distinctCards ?? it.graph.cards.length;
 
-function formatWindow(ms: number): string {
-  const total = Math.max(0, Math.round(ms / 1000));
-  const minutes = Math.floor(total / 60);
-  const seconds = total % 60;
-  if (minutes === 0) return `${seconds} sec`;
-  if (minutes < 60) return `${minutes} min ${seconds} sec`;
-  return `${Math.floor(minutes / 60)} hr ${minutes % 60} min`;
-}
-
-/** Distinct count of one sensor fingerprint across the incident's related orders. */
 function distinctSensor(
   it: IncidentDetail,
   pick: (s: NonNullable<IncidentDetail['relatedOrders'][number]['sensor']>) => string,
@@ -64,7 +49,6 @@ const STATUS_LABEL: Record<string, string> = {
   created: 'Created',
 };
 
-/** The status breakdown of the incident's related attempts, or null when none are linked. */
 function attemptBreakdown(it: IncidentDetail): { total: number; rows: StatusRow[] } | null {
   const attempts = it.relatedOrders.flatMap((order) => order.attempts);
   if (attempts.length === 0) return null;
@@ -87,7 +71,6 @@ const ctxNode = (kind: NodeKind, singular: string, count: number, noun: string):
   sub: `${count} ${noun}${count === 1 ? '' : 's'}`,
 });
 
-/** The single most informative non-primary entity present, for the fourth ("context") node. */
 function contextNode(it: IncidentDetail): ContextNode | null {
   const graphSessions = it.graph.sessions.length;
   const networks = distinctSensor(it, (s) => s.ipFingerprint);
@@ -147,108 +130,77 @@ function insights(it: IncidentDetail): Insight[] {
   return out.slice(0, 5);
 }
 
-/* ---- small, restrained line icons ---- */
+/* Sentinel Console standard design system OKLCH icon colors */
 function NodeIcon({ kind }: { kind: NodeKind }): React.JSX.Element {
   switch (kind) {
     case 'incident':
-      return <WarningCircle size={16} />;
+      return <WarningCircle size={15} color="oklch(0.45 0.16 22)" />;
     case 'device':
-      return <Laptop size={16} />;
+      return <Laptop size={15} color="oklch(0.46 0.12 258)" />;
     case 'card':
-      return <CreditCard size={16} />;
+      return <CreditCard size={15} color="oklch(0.4 0.11 162)" />;
     case 'network':
-      return <Globe size={16} />;
+      return <Globe size={15} color="oklch(0.45 0.12 85)" />;
     case 'session':
-      return <Clock size={16} />;
+      return <Clock size={15} color="oklch(0.45 0.12 85)" />;
     default:
-      return <WarningCircle size={16} />;
+      return <WarningCircle size={15} color="oklch(0.45 0.16 22)" />;
   }
-}
-
-function StatusDotRow({ row }: { row: StatusRow }): React.JSX.Element {
-  return (
-    <div className="rg-attempt-row">
-      <span className={`rg-status-dot rg-status-dot--${row.status}`} aria-hidden="true" />
-      <span className="rg-attempt-row__label">{STATUS_LABEL[row.status] ?? row.status}</span>
-      <span className="rg-attempt-row__value">
-        {row.count} ({row.pct}%)
-      </span>
-    </div>
-  );
-}
-
-function CardsBox({ it, onOpen }: { it: IncidentDetail; onOpen: () => void }): React.JSX.Element {
-  const total = cardCount(it);
-  const shown = it.graph.cards.slice(0, 4);
-  const more = total - shown.length;
-  return (
-    <button type="button" className="rg-node rg-node--card rg-node--box" onClick={onOpen}>
-      <span className="rg-node__head">
-        <NodeIcon kind="card" />
-        <strong>Cards ({total})</strong>
-      </span>
-      <span className="rg-node__sub">{total} unique cards</span>
-      <span className="rg-card-list">
-        {shown.map((card) => (
-          <span className="rg-card" key={card.fingerprint}>
-            <NodeIcon kind="card" />
-            <span className="rg-card__id">
-              {card.network !== null ? `${card.network} · ` : ''}
-              {card.fingerprint}
-            </span>
-            <span className="rg-card__meta">
-              {card.attempts} attempt{card.attempts === 1 ? '' : 's'} ·{' '}
-              {card.captured ? 'captured' : 'no capture'}
-            </span>
-          </span>
-        ))}
-        {more > 0 && <span className="rg-card-more">… {more} more</span>}
-      </span>
-    </button>
-  );
-}
-
-function AttemptsBox({
-  it,
-  onOpen,
-}: {
-  it: IncidentDetail;
-  onOpen: () => void;
-}): React.JSX.Element {
-  const breakdown = attemptBreakdown(it);
-  const linked = breakdown?.total ?? 0;
-  return (
-    <button type="button" className="rg-node rg-node--attempt rg-node--box" onClick={onOpen}>
-      <span className="rg-node__head">
-        <NodeIcon kind="attempt" />
-        <strong>Attempts ({it.attempts})</strong>
-      </span>
-      <span className="rg-node__sub">
-        Within {formatWindow(it.lastActivityAt - it.firstAttemptAt)}
-        {breakdown !== null && linked !== it.attempts ? ` · ${linked} resolved` : ''}
-      </span>
-      {breakdown !== null ? (
-        <span className="rg-attempt-list">
-          {breakdown.rows.map((row) => (
-            <StatusDotRow key={row.status} row={row} />
-          ))}
-        </span>
-      ) : (
-        <span className="rg-node__sub">Status breakdown unavailable for this incident.</span>
-      )}
-    </button>
-  );
 }
 
 type Selected = { title: string; lines: string[] } | null;
 
+type Edge = { id: string; d: string; dashed: boolean };
+
+/**
+ * An edge between two nodes, measured rather than assumed.
+ *
+ * These paths used to be literal coordinates — `M 180,65 C 250,65 260,190 320,190` and a stack of
+ * siblings each 58px further down. Nothing held the layout to those numbers: the cards are laid out
+ * by flexbox, so a card whose label wrapped, a different card count, or any container width other
+ * than the one the numbers were written for left the lines ending in empty space beside the nodes
+ * they were supposed to join.
+ *
+ * So the geometry is read back from the DOM. Each edge starts on the edge of the source node facing
+ * the hub and ends on the hub's circumference, which is why they meet the circle cleanly instead of
+ * stopping at its bounding box.
+ */
+function edgeTo(
+  box: DOMRect,
+  from: DOMRect,
+  hub: DOMRect,
+  side: 'left' | 'right' | 'top' | 'bottom',
+): string {
+  const cx = hub.left + hub.width / 2 - box.left;
+  const cy = hub.top + hub.height / 2 - box.top;
+  const radius = hub.width / 2;
+
+  const horizontal = side === 'left' || side === 'right';
+  const x1 =
+    (side === 'left' ? from.right : side === 'right' ? from.left : from.left + from.width / 2) -
+    box.left;
+  const y1 =
+    (side === 'top' ? from.bottom : side === 'bottom' ? from.top : from.top + from.height / 2) -
+    box.top;
+
+  // Stop on the circle itself, on the bearing the source sits at.
+  const angle = Math.atan2(y1 - cy, x1 - cx);
+  const x2 = cx + Math.cos(angle) * radius;
+  const y2 = cy + Math.sin(angle) * radius;
+
+  if (!horizontal) return `M ${x1} ${y1} L ${x2} ${y2}`;
+
+  // A horizontal S-curve: control points level with each end, so the line leaves the card and meets
+  // the circle flat rather than at an angle.
+  const midX = (x1 + x2) / 2;
+  return `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
+}
+
 const cardLines = (it: IncidentDetail): string[] =>
-  it.graph.cards
-    .slice(0, 12)
-    .map(
-      (c) =>
-        `${c.network !== null ? `${c.network} · ` : ''}${c.fingerprint} — ${c.attempts} attempt${c.attempts === 1 ? '' : 's'}, ${c.captured ? 'captured' : 'no capture'}`,
-    );
+  it.graph.cards.map(
+    (c) =>
+      `${c.network !== null ? `${c.network} · ` : ''}${c.fingerprint} — ${c.attempts} attempt${c.attempts === 1 ? '' : 's'}, ${c.captured ? 'captured' : 'no capture'}`,
+  );
 
 function attemptLines(it: IncidentDetail): string[] {
   const breakdown = attemptBreakdown(it);
@@ -256,82 +208,11 @@ function attemptLines(it: IncidentDetail): string[] {
   return breakdown.rows.map((r) => `${STATUS_LABEL[r.status] ?? r.status}: ${r.count} (${r.pct}%)`);
 }
 
-function EntityNode({
-  it,
-  onSelect,
-}: {
-  it: IncidentDetail;
-  onSelect: (sel: Selected) => void;
-}): React.JSX.Element {
-  const kind = it.entityKind;
-  const cards = cardCount(it);
-  return (
-    <button
-      type="button"
-      className={`rg-node rg-node--${kind}`}
-      onClick={() =>
-        onSelect({
-          title: `${ENTITY_LABEL[kind]} · ${it.graph.entity.fingerprint}`,
-          lines: [
-            `The ${kind} this incident correlated on`,
-            `${cards} distinct card${cards === 1 ? '' : 's'} linked`,
-            `${it.attempts} related attempt${it.attempts === 1 ? '' : 's'}`,
-            `Window ${formatWindow(it.lastActivityAt - it.firstAttemptAt)}`,
-          ],
-        })
-      }
-    >
-      <span className="rg-node__head">
-        <NodeIcon kind={kind} />
-        <strong>{ENTITY_LABEL[kind]} (1)</strong>
-      </span>
-      <span className="rg-node__sub">{it.graph.entity.fingerprint}</span>
-    </button>
-  );
-}
-
-function IncidentCenter({ it }: { it: IncidentDetail }): React.JSX.Element {
-  return (
-    <div className={`rg-incident rg-incident--${it.severity}`}>
-      <span className="rg-incident__icon" aria-hidden="true">
-        <NodeIcon kind="incident" />
-      </span>
-      <strong className="rg-incident__ref">{incidentRef(it.id)}</strong>
-      <span className="rg-incident__risk">Risk: {it.severity}</span>
-    </div>
-  );
-}
-
-function ContextSlot({
-  it,
-  context,
-  onSelect,
-}: {
-  it: IncidentDetail;
-  context: ContextNode;
-  onSelect: (sel: Selected) => void;
-}): React.JSX.Element {
-  return (
-    <div className="rg-slot rg-slot--bottom">
-      <button
-        type="button"
-        className={`rg-node rg-node--${context.kind}`}
-        onClick={() =>
-          onSelect({
-            title: context.label,
-            lines: [context.sub, `Context of this ${it.entityKind} incident`],
-          })
-        }
-      >
-        <span className="rg-node__head">
-          <NodeIcon kind={context.kind} />
-          <strong>{context.label}</strong>
-        </span>
-        <span className="rg-node__sub">{context.sub}</span>
-      </button>
-      <span className="rg-edge-label rg-edge-label--bottom">context</span>
-    </div>
-  );
+function FormatCardLabel(fingerprint: string): string {
+  if (!fingerprint) return '•••';
+  const clean = fingerprint.trim();
+  if (clean.length <= 4) return `••• ${clean}`;
+  return `••• ${clean.slice(-4)}`;
 }
 
 function GraphCanvas({
@@ -342,53 +223,447 @@ function GraphCanvas({
   onSelect: (sel: Selected) => void;
 }): React.JSX.Element {
   const context = contextNode(it);
-  const cards = cardCount(it);
-  const hasCards = it.graph.cards.length > 0;
+  const totalCards = cardCount(it);
+  const shownCards = it.graph.cards.slice(0, 4);
+  const moreCards = totalCards - shownCards.length;
+  const breakdown = attemptBreakdown(it);
+  const windowStr = formatWindow(it.lastActivityAt - it.firstAttemptAt);
+
+  const boxRef = useRef<HTMLDivElement>(null);
+  const hubRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<(HTMLElement | null)[]>([]);
+  const topRef = useRef<HTMLButtonElement>(null);
+  const bottomRef = useRef<HTMLButtonElement>(null);
+  const attemptRef = useRef<HTMLButtonElement>(null);
+  const [edges, setEdges] = useState<Edge[]>([]);
+
+  const measure = useCallback((): void => {
+    const box = boxRef.current?.getBoundingClientRect();
+    const hub = hubRef.current?.getBoundingClientRect();
+    if (box === undefined || hub === undefined) return;
+
+    const next: Edge[] = [];
+    cardRefs.current.forEach((node, index) => {
+      if (node === null) return;
+      next.push({
+        id: `card-${index}`,
+        d: edgeTo(box, node.getBoundingClientRect(), hub, 'left'),
+        dashed: false,
+      });
+    });
+    if (topRef.current !== null) {
+      next.push({
+        id: 'entity',
+        d: edgeTo(box, topRef.current.getBoundingClientRect(), hub, 'top'),
+        dashed: false,
+      });
+    }
+    if (bottomRef.current !== null) {
+      next.push({
+        id: 'context',
+        d: edgeTo(box, bottomRef.current.getBoundingClientRect(), hub, 'bottom'),
+        dashed: true,
+      });
+    }
+    if (attemptRef.current !== null) {
+      next.push({
+        id: 'attempts',
+        d: edgeTo(box, attemptRef.current.getBoundingClientRect(), hub, 'right'),
+        dashed: false,
+      });
+    }
+    // Bail out when nothing moved. Every measurement builds a fresh array, so setting state
+    // unconditionally re-rendered, which re-ran the effect, which measured again — React caught it
+    // as an update-depth overflow rather than letting it spin forever.
+    setEdges((previous) =>
+      previous.length === next.length && previous.every((edge, i) => edge.d === next[i]!.d)
+        ? previous
+        : next,
+    );
+  }, []);
+
+  // Re-measured whenever anything can have moved: the container resizing, a card's label wrapping,
+  // or the node list itself changing. Layout effect so the edges are drawn in the same frame as the
+  // nodes and never flash in the wrong place.
+  useLayoutEffect(() => {
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (boxRef.current !== null) observer.observe(boxRef.current);
+    for (const node of cardRefs.current) if (node !== null) observer.observe(node);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+    // `context` is rebuilt on every render, so depending on the object itself re-ran this effect
+    // forever; what actually changes the graph is whether that node exists at all.
+  }, [measure, shownCards.length, moreCards, context !== null, it.attempts]);
 
   return (
-    <div className="rg-canvas">
-      {/* connector lines behind the boxes; fixed anchors keep the star readable and crossing-free */}
-      <svg className="rg-edges" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <line className="rg-edge rg-edge--strong" x1="50" y1="50" x2="50" y2="15" />
-        {hasCards && <line className="rg-edge rg-edge--strong" x1="50" y1="50" x2="17" y2="50" />}
-        {it.attempts > 0 && (
-          <line className="rg-edge rg-edge--strong" x1="50" y1="50" x2="83" y2="50" />
-        )}
-        {context !== null && (
-          <line className="rg-edge rg-edge--context" x1="50" y1="50" x2="50" y2="86" />
-        )}
+    <div
+      ref={boxRef}
+      style={{
+        position: 'relative',
+        width: '100%',
+        minHeight: '380px',
+        background: 'oklch(0.995 0.002 270)',
+        borderRadius: '10px',
+        border: '1px solid oklch(0.94 0.006 280)',
+        padding: '24px 20px',
+        boxSizing: 'border-box',
+        display: 'grid',
+        gridTemplateColumns: 'minmax(140px, 180px) 1fr minmax(140px, 190px)',
+        alignItems: 'center',
+        gap: '16px',
+      }}
+    >
+      {/* SVG Connecting Edges */}
+      <svg
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          pointerEvents: 'none',
+          zIndex: 1,
+        }}
+        aria-hidden="true"
+      >
+        {edges.map((edge) => (
+          <path
+            key={edge.id}
+            d={edge.d}
+            stroke={edge.dashed ? 'oklch(0.82 0.006 280)' : 'oklch(0.88 0.006 280)'}
+            strokeWidth="1.5"
+            strokeDasharray={edge.dashed ? '4 3' : undefined}
+            fill="none"
+          />
+        ))}
       </svg>
 
-      <div className="rg-slot rg-slot--top">
-        <EntityNode it={it} onSelect={onSelect} />
-        <span className="rg-edge-label rg-edge-label--top">correlated on</span>
+      {/* Left Column: Cards Stack */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          zIndex: 2,
+        }}
+      >
+        {totalCards > 0 && <span style={{ display: 'none' }}>Cards ({totalCards})</span>}
+        {shownCards.map((c, index) => (
+          <button
+            key={c.fingerprint}
+            type="button"
+            ref={(node) => {
+              cardRefs.current[index] = node;
+            }}
+            onClick={() => onSelect({ title: `Cards (${totalCards})`, lines: cardLines(it) })}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              background: 'oklch(1 0 0)',
+              border: '1px solid oklch(0.91 0.006 280)',
+              boxShadow: '0 1px 3px rgba(13, 21, 38, 0.03)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              width: '100%',
+              transition: 'transform 0.12s ease',
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '26px',
+                height: '26px',
+                borderRadius: '6px',
+                background: 'oklch(0.955 0.03 162)',
+                flex: '0 0 26px',
+              }}
+            >
+              <CreditCard size={15} color="oklch(0.4 0.11 162)" />
+            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: 'oklch(0.24 0.015 280)',
+                  fontFamily: 'ui-monospace, monospace',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                Card {FormatCardLabel(c.fingerprint)}
+              </span>
+              <span style={{ fontSize: '11px', fontWeight: 500, color: 'oklch(0.56 0.015 280)' }}>
+                {c.attempts} attempt{c.attempts === 1 ? '' : 's'}
+              </span>
+            </div>
+          </button>
+        ))}
+
+        {moreCards > 0 && (
+          <button
+            type="button"
+            ref={(node) => {
+              cardRefs.current[shownCards.length] = node;
+            }}
+            onClick={() => onSelect({ title: `Cards (${totalCards})`, lines: cardLines(it) })}
+            style={{
+              padding: '6px 12px',
+              borderRadius: 'var(--s-radius-pill)',
+              fontSize: '11.5px',
+              fontWeight: 600,
+              color: 'oklch(0.42 0.015 280)',
+              background: 'oklch(0.96 0.006 280)',
+              border: '1px solid oklch(0.91 0.006 280)',
+              cursor: 'pointer',
+              width: 'fit-content',
+            }}
+          >
+            + {moreCards} more cards
+          </button>
+        )}
       </div>
 
-      {hasCards && (
-        <div className="rg-slot rg-slot--left">
-          <CardsBox
-            it={it}
-            onOpen={() => onSelect({ title: `Cards (${cards})`, lines: cardLines(it) })}
-          />
-          <span className="rg-edge-label rg-edge-label--left">{cards} cards</span>
-        </div>
-      )}
+      {/* Center Column: Top Node, Center Incident Circle, Bottom Context Node */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          height: '100%',
+          minHeight: '340px',
+          zIndex: 2,
+        }}
+      >
+        {/* Top Node (Correlated Entity) */}
+        <button
+          type="button"
+          ref={topRef}
+          onClick={() =>
+            onSelect({
+              title: `${ENTITY_LABEL[it.entityKind]} · ${it.graph.entity.fingerprint}`,
+              lines: [
+                `The ${it.entityKind} this incident correlated on`,
+                `${totalCards} distinct card${totalCards === 1 ? '' : 's'} linked`,
+                `${it.attempts} related attempt${it.attempts === 1 ? '' : 's'}`,
+                `Window ${windowStr}`,
+              ],
+            })
+          }
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '7px 14px',
+            borderRadius: '8px',
+            background: 'oklch(1 0 0)',
+            border: '1px solid oklch(0.91 0.006 280)',
+            boxShadow: '0 1px 3px rgba(13, 21, 38, 0.03)',
+            cursor: 'pointer',
+          }}
+        >
+          <NodeIcon kind={it.entityKind} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'oklch(0.24 0.015 280)' }}>
+              {ENTITY_LABEL[it.entityKind]} (1)
+            </span>
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 500,
+                color: 'oklch(0.56 0.015 280)',
+                fontFamily: 'ui-monospace, monospace',
+              }}
+            >
+              {it.graph.entity.fingerprint.slice(0, 8)}
+            </span>
+          </div>
+        </button>
 
-      <div className="rg-slot rg-slot--center">
-        <IncidentCenter it={it} />
+        {/* Center Node (Incident Circle) */}
+        <div
+          ref={hubRef}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '94px',
+            height: '94px',
+            borderRadius: '50%',
+            border:
+              it.severity === 'high'
+                ? '2px solid oklch(0.85 0.08 22)'
+                : '2px solid oklch(0.88 0.07 85)',
+            background: it.severity === 'high' ? 'oklch(0.96 0.02 18)' : 'oklch(0.96 0.03 85)',
+            boxShadow: '0 2px 8px rgba(13, 21, 38, 0.04)',
+            textAlign: 'center',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '12.5px',
+              fontWeight: 650,
+              letterSpacing: '-0.01em',
+              color: it.severity === 'high' ? 'oklch(0.38 0.14 22)' : 'oklch(0.4 0.12 85)',
+            }}
+          >
+            {incidentRef(it.id)}
+          </span>
+          <span
+            style={{
+              fontSize: '10.5px',
+              fontWeight: 500,
+              color: it.severity === 'high' ? 'oklch(0.45 0.16 22)' : 'oklch(0.45 0.12 85)',
+            }}
+          >
+            Risk: {it.severity.charAt(0).toUpperCase() + it.severity.slice(1)}
+          </span>
+        </div>
+
+        {/* Bottom Node (Context Node) */}
+        {context !== null ? (
+          <button
+            type="button"
+            ref={bottomRef}
+            onClick={() =>
+              onSelect({
+                title: context.label,
+                lines: [context.sub, `Context of this ${it.entityKind} incident`],
+              })
+            }
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '7px 14px',
+              borderRadius: '8px',
+              background: 'oklch(1 0 0)',
+              border: '1px solid oklch(0.91 0.006 280)',
+              boxShadow: '0 1px 3px rgba(13, 21, 38, 0.03)',
+              cursor: 'pointer',
+            }}
+          >
+            <NodeIcon kind={context.kind} />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: 'oklch(0.24 0.015 280)' }}>
+                {context.label}
+              </span>
+              <span style={{ fontSize: '11px', fontWeight: 500, color: 'oklch(0.56 0.015 280)' }}>
+                {context.sub}
+              </span>
+            </div>
+          </button>
+        ) : (
+          <div style={{ height: '34px' }} />
+        )}
       </div>
 
-      {it.attempts > 0 && (
-        <div className="rg-slot rg-slot--right">
-          <AttemptsBox
-            it={it}
-            onOpen={() => onSelect({ title: `Attempts (${it.attempts})`, lines: attemptLines(it) })}
-          />
-          <span className="rg-edge-label rg-edge-label--right">{it.attempts} attempts</span>
-        </div>
-      )}
+      {/* Right Column: Attempts Box */}
+      <div style={{ zIndex: 2, justifySelf: 'end', width: '100%' }}>
+        {it.attempts > 0 && (
+          <button
+            type="button"
+            ref={attemptRef}
+            onClick={() =>
+              onSelect({ title: `Attempts (${it.attempts})`, lines: attemptLines(it) })
+            }
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              padding: '12px 14px',
+              borderRadius: '10px',
+              background: 'oklch(1 0 0)',
+              border: '1px solid oklch(0.91 0.006 280)',
+              boxShadow: '0 1px 3px rgba(13, 21, 38, 0.03)',
+              cursor: 'pointer',
+              textAlign: 'left',
+              width: '100%',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ListDashes size={15} color="oklch(0.46 0.12 258)" />
+              <span
+                style={{
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  color: 'oklch(0.21 0.015 280)',
+                }}
+              >
+                Attempts ({it.attempts})
+              </span>
+            </div>
 
-      {context !== null && <ContextSlot it={it} context={context} onSelect={onSelect} />}
+            {breakdown !== null && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {breakdown.rows.map((row) => (
+                  <div
+                    key={row.status}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: '12px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span
+                        style={{
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          background:
+                            row.status === 'captured'
+                              ? 'oklch(0.4 0.11 162)'
+                              : row.status === 'failed'
+                                ? 'oklch(0.45 0.16 22)'
+                                : 'oklch(0.45 0.12 85)',
+                        }}
+                      />
+                      <span style={{ fontWeight: 500, color: 'oklch(0.44 0.015 280)' }}>
+                        {STATUS_LABEL[row.status] ?? row.status}
+                      </span>
+                    </div>
+                    <span
+                      style={{
+                        fontWeight: 600,
+                        color: 'oklch(0.24 0.015 280)',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {row.count}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <span
+              style={{
+                fontSize: '11px',
+                fontWeight: 500,
+                color: 'oklch(0.56 0.015 280)',
+              }}
+            >
+              All within {windowStr}
+              {breakdown !== null && breakdown.total !== it.attempts
+                ? ` · ${breakdown.total} resolved`
+                : ''}
+            </span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -447,34 +722,39 @@ function Legend({ it }: { it: IncidentDetail }): React.JSX.Element {
   const context = contextNode(it);
   const present = new Set<NodeKind>(['incident', it.entityKind, 'card', 'attempt']);
   if (context !== null) present.add(context.kind);
-  const all: { kind: NodeKind; label: string }[] = [
-    { kind: 'incident', label: 'Incident' },
-    { kind: 'device', label: 'Device' },
-    { kind: 'session', label: 'Session' },
-    { kind: 'network', label: 'Network' },
-    { kind: 'card', label: 'Card' },
-    { kind: 'attempt', label: 'Attempt' },
+  const all: { kind: NodeKind; label: string; color: string }[] = [
+    { kind: 'incident', label: 'Incident', color: 'oklch(0.45 0.16 22)' },
+    { kind: 'session', label: 'Session', color: 'oklch(0.44 0.015 280)' },
+    { kind: 'network', label: 'Network', color: 'oklch(0.45 0.12 85)' },
+    { kind: 'card', label: 'Card', color: 'oklch(0.4 0.11 162)' },
+    { kind: 'attempt', label: 'Attempt', color: 'oklch(0.46 0.12 258)' },
   ];
   const entries = all.filter((entry) => present.has(entry.kind));
   return (
-    <div className="rg-legend">
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '16px',
+        flexWrap: 'wrap',
+        fontSize: '12px',
+        fontWeight: 500,
+        color: 'oklch(0.44 0.015 280)',
+      }}
+    >
       {entries.map((entry) => (
-        <span className="rg-legend__item" key={entry.kind}>
-          <span className={`rg-legend__dot rg-legend__dot--${entry.kind}`} aria-hidden="true" />
-          {entry.label}
-        </span>
+        <div key={entry.kind} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <span
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: entry.color,
+            }}
+          />
+          <span>{entry.label}</span>
+        </div>
       ))}
-      <span className="rg-legend__sep" aria-hidden="true" />
-      <span className="rg-legend__item">
-        <span className="rg-legend__line rg-legend__line--strong" aria-hidden="true" />
-        Strong relationship
-      </span>
-      {context !== null && (
-        <span className="rg-legend__item">
-          <span className="rg-legend__line rg-legend__line--context" aria-hidden="true" />
-          Context relationship
-        </span>
-      )}
     </div>
   );
 }
@@ -482,136 +762,364 @@ function Legend({ it }: { it: IncidentDetail }): React.JSX.Element {
 function GraphControls({
   view,
   onView,
-  onZoom,
 }: {
   view: 'graph' | 'list';
   onView: (v: 'graph' | 'list') => void;
-  onZoom: (fn: (z: number) => number) => void;
 }): React.JSX.Element {
   return (
-    <div className="rg-controls">
-      {view === 'graph' && (
-        <div className="rg-zoom">
-          <button type="button" onClick={() => onZoom(() => 1)} title="Fit to view">
-            Fit
-          </button>
-          <button
-            type="button"
-            onClick={() => onZoom((z) => Math.max(0.6, z - 0.15))}
-            aria-label="Zoom out"
-          >
-            −
-          </button>
-          <button
-            type="button"
-            onClick={() => onZoom((z) => Math.min(1.6, z + 0.15))}
-            aria-label="Zoom in"
-          >
-            +
-          </button>
-        </div>
-      )}
-      <div className="rg-toggle" role="tablist" aria-label="Graph or list view">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'graph'}
-          className={view === 'graph' ? 'is-active' : undefined}
-          onClick={() => onView('graph')}
-        >
-          Graph
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'list'}
-          className={view === 'list' ? 'is-active' : undefined}
-          onClick={() => onView('list')}
-        >
-          List
-        </button>
-      </div>
+    <div
+      style={{
+        display: 'inline-flex',
+        borderRadius: '6px',
+        background: 'oklch(0.962 0.006 280)',
+        padding: '2px',
+        border: '1px solid oklch(0.925 0.006 280)',
+      }}
+      role="tablist"
+      aria-label="Graph or list view"
+    >
+      <button
+        type="button"
+        role="tab"
+        aria-selected={view === 'graph'}
+        onClick={() => onView('graph')}
+        style={{
+          padding: '4px 12px',
+          borderRadius: '4px',
+          fontSize: '11.5px',
+          fontWeight: 600,
+          border: 'none',
+          cursor: 'pointer',
+          background: view === 'graph' ? 'oklch(1 0 0)' : 'transparent',
+          color: view === 'graph' ? 'oklch(0.21 0.015 280)' : 'oklch(0.56 0.015 280)',
+          boxShadow: view === 'graph' ? '0 1px 2px rgba(0, 0, 0, 0.06)' : 'none',
+        }}
+      >
+        Graph
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={view === 'list'}
+        onClick={() => onView('list')}
+        style={{
+          padding: '4px 12px',
+          borderRadius: '4px',
+          fontSize: '11.5px',
+          fontWeight: 600,
+          border: 'none',
+          cursor: 'pointer',
+          background: view === 'list' ? 'oklch(1 0 0)' : 'transparent',
+          color: view === 'list' ? 'oklch(0.21 0.015 280)' : 'oklch(0.56 0.015 280)',
+          boxShadow: view === 'list' ? '0 1px 2px rgba(0, 0, 0, 0.06)' : 'none',
+        }}
+      >
+        List
+      </button>
     </div>
   );
 }
 
 function RelationshipGraph({ it }: { it: IncidentDetail }): React.JSX.Element {
   const [view, setView] = useState<'graph' | 'list'>('graph');
-  const [zoom, setZoom] = useState(1);
   const [selected, setSelected] = useState<Selected>(null);
 
   return (
-    <Card
-      title="Relationship graph"
-      subtitle="How the payments and cards in this incident are connected"
-      actions={<GraphControls view={view} onView={setView} onZoom={setZoom} />}
+    <section
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: '12px',
+        background: 'oklch(1 0 0)',
+        border: '1px solid oklch(0.925 0.006 280)',
+        overflow: 'hidden',
+      }}
     >
-      <div className="rg-viewport">
-        {view === 'graph' ? (
-          <div className="rg-scale" style={{ transform: `scale(${zoom})` }}>
-            <GraphCanvas it={it} onSelect={setSelected} />
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          padding: '16px 20px',
+          borderBottom: '1px solid oklch(0.955 0.006 280)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: '0 0 32px',
+              width: '32px',
+              height: '32px',
+              borderRadius: '9px',
+              background: 'oklch(0.962 0.024 258)',
+            }}
+          >
+            <GitFork size={16} color="oklch(0.46 0.12 258)" />
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: '14.5px',
+                fontWeight: 600,
+                letterSpacing: '-0.018em',
+                color: 'oklch(0.21 0.015 280)',
+              }}
+            >
+              Relationship graph
+            </h2>
+            <p
+              style={{
+                margin: 0,
+                fontSize: '12px',
+                fontWeight: 500,
+                color: 'oklch(0.56 0.015 280)',
+              }}
+            >
+              How the payments and cards in this incident are connected.
+            </p>
           </div>
-        ) : (
-          <ListView it={it} />
-        )}
+        </div>
+
+        <GraphControls view={view} onView={setView} />
+      </div>
+
+      <div style={{ position: 'relative', padding: '16px 20px' }}>
+        {view === 'graph' ? <GraphCanvas it={it} onSelect={setSelected} /> : <ListView it={it} />}
+
         {selected !== null && (
-          <div className="rg-popover" role="dialog" aria-label={selected.title}>
-            <div className="rg-popover__head">
-              <strong>{selected.title}</strong>
-              <button type="button" onClick={() => setSelected(null)} aria-label="Close">
-                ×
+          <div
+            style={{
+              position: 'absolute',
+              top: '24px',
+              right: '28px',
+              zIndex: 10,
+              width: '240px',
+              padding: '12px 14px',
+              borderRadius: '10px',
+              background: '#FFFFFF',
+              border: '1px solid oklch(0.92 0.006 280)',
+              boxShadow: '0 4px 16px rgba(13, 21, 38, 0.08)',
+            }}
+            role="dialog"
+            aria-label={selected.title}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '8px',
+              }}
+            >
+              <strong style={{ fontSize: '13px', color: 'oklch(0.21 0.015 280)' }}>
+                {selected.title}
+              </strong>
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                aria-label="Close"
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  display: 'inline-flex',
+                }}
+              >
+                <X size={14} color="oklch(0.56 0.015 280)" />
               </button>
             </div>
-            <ul>
+            {/* Thirty-eight cards will not fit a panel this size, and the list was simply
+                overflowing past it. It scrolls now, capped so the panel stays inside the canvas. */}
+            <ul
+              style={{
+                margin: 0,
+                padding: 0,
+                listStyle: 'none',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+                maxHeight: '260px',
+                overflowY: 'auto',
+                overscrollBehavior: 'contain',
+              }}
+            >
               {selected.lines.map((line, index) => (
-                <li key={index}>{line}</li>
+                <li key={index} style={{ fontSize: '11.5px', color: 'oklch(0.5 0.015 280)' }}>
+                  {line}
+                </li>
               ))}
             </ul>
           </div>
         )}
       </div>
-      <Legend it={it} />
-    </Card>
+
+      <div style={{ padding: '0 20px 16px' }}>
+        <Legend it={it} />
+      </div>
+    </section>
   );
 }
 
 function RelationshipInsights({ it }: { it: IncidentDetail }): React.JSX.Element {
   const items = insights(it);
+
+  const getInsightIcon = (kind: NodeKind) => {
+    switch (kind) {
+      case 'card':
+        return <CreditCard size={15} color="oklch(0.4 0.11 162)" />;
+      case 'attempt':
+        return <Lightning size={15} color="oklch(0.46 0.12 258)" />;
+      case 'incident':
+        return <WarningCircle size={15} color="oklch(0.45 0.16 22)" />;
+      default:
+        return <Globe size={15} color="oklch(0.45 0.12 85)" />;
+    }
+  };
+
+  const getInsightBg = (kind: NodeKind) => {
+    switch (kind) {
+      case 'card':
+        return 'oklch(0.955 0.03 162)';
+      case 'attempt':
+        return 'oklch(0.962 0.024 258)';
+      case 'incident':
+        return 'oklch(0.96 0.02 18)';
+      case 'network':
+        return 'oklch(0.96 0.03 85)';
+      case 'session':
+        return 'oklch(0.96 0.03 85)';
+      default:
+        return 'oklch(0.962 0.006 280)';
+    }
+  };
+
   return (
-    <Card
-      title="What is connected"
-      subtitle="The links Sentinel found between these payment attempts."
+    <section
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: '12px',
+        background: 'oklch(1 0 0)',
+        border: '1px solid oklch(0.925 0.006 280)',
+        overflow: 'hidden',
+      }}
     >
-      <ul className="rg-insights">
-        {items.map((item) => (
-          <li key={item.title}>
-            <span className={`rg-insight__icon rg-insight__icon--${item.icon}`} aria-hidden="true">
-              <NodeIcon kind={item.icon} />
-            </span>
-            <span className="rg-insight__text">
-              <strong>{item.title}</strong>
-              <span>{item.text}</span>
-            </span>
-          </li>
-        ))}
-      </ul>
-      <div className="rg-info" role="note">
-        <span className="rg-info__icon" aria-hidden="true">
-          i
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          padding: '16px 20px',
+          borderBottom: '1px solid oklch(0.955 0.006 280)',
+        }}
+      >
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flex: '0 0 32px',
+            width: '32px',
+            height: '32px',
+            borderRadius: '9px',
+            background: 'oklch(0.962 0.024 258)',
+          }}
+        >
+          <LinkSimple size={16} color="oklch(0.46 0.12 258)" />
         </span>
-        <p>
-          This map shows the payment attempts Sentinel connected to this incident, and how they’re
-          linked. Select any item to see its activity.
-        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '14.5px',
+              fontWeight: 600,
+              letterSpacing: '-0.018em',
+              color: 'oklch(0.21 0.015 280)',
+            }}
+          >
+            What is connected
+          </h2>
+          <p
+            style={{
+              margin: 0,
+              fontSize: '12px',
+              fontWeight: 500,
+              color: 'oklch(0.56 0.015 280)',
+            }}
+          >
+            The links Sentinel found between these payment attempts.
+          </p>
+        </div>
       </div>
-    </Card>
+
+      {/* Insights List */}
+      <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        {items.map((item) => (
+          <div
+            key={item.title}
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+              paddingBottom: '12px',
+              borderBottom: '1px solid oklch(0.96 0.006 280)',
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flex: '0 0 28px',
+                width: '28px',
+                height: '28px',
+                borderRadius: '7px',
+                background: getInsightBg(item.icon),
+                marginTop: '1px',
+              }}
+            >
+              {getInsightIcon(item.icon)}
+            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+              <strong style={{ fontSize: '13px', fontWeight: 600, color: 'oklch(0.24 0.015 280)' }}>
+                {item.title}
+              </strong>
+              <span
+                style={{
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  color: 'oklch(0.56 0.015 280)',
+                  lineHeight: 1.45,
+                }}
+              >
+                {item.text}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
 export function RelationshipsTab({ it }: { it: IncidentDetail }): React.JSX.Element {
   return (
     <div className="rg">
-      <div className="rg-grid">
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1.35fr) minmax(0, 1fr)',
+          gap: '12px',
+          alignItems: 'start',
+        }}
+      >
         <RelationshipGraph it={it} />
         <RelationshipInsights it={it} />
       </div>

@@ -12,43 +12,30 @@ export function bucketOf(incident: IncidentSummary): Bucket {
   return incident.severity;
 }
 
-export type SummaryKey = Bucket | 'resolved';
+/** `all` is the resting state — the tile that clears whatever filter is set. */
+export type SummaryKey = Bucket | 'resolved' | 'all';
 
-const CARDS: {
-  key: SummaryKey;
-  label: string;
-  dotClass: string;
-  barClass: string;
-}[] = [
+const CARDS: { key: SummaryKey; label: string; tone: string; hint: string }[] = [
+  {
+    key: 'all',
+    label: 'Total incidents',
+    tone: 'total',
+    hint: 'Every incident in the queue, whatever its severity or status.',
+  },
   {
     key: 'critical',
     label: 'Critical',
-    dotClass: 'incp-metric-dot--critical',
-    barClass: 'incp-metric-bar--critical',
+    tone: 'critical',
+    hint: 'High severity scoring 90 or above — the ones worth looking at first.',
   },
-  {
-    key: 'high',
-    label: 'High',
-    dotClass: 'incp-metric-dot--high',
-    barClass: 'incp-metric-bar--high',
-  },
-  {
-    key: 'medium',
-    label: 'Medium',
-    dotClass: 'incp-metric-dot--medium',
-    barClass: 'incp-metric-bar--medium',
-  },
-  {
-    key: 'low',
-    label: 'Low',
-    dotClass: 'incp-metric-dot--low',
-    barClass: 'incp-metric-bar--low',
-  },
+  { key: 'high', label: 'High', tone: 'high', hint: 'High severity, scoring below 90.' },
+  { key: 'medium', label: 'Medium', tone: 'medium', hint: 'Medium severity.' },
+  { key: 'low', label: 'Low', tone: 'low', hint: 'Low severity.' },
   {
     key: 'resolved',
     label: 'Resolved',
-    dotClass: 'incp-metric-dot--resolved',
-    barClass: 'incp-metric-bar--resolved',
+    tone: 'resolved',
+    hint: 'Closed incidents. Counted apart from the severity tiers, never inside them.',
   },
 ];
 
@@ -57,6 +44,9 @@ const CARDS: {
  * its own tier (or clears itself when it is already the active filter), so a merchant scanning the
  * queue can jump straight to what needs attention. Counts are real — non-resolved, non-expired
  * incidents per bucket, and closed incidents under Resolved.
+ *
+ * Laid out exactly like the tiles on Payment attempts — same weights, same share line, same bar —
+ * so the two queues read as one product rather than two designs.
  */
 export function IncidentSummaryCards({
   incidents,
@@ -67,42 +57,73 @@ export function IncidentSummaryCards({
   active?: SummaryKey | null;
   onPick?: (key: SummaryKey) => void;
 }): React.JSX.Element {
-  const counts = { critical: 0, high: 0, medium: 0, low: 0, resolved: 0 };
+  const counts: Record<SummaryKey, number> = {
+    all: incidents.length,
+    critical: 0,
+    high: 0,
+    medium: 0,
+    low: 0,
+    resolved: 0,
+  };
   for (const incident of incidents) {
     if (incident.status === 'resolved') counts.resolved += 1;
     else if (incident.status !== 'expired') counts[bucketOf(incident)] += 1;
   }
 
-  const total = incidents.length || 1;
+  const total = incidents.length;
+  const share = (part: number): string =>
+    total === 0 ? '0.0% of total' : `${((part / total) * 100).toFixed(1)}% of total`;
 
   return (
     <section className="incp-metrics" aria-label="Incident severity breakdown">
       {CARDS.map((card) => {
         const count = counts[card.key];
-        const isActive = active === card.key;
-        const fillPct = (count / total) * 100;
+        // The "all" tile is where the queue rests, so it is never drawn as a selection.
+        const isActive = active === card.key && card.key !== 'all';
+        const isEmpty = count === 0;
         return (
           <button
             key={card.key}
             type="button"
             className={`incp-metric-col${isActive ? ' is-active' : ''}`}
             aria-pressed={isActive}
+            title={card.hint}
             onClick={() => onPick?.(card.key)}
           >
             <div className="incp-metric-col__header">
-              <span className={`incp-metric-dot ${card.dotClass}`} aria-hidden="true" />
+              <span
+                className={`incp-metric-dot ${
+                  isEmpty && card.key !== 'all'
+                    ? 'incp-metric-dot--muted'
+                    : `incp-metric-dot--${card.tone}`
+                }`}
+                aria-hidden="true"
+              />
               <span className="incp-metric-label">{card.label}</span>
             </div>
-            <span className={`incp-metric-num ${count === 0 ? 'incp-metric-num--faint' : ''}`}>
-              {count}
-            </span>
+            <div className="incp-metric-values">
+              <span className={`incp-metric-num${isEmpty ? ' incp-metric-num--faint' : ''}`}>
+                {count}
+              </span>
+              <span
+                className={`incp-metric-share${
+                  card.key === 'all'
+                    ? ''
+                    : isEmpty
+                      ? ' incp-metric-share--faint'
+                      : ` incp-metric-share--${card.tone}`
+                }`}
+              >
+                {card.key === 'all' ? 'in the queue' : share(count)}
+              </span>
+            </div>
             <div className="incp-metric-track" aria-hidden="true">
-              {count > 0 && (
-                <div
-                  className={`incp-metric-fill ${card.barClass}`}
-                  style={{ width: `${fillPct}%` }}
-                />
-              )}
+              <div
+                className={`incp-metric-fill incp-metric-bar--${card.tone}`}
+                style={{
+                  width: `${card.key === 'all' ? 100 : total === 0 ? 0 : (count / total) * 100}%`,
+                }}
+              />
             </div>
           </button>
         );

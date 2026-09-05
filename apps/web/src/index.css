@@ -4,10 +4,17 @@ body {
   margin: 0;
   padding: 0;
   width: 100%;
-  overflow-x: hidden;
-  overflow-y: auto;
   scrollbar-width: none !important;
   -ms-overflow-style: none !important;
+}
+
+/* `clip`, never `hidden`. Both prevent sideways scroll, but `hidden` also makes this a scroll
+   container — and inside a scroll container `position: sticky` silently stops sticking. That is what
+   broke the pinned panels in the landing page's pipeline section: they scrolled away instead of
+   holding. `clip` does the clipping without creating the container. Scrollbars are already hidden by
+   the rules above and below, which need no overflow value at all. */
+body {
+  overflow-x: clip;
 }
 
 html::-webkit-scrollbar,

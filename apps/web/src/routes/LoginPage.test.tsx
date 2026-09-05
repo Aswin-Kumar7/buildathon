@@ -10,6 +10,12 @@ const navigate = vi.fn();
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigate,
   useSearch: () => ({}),
+  // The page links home, and this component test has no reason to build router context for it.
+  Link: ({ to, children, ...rest }: { to: string; children: ReactNode }) => (
+    <a href={to} {...rest}>
+      {children}
+    </a>
+  ),
 }));
 
 function wrap(ui: ReactNode): React.JSX.Element {

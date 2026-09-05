@@ -62,10 +62,11 @@ describe('AuditPage', () => {
     expect(within(table).getByText('Incident moved')).toBeInTheDocument();
     expect(within(table).getByText('Approved')).toBeInTheDocument();
     expect(within(table).getByText('Ana')).toBeInTheDocument();
-    // Hashes are technical detail, hidden until asked for.
-    expect(within(table).queryByText(/abcdef012345…/)).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Technical details' }));
+    // The hash is the evidence this page exists to show, so it is on by default and the toggle
+    // hides it rather than revealing it.
     expect(within(table).getByText(/abcdef012345…/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Technical details' }));
+    expect(within(table).queryByText(/abcdef012345…/)).not.toBeInTheDocument();
     // The Detail column was removed; the payload note lives only in the drawer now.
     expect(within(table).queryByText('looks like card testing')).not.toBeInTheDocument();
     expect(within(table).queryByRole('columnheader', { name: 'Detail' })).not.toBeInTheDocument();

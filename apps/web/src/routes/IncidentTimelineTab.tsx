@@ -1,29 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Clock, Funnel, Bookmark } from '@phosphor-icons/react';
 import { useQuery } from '@tanstack/react-query';
-import { Card } from '@sentinel/ui';
 import { auditListResponseSchema, type AuditEntry, type IncidentDetail } from '@sentinel/contracts';
 import { kindLabel } from '../incidents/audit-words.js';
 import { ICON, TimelineEventCard } from './TimelineEventCard.js';
 import './IncidentTimelineTab.css';
 import { CustomSelectPill } from '../components/CustomSelectPill.js';
-
-function CardHeaderTitle({
-  icon,
-  text,
-  badgeTone,
-}: {
-  icon: React.ReactNode;
-  text: string;
-  badgeTone: string;
-}): React.JSX.Element {
-  return (
-    <div className="ad-card-head-inner">
-      <span className={`ad-card-badge ad-card-badge--${badgeTone}`}>{icon}</span>
-      <span>{text}</span>
-    </div>
-  );
-}
 
 export type Tone = 'ok' | 'warn' | 'critical' | 'ai' | 'info' | 'neutral';
 export type Category = 'incident' | 'attempt' | 'ai' | 'containment' | 'system';
@@ -141,38 +123,96 @@ export function IncidentTimelineTab({ incident }: { incident: IncidentDetail }):
 
   return (
     <div className="tl">
-      <Card
-        title={<CardHeaderTitle icon={<Clock />} text="Incident timeline" badgeTone="blue" />}
-        subtitle="Everything that happened on this incident, in order"
+      <section
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          borderRadius: '12px',
+          background: 'oklch(1 0 0)',
+          border: '1px solid oklch(0.925 0.006 280)',
+          overflow: 'hidden',
+        }}
       >
-        {audit.isPending && <p className="tl-empty">Loading events…</p>}
-        {audit.isError && (
-          <p className="tl-empty" role="alert">
-            The timeline could not be loaded.
-          </p>
-        )}
-        {!audit.isPending && !audit.isError && filtered.length === 0 && (
-          <p className="tl-empty">No events match the current filters.</p>
-        )}
-        {visible.length > 0 && (
-          <ol className="tl-list">
-            {visible.map((event, index) => (
-              <TimelineEventCard
-                key={event.key}
-                event={event}
-                expanded={expanded.has(event.key)}
-                onToggle={() => toggle(event.key)}
-                last={index === visible.length - 1}
-              />
-            ))}
-          </ol>
-        )}
-        {filtered.length > shown && (
-          <button type="button" className="tl-more" onClick={() => setShown((s) => s + PAGE)}>
-            Load earlier events
-          </button>
-        )}
-      </Card>
+        {/* Header */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '16px 20px',
+            borderBottom: '1px solid oklch(0.955 0.006 280)',
+          }}
+        >
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: '0 0 32px',
+              width: '32px',
+              height: '32px',
+              borderRadius: '9px',
+              background: 'oklch(0.962 0.024 258)',
+            }}
+          >
+            <Clock size={16} color="oklch(0.46 0.12 258)" />
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+            <h2
+              style={{
+                margin: 0,
+                fontSize: '14.5px',
+                fontWeight: 600,
+                letterSpacing: '-0.018em',
+                color: 'oklch(0.21 0.015 280)',
+              }}
+            >
+              Incident timeline
+            </h2>
+            <p
+              style={{
+                margin: 0,
+                fontSize: '12px',
+                fontWeight: 500,
+                color: 'oklch(0.56 0.015 280)',
+              }}
+            >
+              Everything that happened on this incident, in order
+            </p>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{ padding: '20px' }}>
+          {audit.isPending && <p className="tl-empty">Loading events…</p>}
+          {audit.isError && (
+            <p className="tl-empty" role="alert">
+              The timeline could not be loaded.
+            </p>
+          )}
+          {!audit.isPending && !audit.isError && filtered.length === 0 && (
+            <p className="tl-empty">No events match the current filters.</p>
+          )}
+          {visible.length > 0 && (
+            <ol className="tl-list">
+              {visible.map((event, index) => (
+                <TimelineEventCard
+                  key={event.key}
+                  event={event}
+                  expanded={expanded.has(event.key)}
+                  onToggle={() => toggle(event.key)}
+                  last={index === visible.length - 1}
+                />
+              ))}
+            </ol>
+          )}
+          {filtered.length > shown && (
+            <button type="button" className="tl-more" onClick={() => setShown((s) => s + PAGE)}>
+              Load earlier events
+            </button>
+          )}
+        </div>
+      </section>
 
       <aside className="tl-side">
         <FiltersCard
@@ -205,75 +245,198 @@ function FiltersCard({
   onClear: () => void;
 }): React.JSX.Element {
   return (
-    <Card
-      title={<CardHeaderTitle icon={<Funnel />} text="Filters" badgeTone="purple" />}
-      actions={
-        <button type="button" className="tl-clear" onClick={onClear}>
+    <section
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: '12px',
+        background: 'oklch(1 0 0)',
+        border: '1px solid oklch(0.925 0.006 280)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '16px 20px',
+          borderBottom: '1px solid oklch(0.955 0.006 280)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: '0 0 32px',
+              width: '32px',
+              height: '32px',
+              borderRadius: '9px',
+              background: 'oklch(0.96 0.03 290)',
+            }}
+          >
+            <Funnel size={16} color="oklch(0.45 0.14 290)" />
+          </span>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '14.5px',
+              fontWeight: 600,
+              letterSpacing: '-0.018em',
+              color: 'oklch(0.21 0.015 280)',
+            }}
+          >
+            Filters
+          </h2>
+        </div>
+        <button
+          type="button"
+          className="tl-clear"
+          onClick={onClear}
+          style={{
+            border: 'none',
+            background: 'none',
+            fontSize: '12px',
+            fontWeight: 600,
+            color: 'oklch(0.46 0.12 258)',
+            cursor: 'pointer',
+          }}
+        >
           Clear all
         </button>
-      }
-    >
-      <label className="tl-field-label">
-        Event types
-        <CustomSelectPill
-          value={filters.category}
-          options={[
-            { value: 'all', label: 'All event types' },
-            ...categories.map((c) => ({ value: c, label: CATEGORY_LABEL[c] })),
-          ]}
-          onChange={(val) => onChange({ category: val })}
-          ariaLabel="Event types"
-          variant="field"
-        />
-      </label>
-      <label className="tl-field-label">
-        Time range
-        <CustomSelectPill
-          value={filters.range}
-          options={TIME_RANGES.map(([value, label]) => ({
-            value,
-            label,
-          }))}
-          onChange={(val) => onChange({ range: val })}
-          ariaLabel="Time range"
-          variant="field"
-        />
-      </label>
-      <label className="tl-field-label">
-        Source
-        <CustomSelectPill
-          value={filters.source}
-          options={[
-            { value: 'all', label: 'All sources' },
-            ...sources.map((s) => ({ value: s, label: s })),
-          ]}
-          onChange={(val) => onChange({ source: val })}
-          ariaLabel="Source"
-          variant="field"
-        />
-      </label>
-    </Card>
+      </div>
+
+      <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <label className="tl-field-label">
+          Event types
+          <CustomSelectPill
+            value={filters.category}
+            options={[
+              { value: 'all', label: 'All event types' },
+              ...categories.map((c) => ({ value: c, label: CATEGORY_LABEL[c] })),
+            ]}
+            onChange={(val) => onChange({ category: val })}
+            ariaLabel="Event types"
+            variant="field"
+          />
+        </label>
+        <label className="tl-field-label">
+          Time range
+          <CustomSelectPill
+            value={filters.range}
+            options={TIME_RANGES.map(([value, label]) => ({
+              value,
+              label,
+            }))}
+            onChange={(val) => onChange({ range: val })}
+            ariaLabel="Time range"
+            variant="field"
+          />
+        </label>
+        <label className="tl-field-label">
+          Source
+          <CustomSelectPill
+            value={filters.source}
+            options={[
+              { value: 'all', label: 'All sources' },
+              ...sources.map((s) => ({ value: s, label: s })),
+            ]}
+            onChange={(val) => onChange({ source: val })}
+            ariaLabel="Source"
+            variant="field"
+          />
+        </label>
+      </div>
+    </section>
   );
 }
 
 function LegendCard({ categories }: { categories: Category[] }): React.JSX.Element {
   return (
     <div className="tl-legend">
-      <Card title={<CardHeaderTitle icon={<Bookmark />} text="Legend" badgeTone="green" />}>
-        <ul>
-          {categories.map((c) => {
-            const Icon = ICON[CATEGORY_ICON[c]];
-            return (
-              <li key={c}>
-                <span className={`tl-node tl-node--sm tl-node--${CATEGORY_NODE[c]}`}>
-                  <Icon />
-                </span>
-                {CATEGORY_LABEL[c]}
-              </li>
-            );
-          })}
-        </ul>
-      </Card>
+      <section
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          borderRadius: '12px',
+          background: 'oklch(1 0 0)',
+          border: '1px solid oklch(0.925 0.006 280)',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '16px 20px',
+            borderBottom: '1px solid oklch(0.955 0.006 280)',
+          }}
+        >
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flex: '0 0 32px',
+              width: '32px',
+              height: '32px',
+              borderRadius: '9px',
+              background: 'oklch(0.96 0.03 162)',
+            }}
+          >
+            <Bookmark size={16} color="oklch(0.4 0.11 162)" />
+          </span>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '14.5px',
+              fontWeight: 600,
+              letterSpacing: '-0.018em',
+              color: 'oklch(0.21 0.015 280)',
+            }}
+          >
+            Legend
+          </h2>
+        </div>
+
+        <div style={{ padding: '16px 20px' }}>
+          <ul
+            style={{
+              margin: 0,
+              padding: 0,
+              listStyle: 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+            }}
+          >
+            {categories.map((c) => {
+              const Icon = ICON[CATEGORY_ICON[c]];
+              return (
+                <li
+                  key={c}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    fontSize: '12.5px',
+                    fontWeight: 500,
+                    color: 'oklch(0.35 0.015 280)',
+                  }}
+                >
+                  <span className={`tl-node tl-node--sm tl-node--${CATEGORY_NODE[c]}`}>
+                    <Icon />
+                  </span>
+                  {CATEGORY_LABEL[c]}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </section>
     </div>
   );
 }

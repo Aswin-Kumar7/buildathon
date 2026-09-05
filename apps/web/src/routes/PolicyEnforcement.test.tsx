@@ -50,8 +50,9 @@ describe('EnforcementCard', () => {
     const fetchMock = stub(admin, ENFORCING);
     render(wrap(<EnforcementCard />));
 
-    expect(await screen.findByText('Sentinel active')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Engage kill switch' }));
+    // The card no longer carries a state pill of its own — the page header holds the one live
+    // indicator — so readiness is the control being present.
+    await userEvent.click(await screen.findByRole('button', { name: 'Engage kill switch' }));
 
     // A confirm step spells out the consequence before anything happens.
     expect(screen.getByText(/releases every active block/)).toBeInTheDocument();
@@ -68,7 +69,8 @@ describe('EnforcementCard', () => {
     stub(admin, PAUSED);
     render(wrap(<EnforcementCard />));
 
-    expect(await screen.findByText(/Sentinel stopped/)).toBeInTheDocument();
+    // Stopped state is stated in full by the meta line rather than a pill.
+    expect(await screen.findByText(/Nobody is being blocked/)).toBeInTheDocument();
     expect(screen.getByText(/by Demo Admin/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Turn protection back on' })).toBeInTheDocument();
   });

@@ -8,6 +8,7 @@ import { SettingsPage } from './SettingsPage.js';
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="#stub">{children}</a>,
+  useNavigate: () => vi.fn(),
 }));
 
 const ME = {
@@ -94,7 +95,7 @@ describe('SettingsPage', () => {
     expect(screen.getByText('incident-2026-01')).toBeInTheDocument();
     // The assistant model appears in both the AI-model section and the Groq integration row.
     expect(screen.getAllByText('openai/gpt-oss-120b').length).toBeGreaterThan(0);
-    expect(screen.getByText('Answering live')).toBeInTheDocument();
+    expect(screen.getByText('Answering')).toBeInTheDocument();
     // Notifications, Data & privacy, Integrations are present.
     expect(screen.getByText('Notifications')).toBeInTheDocument();
     expect(screen.getByText('7 days')).toBeInTheDocument();
@@ -113,7 +114,8 @@ describe('SettingsPage', () => {
 
     const name = await screen.findByLabelText('Full name');
     expect(name).toHaveValue('Ana Ray');
-    expect(screen.getByLabelText('Email')).toBeDisabled();
+    // Read-only rather than disabled, so the address can still be selected and copied.
+    expect(screen.getByLabelText('Email')).toHaveAttribute('readonly');
     expect(screen.getByLabelText('Access level')).toHaveValue('admin');
 
     await userEvent.clear(name);

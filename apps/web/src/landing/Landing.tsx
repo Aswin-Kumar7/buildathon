@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useMeta, type MetaState } from './useMeta.js';
-import { STOREFRONT_URL } from '../links.js';
+import { StorefrontLink } from '../components/StorefrontLink.js';
 import razorpayLogo from '../assets/white.png';
 import {
   ArtRules,
@@ -19,8 +19,8 @@ import './Landing.css';
 
 const NAV = [
   { label: 'Product', href: '#product' },
-  { label: 'Detection', href: '#detection' },
-  { label: 'Evidence', href: '#evidence' },
+  { label: 'Accuracy', href: '#detection' },
+  { label: 'How it works', href: '#evidence' },
   { label: 'Pipeline', href: '#pipeline' },
   { label: 'FAQ', href: '#faq' },
 ];
@@ -29,135 +29,135 @@ const NAV = [
 const STACK: BrandName[] = ['Razorpay', 'NestJS', 'React', 'PostgreSQL', 'Groq', 'Azure'];
 
 const APART = [
-  { n: '/01', title: 'Precision-first', meta: 'CALIBRATED, NOT GUESSED' },
-  { n: '/02', title: 'Built for Razorpay', meta: 'WEBHOOK-NATIVE, ZERO CARD DATA' },
-  { n: '/03', title: 'Reversible by design', meta: 'NOTHING BLOCKS A SHOPPER ALONE' },
-  { n: '/04', title: 'Transparent evidence', meta: 'HASH-LINKED, FULLY AUDITABLE' },
+  { n: '/01', title: 'Scores you can trust', meta: 'SAYS 90%? ABOUT 9 IN 10 ARE' },
+  { n: '/02', title: 'Nothing to install', meta: 'NO CHANGES TO YOUR CHECKOUT' },
+  { n: '/03', title: 'Blocks are temporary', meta: 'THEY LIFT AFTER 30 MINUTES' },
+  { n: '/04', title: 'A record you can check', meta: 'EDIT IT AND IT SHOWS' },
 ];
 
 const PILLARS = [
   {
-    label: 'MEASURED ACCURACY',
-    body: 'Scored on a held-out, grouped split — a seed the model trained on never appears in the test set.',
-    foot: 'PR-AUC 0.94 / ROC-AUC 0.98',
+    label: 'ACCURACY',
+    body: 'Only ever tested on attacks it has never seen before. Random guessing scores 0.21.',
+    foot: 'PR-AUC 0.991',
   },
   {
-    label: 'FALSE POSITIVES',
-    body: 'Eleven benign and operational scenarios replayed end to end. None of them opened an incident.',
-    foot: 'ZERO ON THE COMMITTED CORPUS',
+    label: 'FALSE ALARMS',
+    body: 'Gateway outages, repeated retries, flash sales — eleven scenarios, 1,105 entities judged. Not one of them was ever acted against, and the whole run is regenerated on every build.',
+    foot: 'ZERO IN 1,105 CHECKS',
   },
   {
     label: 'HUMAN IN THE LOOP',
-    body: 'Containment is reversible, expiring and approval-gated. The model can only ever ask for a person.',
+    body: 'The most it can do is ask you to take a look. It cannot block anyone.',
     foot: 'NO AUTOMATIC BLOCKING',
   },
   {
-    label: 'FULL PROVENANCE',
-    body: 'Every decision is hash-linked to the evidence and the policy version that produced it.',
-    foot: 'TAMPER-EVIDENT CHAIN',
+    label: 'SHOWS ITS WORKING',
+    body: 'Every decision keeps the evidence behind it and the rule that allowed it.',
+    foot: 'CHANGE IT AND IT SHOWS',
   },
 ];
 
 const STATS = [
-  { value: '0.94', cap: 'PR-AUC ON A HELD-OUT GROUPED SPLIT' },
-  { value: '97%', cap: 'OF ATTACKS RECALLED IN EVALUATION' },
-  { value: '0', cap: 'FALSE POSITIVES ACROSS BENIGN RUNS' },
+  { value: '0.991', cap: 'PR-AUC ON UNSEEN ATTACKS' },
+  { value: '97.9%', cap: 'OF ATTACKS CAUGHT' },
+  { value: '0', cap: 'FALSE ALARMS IN 1,105 CHECKS' },
 ];
 
 const TIERS = [
   {
-    tag: '[ TIER 01 — DETERMINISTIC ]',
-    name: 'Rules & Arbitration',
-    role: 'CLUSTERS ATTEMPTS INTO ONE INCIDENT',
+    tag: '[ LAYER 01 — FIXED RULES ]',
+    name: 'Rules & Evidence',
+    role: '11 CHECKS, 5 EXPLANATIONS',
     art: 'rules' as const,
   },
   {
-    tag: '[ TIER 02 — LEARNED ]',
-    name: 'Calibrated Model',
-    role: 'SCORES RISK, NEVER BLOCKS ALONE',
+    tag: '[ LAYER 02 — LEARNED ]',
+    name: 'The Risk Model',
+    role: 'SCORES, NEVER BLOCKS',
     art: 'model' as const,
   },
   {
-    tag: '[ TIER 03 — HUMAN ]',
+    tag: '[ LAYER 03 — YOU ]',
     name: 'Policy & Approval',
-    role: 'REVERSIBLE, EXPIRING, APPROVED',
+    role: 'APPROVED, TIMED, REVERSIBLE',
     art: 'policy' as const,
   },
 ];
 
 const PIPELINE = [
   {
-    title: 'Signals joined across session, device and network.',
-    body: 'Razorpay’s webhooks carry no IP, device or session. The storefront sensor captures that context and Sentinel correlates it, so one attack sprayed across a proxy pool reads as a single incident rather than thirty invisible ones.',
+    title: 'Your webhooks leave out the useful part.',
+    body: 'Razorpay sends no session, device or network. The storefront fills that in, so an attack spread across thirty sessions also shows up as one case at the network level — the layer you would actually block.',
     art: 'correlate' as const,
   },
   {
-    title: 'Rigorous validation to ensure peak performance.',
-    body: 'The model is trained and evaluated in Python, then served as the linear map it is — with calibration, a leakage-controlled split and a cost-optimal operating point reported beside it, never a demo number bolted on afterwards.',
+    title: 'We measured it before trusting it.',
+    body: 'It ships with the test it was scored on, the settings it runs at, and the rival models it was measured against. The one we launched with scored 0.940. This one scores 0.991, so we swapped it.',
     art: 'validate' as const,
   },
   {
-    title: 'Consistent, reversible automated execution.',
-    body: 'Rules and model combine into a policy decision: observe, review or contain. Containment expires on its own and can be released instantly, so a wrong call costs minutes rather than customers.',
+    title: 'Changed your mind? Release it.',
+    body: 'Observe, review or contain. Containment needs your approval, expires after thirty minutes, and lifts the second you release it. Being wrong costs minutes, not customers.',
     art: 'contain' as const,
   },
 ];
 
 const ACCORDION = [
   {
-    title: 'Correlate what webhooks cannot carry',
-    body: 'Payments are joined to the checkout session, device and network that produced them.',
+    title: 'See who made each payment',
+    body: 'Every payment tied back to the browser session, device and network it came from.',
   },
   {
-    title: 'Score with a model you can audit',
-    body: 'Exact per-feature contributions, because the served model is linear by design.',
+    title: 'A model that explains itself',
+    body: 'Set one signal back to normal, score it again, and the difference is what that signal was worth.',
   },
   {
-    title: 'Contain without punishing shoppers',
-    body: 'Every containment is reversible, time-boxed and recorded against its approver.',
+    title: 'Stop an attack without blocking buyers',
+    body: 'You approve it. It expires on its own. Your name is on it.',
   },
 ];
 
 const FAQ = [
   {
-    q: 'Do I need to change my checkout to use Sentinel?',
-    a: 'No. Sentinel consumes the Razorpay webhooks you already emit. The only optional addition is a lightweight storefront sensor supplying the session, device and network context webhooks cannot carry — and detection still runs without it, just with fewer correlation keys.',
+    q: 'Do I need to change my checkout?',
+    a: 'No. Sentinel reads the Razorpay webhooks you already send. You can optionally add a small script to your shop that also records the browser session and device, but detection works without it.',
   },
   {
-    q: 'What kind of fraud does it actually catch?',
-    a: 'Card testing and enumeration: an attacker walking a list of stolen cards through your checkout to find the live ones. Sentinel recognises the loud, the slow, the low-amplitude and the distributed variants, and tells them apart from a gateway outage, a retry storm or a flash sale.',
+    q: 'What does it actually catch?',
+    a: 'Card testing — someone running stolen cards through your checkout to find the live ones. The loud version, the slow one, the distributed one, and the ones hiding inside an outage or a flash sale.',
   },
   {
-    q: 'Will it block real customers by mistake?',
-    a: 'It cannot block anyone on its own. The strongest action the model can take is to send a case to a person. Across the eleven benign and operational scenarios in the committed corpus it opened zero incidents, and every containment a human does approve is reversible and expires by itself.',
+    q: 'Will it block my real customers?',
+    a: 'It cannot block anyone by itself — the most the model can do is ask a person to look, and where the rules can positively name a cause, an outage or a retry storm or an ordinary busy hour, they overrule it. Across eleven scenarios and 1,105 entities judged, nothing benign was ever acted against. Worth knowing how that is achieved: on its own the model would flag about 4 in every 100 normal entities, almost all of them billers retrying their own failures. The rules catch those. That gap is the whole reason the model is not allowed to decide alone.',
   },
   {
-    q: 'How accurate is the model, really?',
-    a: 'PR-AUC 0.94, ROC-AUC 0.98, recall 0.97 and a Brier score of 0.044 on a held-out split grouped so no scenario seed leaks between train and test. Those are the deployed model’s own numbers, not a separate benchmark, and the labels are declared synthetic until your confirmed incidents replace them.',
+    q: 'Why does one attack open several cases?',
+    a: 'Because each one is something you could act on separately. Sentinel groups activity by browser session, by device and by network, so an attack spread across many sessions raises a case for each one and another for the network they share.',
   },
   {
-    q: 'What happens if the model is unavailable?',
-    a: 'The system degrades to its deterministic rules and arbitration and says so plainly — the console marks the decision degraded:model. Losing the model costs you an explanation, never the safety of what gets done.',
+    q: 'How accurate is it, honestly?',
+    a: 'PR-AUC 0.991, recall 0.979, precision 0.875. Two attack shapes are measurably harder than the rest — card reuse at 37 of 42, and a loud attack hidden inside a biller’s retry schedule at 10 of 11 — and both numbers are published rather than averaged away. The labels are synthetic until your own confirmed incidents replace them.',
   },
   {
-    q: 'Is my payment and customer data safe?',
-    a: 'Sentinel never sees a card number. Raw webhook payloads are sealed and encrypted at rest, identifiers are stored as salted pseudonyms, and a payload-leak check runs in CI to prove none of it reaches logs or the console.',
+    q: 'What if the model goes down?',
+    a: 'The rules carry on without it and the console tells you so — the console marks the decision as running without it. You lose the explanation, never the safety.',
   },
   {
-    q: 'How quickly does it detect an attack?',
-    a: 'Detection runs continuously over a rolling window; in the simulator a distributed attack surfaces around ten seconds after the burst begins. Model scoring is a few dot products in the request path, so it adds no meaningful latency.',
+    q: 'Is my data safe?',
+    a: 'Sentinel never sees a card number. Payloads are encrypted at rest, anything that identifies a person is scrambled before it is stored, and the build fails if sensitive data ever reaches a log.',
   },
   {
-    q: 'Can I see why a decision was made?',
-    a: 'Every incident shows which rules fired, the exact per-feature contributions behind the model’s estimate, the traffic it was judged against, and the policy that turned that into an action. Because the served model is linear, those contributions are exact rather than an approximation.',
+    q: 'How fast is it?',
+    a: 'New payment events are picked up every second and judged a second after that. Call it two seconds from payment to case.',
   },
   {
-    q: 'Does it learn from my traffic over time?',
-    a: 'Yes. Incidents you confirm or dismiss become labels, and the retraining path swaps the synthetic cold-start corpus for your own outcomes. Each model version is registered with the feature definition and data hash it was built from.',
+    q: 'Can I see why it decided that?',
+    a: 'Which rules fired and the number each compared against. What the model scored and which signals moved it. The explanation it ruled out, and the exact policy that allowed the action.',
   },
   {
-    q: 'How do I try it without risking real traffic?',
-    a: 'The console ships a scenario simulator. Pick an attack or a benign shape, stream it through the real ingestion path, and watch detection, scoring, policy and the audit trail respond exactly as they would in production.',
+    q: 'Can I try it without real traffic?',
+    a: 'Run the built-in simulator. Pick an attack, send it through the real system, and watch it get caught. Nothing leaves this system and no real card is involved.',
   },
 ];
 
@@ -308,9 +308,7 @@ function LandingNav(): React.JSX.Element {
           ))}
         </nav>
         <div className="lp-nav__cta">
-          <a href={STOREFRONT_URL} target="_blank" rel="noreferrer" className="lp-nav__alt">
-            Storefront
-          </a>
+          <StorefrontLink className="lp-nav__alt">Storefront</StorefrontLink>
           <Link to="/login" className="lp-btn lp-btn--pill">
             Open the Console
           </Link>
@@ -322,21 +320,23 @@ function LandingNav(): React.JSX.Element {
 
 function Hero(): React.JSX.Element {
   return (
-    <section className="lp-hero" id="top">
+    <section className="lp-hero">
       <div className="lp-hero__in">
         <span className="lp-badge">
           <span className="lp-badge__dot" aria-hidden="true" />
-          SENTINEL v0.21 IS NOW LIVE
+          CARD TESTING DETECTION, BUILT FOR MERCHANTS
         </span>
+        {/* States the problem before the product, because the problem is the part a merchant
+            already recognises: failed payments are ordinary, which is exactly what makes an attack
+            hiding among them hard to see. */}
         <h1 className="lp-hero__h1">
-          AI Fraud &amp; Abuse Detection
+          Most failed payments are noise.
           <br />
-          for Every Razorpay Payment.
+          Sentinel finds the attack.
         </h1>
         <p className="lp-hero__sub">
-          Sentinel watches your checkout for card testing and payment abuse — correlating the
-          signals webhooks cannot carry, scoring every entity with a calibrated model, and
-          containing attacks reversibly, never without a person.
+          Related attempts are grouped into one case, with the reasons it was flagged, the cards
+          involved, and a block you can apply right there.
         </p>
         <Link to="/login" className="lp-btn lp-btn--hero">
           Open the Console
@@ -383,7 +383,7 @@ function StackBand(): React.JSX.Element {
   return (
     <section className="lp-stack">
       <div className="lp-stack__in">
-        <span className="lp-stack__label">Built on the rails your checkout already runs on</span>
+        <span className="lp-stack__label">The stack it runs on</span>
         <ul className="lp-stack__logos">
           {STACK.map((name) => (
             <li key={name}>
@@ -403,13 +403,14 @@ function Results(): React.JSX.Element {
       <Ticks />
       <div className="lp-results__left">
         <h2 className="lp-h2">
-          Focused on Signal,
+          You get one case.
           <br />
-          Not Noise.
+          Not sixty alerts.
         </h2>
         <p className="lp-body">
-          Most fraud tooling buries a team in alerts. Sentinel groups an entire attack into one
-          incident, explains it in plain words, and shows exactly what it would do next.
+          One attacker can throw hundreds of attempts at your checkout. You shouldn’t have to piece
+          that together yourself, so Sentinel files it as a single case and keeps it updated while
+          the attack is still going.
         </p>
       </div>
       <div className="lp-results__right">
@@ -462,18 +463,18 @@ function WhyLeaders(): React.JSX.Element {
       <div className="lp-why__head">
         <div>
           <h2 className="lp-h2">
-            Why Risk Teams Trust
+            Don’t take our
             <br />
-            the Numbers.
+            word for it.
           </h2>
-          <p className="lp-why__sub">Measured detection. Honestly stated limits.</p>
+          <p className="lp-why__sub">Run it yourself and get the same numbers.</p>
         </div>
         <p className="lp-mono lp-why__aside">
-          BRIDGING RAW WEBHOOKS
+          RUN IT AGAIN
           <br />
-          TO DECISIONS ACROSS
+          AND YOU GET
           <br />
-          EVERY ENTITY.
+          THE SAME NUMBERS.
         </p>
       </div>
       <Pillars />
@@ -488,13 +489,15 @@ function Tiers(): React.JSX.Element {
       <Ticks />
       <div className="lp-tiers__head">
         <h2 className="lp-h3">
-          Where deterministic rules meet a calibrated model to deliver decisions you can defend.
+          Rules say what happened. The model says how bad it looks. Policy says what you’re allowed
+          to do.
         </h2>
-        <span className="lp-mono lp-tiers__aside">A COLLECTIVE OF ENGINES</span>
+        <span className="lp-mono lp-tiers__aside">THREE LAYERS, ONE DECISION</span>
       </div>
       <p className="lp-body lp-tiers__lede">
-        No single tier decides alone. Rules establish what happened, the model weighs how much it
-        looks like abuse, and policy decides what a human is allowed to do about it.
+        None of them decides alone, by design. A score is an opinion, not a verdict — it has to
+        match the evidence and pass a policy before anything reaches a shopper, and you see every
+        step of that argument.
       </p>
       <div className="lp-tiergrid">
         {TIERS.map((t, i) => (
@@ -517,9 +520,9 @@ function DirectCta(): React.JSX.Element {
     <section className="lp-sec lp-direct">
       <Ticks />
       <h2 className="lp-h2">
-        Skip the Black Box. See Exactly
+        Want the reasoning,
         <br />
-        Why It Was Flagged.
+        not just a score?
       </h2>
       <p className="lp-mono lp-direct__aside">
         BUILT FOR THE RAZORPAY AI BUILDATHON
@@ -534,13 +537,30 @@ function DirectCta(): React.JSX.Element {
   );
 }
 
-function EcoAccordion(): React.JSX.Element {
-  const [open, setOpen] = useState(0);
+/**
+ * The three steps, as a control rather than a list.
+ *
+ * Selection lives in `Ecosystem` because this and the panel beside it are two halves of one
+ * widget: pressing a row here is what changes the card shown there. Keeping the state in the
+ * parent is what lets the pair stay in step.
+ */
+function EcoAccordion({
+  open,
+  onOpen,
+}: {
+  open: number;
+  onOpen: (index: number) => void;
+}): React.JSX.Element {
   return (
     <ul className="lp-eco__acc">
       {ACCORDION.map((item, i) => (
         <li key={item.title} className={open === i ? 'is-open' : ''}>
-          <button type="button" onClick={() => setOpen(i)}>
+          <button
+            type="button"
+            onClick={() => onOpen(i)}
+            aria-expanded={open === i}
+            aria-controls="lp-eco-panel"
+          >
             <span>{item.title}</span>
             <span className="lp-eco__acc-sign" aria-hidden="true">
               {open === i ? '−' : '+'}
@@ -553,43 +573,137 @@ function EcoAccordion(): React.JSX.Element {
   );
 }
 
+/** Where the scroll sequence turns off and the section becomes an ordinary stack. Matches the
+ *  `max-width: 60rem` breakpoint the stylesheet already uses to drop this section to one column. */
+const ECO_SEQUENCE_QUERY = '(min-width: 60.0625rem)';
+
+/**
+ * A media query, safely.
+ *
+ * jsdom has no `matchMedia`, and a component test renders this page without one. Answering "no"
+ * where the API is missing is also the right default for the two questions asked below: no pinned
+ * stage, and no reduced-motion preference to honour.
+ */
+const mediaMatches = (query: string): boolean =>
+  typeof window.matchMedia === 'function' && window.matchMedia(query).matches;
+
+/** The scroll distance a pinned stage travels across, in pixels. Zero below the breakpoint. */
+const runwayOf = (node: HTMLElement): number =>
+  mediaMatches(ECO_SEQUENCE_QUERY) ? Math.max(0, node.offsetHeight - window.innerHeight) : 0;
+
+/**
+ * A pinned sequence: which of `count` steps the reader has scrolled to inside the returned section.
+ *
+ * The section is given a runway several screens deep and something inside it pins to the viewport;
+ * this turns how far through that runway the page has travelled into an index. Below the breakpoint
+ * the runway collapses to nothing, the measurement is skipped, and `goTo` just sets the index — the
+ * section is an ordinary stack there and has no pinned stage to scroll against.
+ *
+ * `goTo` scrolls rather than assigning, because assigning would be undone by the very next scroll
+ * event. Moving the page is what makes a press and a scroll the same gesture.
+ */
+function useScrollSequence(count: number): {
+  section: React.RefObject<HTMLElement | null>;
+  index: number;
+  goTo: (index: number) => void;
+} {
+  const [index, setIndex] = useState(0);
+  const section = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const node = section.current;
+    if (node === null) return;
+
+    let frame = 0;
+    const measure = (): void => {
+      const distance = runwayOf(node);
+      if (distance === 0) return;
+      const travelled = -node.getBoundingClientRect().top;
+      const progress = Math.min(Math.max(travelled / distance, 0), 0.999);
+      setIndex(Math.floor(progress * count));
+    };
+    const onScroll = (): void => {
+      if (frame !== 0) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        measure();
+      });
+    };
+
+    measure();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [count]);
+
+  const goTo = (next: number): void => {
+    const node = section.current;
+    const distance = node === null ? 0 : runwayOf(node);
+    if (node === null || distance === 0) {
+      setIndex(next);
+      return;
+    }
+    // Land in the middle of that step's stretch, so the card is settled rather than on a boundary.
+    const top = node.getBoundingClientRect().top + window.scrollY;
+    window.scrollTo({
+      top: top + (distance * (next + 0.5)) / count,
+      behavior: mediaMatches('(prefers-reduced-motion: reduce)') ? 'auto' : 'smooth',
+    });
+  };
+
+  return { section, index, goTo };
+}
+
 function Ecosystem(): React.JSX.Element {
+  // One step at a time, driven by scroll: the stage pins to the viewport and the card on it changes
+  // as the runway beneath travels past. The accordion is the same control by another route.
+  const { section, index: open, goTo } = useScrollSequence(PIPELINE.length);
+  const step = PIPELINE[open]!;
+
   return (
-    <section className="lp-eco" id="pipeline">
-      {/* Anchored to the section corner, not the panel: the panel sticks, and a glow that travelled
-          with it would drift away from the corner it belongs to. */}
-      <div className="lp-eco__glow" aria-hidden="true" />
+    <section className="lp-eco" id="pipeline" ref={section}>
       <div className="lp-eco__left">
-        <h2 className="lp-h2 lp-eco__h2">
-          One Pipeline,
-          <br />
-          Total Visibility.
-          <br />
-          From webhook to verdict.
-        </h2>
-        <p className="lp-eco__sub">
-          Every payment attempt travels the same accountable path: sealed on arrival, correlated
-          into an entity, judged by rules and a model together, then acted on under a policy a
-          person approved — with each step written to a tamper-evident chain.
-        </p>
-        <Link to="/login" className="lp-btn lp-btn--ghost">
-          See the platform in action
-          <span className="lp-btn__arrow" aria-hidden="true">
-            ▶
-          </span>
-        </Link>
-        <EcoAccordion />
+        {/* Inside the pinned panel, so the light travels with the heading it lights. */}
+        <div className="lp-eco__glow" aria-hidden="true" />
+        {/* The panel is a one-screen flex box that centres this; the copy inside keeps ordinary
+            block layout, so the pill button stays its own width instead of stretching. */}
+        <div className="lp-eco__intro">
+          <h2 className="lp-h2 lp-eco__h2">
+            One path,
+            <br />
+            from webhook
+            <br />
+            to verdict.
+          </h2>
+          <p className="lp-eco__sub">
+            Encrypted the moment it arrives, grouped into a case, judged by the rules and the model
+            together, then acted on under a policy you approved.
+          </p>
+          <Link to="/login" className="lp-btn lp-btn--ghost">
+            See the platform in action
+            <span className="lp-btn__arrow" aria-hidden="true">
+              ▶
+            </span>
+          </Link>
+          <EcoAccordion open={open} onOpen={goTo} />
+        </div>
       </div>
       <div className="lp-eco__right">
-        {PIPELINE.map((p, i) => (
-          <RevealCard className="lp-eco__card" index={i} key={p.title}>
+        {/* The stage pins to the viewport while the runway beneath it scrolls. The card is keyed on
+            the step so React remounts it and the entrance replays each time the step changes. */}
+        <div className="lp-eco__stage">
+          <article className="lp-eco__card lp-eco__card--active" id="lp-eco-panel" key={step.title}>
             <div className="lp-eco__art">
-              <Art kind={p.art} />
+              <Art kind={step.art} />
             </div>
-            <h4>{p.title}</h4>
-            <p>{p.body}</p>
-          </RevealCard>
-        ))}
+            <h4>{step.title}</h4>
+            <p>{step.body}</p>
+          </article>
+        </div>
       </div>
     </section>
   );
@@ -607,12 +721,11 @@ function Faq(): React.JSX.Element {
           Questions
         </h2>
         <p className="lp-body lp-faq__lede">
-          We bridge the gap between a suspicious failure and an operational answer. If your question
-          is not here, the console answers most of them with live evidence.
+          If it’s not here, the console will show you with live evidence.
         </p>
       </div>
       <div className="lp-faq__body">
-        <span className="lp-mono lp-faq__aside">GET TO KNOW US</span>
+        <span className="lp-mono lp-faq__aside">COMMON QUESTIONS</span>
         <ul className="lp-faq__list">
           {FAQ.map((item, i) => (
             <li key={item.q} className={open === i ? 'is-open' : ''}>
@@ -640,9 +753,7 @@ function FootNav(): React.JSX.Element {
           {item.label.toUpperCase()}
         </a>
       ))}
-      <a href={STOREFRONT_URL} target="_blank" rel="noreferrer">
-        STOREFRONT
-      </a>
+      <StorefrontLink>STOREFRONT</StorefrontLink>
     </nav>
   );
 }
@@ -699,7 +810,7 @@ function Foot({ state }: { state: MetaState }): React.JSX.Element {
 export function Landing(): React.JSX.Element {
   const state = useMeta();
   return (
-    <div className="lp">
+    <div className="lp" id="top">
       {/* One bounded column for every band — dark and light alike — so the page keeps a single
           set of edges on a wide screen instead of alternating full-bleed and centred. */}
       <div className="lp-page">

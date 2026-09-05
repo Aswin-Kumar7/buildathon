@@ -19,6 +19,7 @@ const layer = (id: string, name: string) => ({
 });
 const meta = {
   name: 'Sentinel',
+  storefrontUrl: null,
   claim: 'Detects suspicious failed-payment clusters and tells them apart from outages.',
   version: '0.21.0',
   commit: 'abc1234',
@@ -40,9 +41,9 @@ describe('Landing', () => {
   it('leads with what the product detects, without waiting for the api', () => {
     stubDown();
     render(<Landing />);
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      /fraud .* abuse detection/i,
-    );
+    // The headline has to name the thing Sentinel finds, not just set a scene, and it has to be
+    // there on first paint rather than after the meta request resolves.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/finds the attack/i);
   });
 
   it('routes every call to action at the console', () => {
@@ -57,8 +58,8 @@ describe('Landing', () => {
   it('states the differentiators plainly, as claims a merchant can check', () => {
     stubDown();
     render(<Landing />);
-    expect(screen.getByText(/nothing blocks a shopper alone/i)).toBeInTheDocument();
-    expect(screen.getByText(/pr-auc on a held-out grouped split/i)).toBeInTheDocument();
+    expect(screen.getByText(/they lift after 30 minutes/i)).toBeInTheDocument();
+    expect(screen.getByText(/pr-auc on unseen attacks/i)).toBeInTheDocument();
   });
 
   it('answers the ten questions a merchant actually asks', () => {
@@ -68,7 +69,7 @@ describe('Landing', () => {
     // "/01".."/04" labels used elsewhere on the page.
     const questions = screen.getAllByRole('button').filter((b) => b.textContent?.includes('?'));
     expect(questions).toHaveLength(10);
-    expect(screen.getByText(/will it block real customers by mistake\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/will it block my real customers\?/i)).toBeInTheDocument();
   });
 
   it('shows the build version once the api answers', async () => {

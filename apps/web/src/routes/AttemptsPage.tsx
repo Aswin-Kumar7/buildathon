@@ -4,19 +4,9 @@ import { Link } from '@tanstack/react-router';
 import { EmptyState, ErrorState, Loading } from '@sentinel/ui';
 import {
   attemptRowsResponseSchema,
-  simulationStatusSchema,
   type AttemptRow,
   type AttemptRowsResponse,
-  type SimulationStatus,
 } from '@sentinel/contracts';
-
-import visaLogo from '../assets/payments/visa.png';
-import mastercardLogo from '../assets/payments/mastercard.svg';
-import rupayLogo from '../assets/payments/rupay.png';
-import amexLogo from '../assets/payments/amex.svg';
-import upiLogo from '../assets/payments/upi.svg';
-import netbankingLogo from '../assets/payments/netbanking.svg';
-import walletLogo from '../assets/payments/wallet.png';
 
 import './AttemptsPage.css';
 import { CustomSelectPill } from '../components/CustomSelectPill.js';
@@ -24,17 +14,15 @@ import { SimulationPopup } from './SimulationPopup.js';
 import { SimulationPanel } from './SimulationPanel.js';
 import {
   CreditCard,
-  Receipt,
   Funnel,
   Gauge,
   CalendarBlank,
-  CaretDown,
   CaretLeft,
   CaretRight,
   MagnifyingGlass,
-  Wallet,
-  Play,
 } from '@phosphor-icons/react';
+import { fetchSimulationStatus as fetchStatus } from '../shared/fetchers.js';
+import { PaymentMethodCell } from '../shared/PaymentMethod.js';
 
 type Source = 'all' | 'razorpay' | 'replay';
 
@@ -42,6 +30,12 @@ async function fetchRows(params: {
   source: Source;
   status: string;
   method: string;
+  /** Free text over order id, payment id and incident reference. */
+  q: string;
+  /** Incident severity, or `none` for attempts that belong to no incident. */
+  severity: string;
+  /** Inclusive `YYYY-MM-DD` lower bound, or '' for no bound. */
+  from: string;
   page: number;
   pageSize: number;
 }): Promise<AttemptRowsResponse> {
@@ -52,6 +46,10 @@ async function fetchRows(params: {
     page: String(params.page),
     pageSize: String(params.pageSize),
   });
+  // Omitted rather than sent empty, so the API's own defaults apply.
+  if (params.q !== '') query.set('q', params.q);
+  if (params.severity !== 'all') query.set('severity', params.severity);
+  if (params.from !== '') query.set('from', params.from);
   const response = await fetch(`/api/attempts/rows?${query.toString()}`, {
     credentials: 'include',
   });
@@ -65,12 +63,6 @@ function timeAgo(iso: string): string {
   if (seconds < 3600) return `${Math.round(seconds / 60)} min ago`;
   if (seconds < 86_400) return `${Math.round(seconds / 3600)} hr ago`;
   return `${Math.round(seconds / 86_400)}d ago`;
-}
-
-function formatDateShort(dateStr: string): string {
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 const STATUS_LABEL: Record<AttemptRow['status'], string> = {
@@ -100,366 +92,164 @@ const METHOD_OPTIONS = [
   ['wallet', 'Method: Wallet'],
 ] as const;
 
+/*
+ * The severity of the incident an attempt belongs to. `none` is a real answer, not an absence:
+ * an attempt that correlates with nothing is never given a risk score of its own.
+ */
 const RISK_LEVEL_OPTIONS = [
   ['all', 'Risk: all'],
-  ['low', 'Risk: Low'],
-  ['medium', 'Risk: Medium'],
   ['high', 'Risk: High'],
+  ['medium', 'Risk: Medium'],
+  ['low', 'Risk: Low'],
+  ['none', 'Risk: not in an incident'],
 ] as const;
 
-const CARD_BRANDS: Record<string, { logo: string; cls: string; label: string }> = {
-  visa: { logo: visaLogo, cls: 'ap-method-logo--visa', label: 'Visa' },
-  mastercard: { logo: mastercardLogo, cls: 'ap-method-logo--mc', label: 'Mastercard' },
-  rupay: { logo: rupayLogo, cls: 'ap-method-logo--rupay', label: 'RuPay' },
-  amex: { logo: amexLogo, cls: 'ap-method-logo--amex', label: 'Amex' },
-};
-
-function PaymentMethodCell({ row }: { row: AttemptRow }): React.JSX.Element {
-  const method = row.method?.toLowerCase();
-  const network = row.cardNetwork?.toLowerCase();
-
-  const preventSave = (e: React.MouseEvent) => e.preventDefault();
-
-  if (method === 'upi') {
-    return (
-      <span className="ap-method-cell">
-        <span className="ap-method-logo-wrap">
-          <img
-            src={upiLogo}
-            alt=""
-            className="ap-method-logo ap-method-logo--upi"
-            draggable={false}
-            onContextMenu={preventSave}
-          />
-        </span>
-        <span className="ap-method-label">UPI</span>
-      </span>
-    );
-  }
-
-  if (method === 'netbanking') {
-    return (
-      <span className="ap-method-cell">
-        <span className="ap-method-logo-wrap">
-          <img
-            src={netbankingLogo}
-            alt=""
-            className="ap-method-logo ap-method-logo--netbanking"
-            draggable={false}
-            onContextMenu={preventSave}
-          />
-        </span>
-        <span className="ap-method-label">Netbanking</span>
-      </span>
-    );
-  }
-
-  if (method === 'wallet') {
-    return (
-      <span className="ap-method-cell">
-        <span className="ap-method-logo-wrap">
-          <Wallet size={15} color="oklch(0.5 0.015 280)" />
-        </span>
-        <span className="ap-method-label">Wallet</span>
-      </span>
-    );
-  }
-
-  const brand = network === undefined ? undefined : CARD_BRANDS[network];
-  if (brand === undefined) {
-    return (
-      <span className="ap-method-cell">
-        <span className="ap-method-logo-wrap">
-          <CreditCard size={15} color="oklch(0.5 0.015 280)" />
-        </span>
-        <span className="ap-method-label">Card</span>
-      </span>
-    );
-  }
-
-  return (
-    <span className="ap-method-cell">
-      <span className="ap-method-logo-wrap">
-        <img
-          src={brand.logo}
-          alt=""
-          className={`ap-method-logo ${brand.cls}`}
-          draggable={false}
-          onContextMenu={preventSave}
-        />
-      </span>
-      <span className="ap-method-label">{brand.label}</span>
-    </span>
-  );
+/**
+ * The four counts, each one a filter.
+ *
+ * The tiles double as the fastest way to narrow the table — the same affordance the incident queue
+ * gives its severity tiles — so "350 failed" is one click away from being the only thing on screen.
+ * Clicking the active tile clears it again.
+ *
+ * The counts are the server's, computed over every attempt in scope rather than the current page,
+ * which is why they do not move when you page through the table. Each display status is exclusive:
+ * an attempt is counted under exactly one of Captured, Failed and Recovered, so the three shares
+ * are directly comparable and never double-count.
+ */
+interface KpiTile {
+  /** The status filter this tile applies; `all` is the "everything" tile. */
+  key: 'all' | 'captured' | 'failed' | 'recovered';
+  label: string;
+  /** What the number actually counts, shown on hover — these are easy to misread otherwise. */
+  hint: string;
+  value: number;
+  tone: string;
 }
 
-function Kpis({ kpis }: { kpis: AttemptRowsResponse['kpis'] }): React.JSX.Element {
-  const calcPct = (val: number): number =>
-    kpis.total === 0 ? 0 : Math.min(100, Math.max(0, (val / kpis.total) * 100));
-
-  const formatShare = (part: number): string =>
+function Kpis({
+  kpis,
+  status,
+  onStatus,
+}: {
+  kpis: AttemptRowsResponse['kpis'];
+  status: string;
+  onStatus: (value: string) => void;
+}): React.JSX.Element {
+  const share = (part: number): string =>
     kpis.total === 0 ? '0.0% of total' : `${((part / kpis.total) * 100).toFixed(1)}% of total`;
+  const pct = (part: number): number =>
+    kpis.total === 0 ? 0 : Math.min(100, Math.max(0, (part / kpis.total) * 100));
 
-  const safeAttempts = Math.max(0, kpis.total - kpis.inIncident);
-  const capturedPct = calcPct(kpis.captured);
-  const failedPct = calcPct(kpis.failed);
-  const recoveredPct = calcPct(kpis.recovered);
-  const safePct = calcPct(safeAttempts);
+  const tiles: KpiTile[] = [
+    {
+      key: 'all',
+      label: 'Total attempts',
+      hint: 'Every payment attempt in scope. One order can produce several attempts, so this is higher than the number of orders.',
+      value: kpis.total,
+      tone: 'total',
+    },
+    {
+      key: 'captured',
+      label: 'Captured',
+      hint: 'Paid on an order that never had a failed attempt — money in, first time.',
+      value: kpis.captured,
+      tone: 'captured',
+    },
+    {
+      key: 'failed',
+      label: 'Failed',
+      hint: 'The attempt was declined and did not result in a payment.',
+      value: kpis.failed,
+      tone: 'failed',
+    },
+    {
+      key: 'recovered',
+      label: 'Recovered',
+      hint: 'Paid, but only after at least one earlier attempt on the same order had failed — a sale that would have been lost if the shopper had given up. Counted here instead of under Captured, so the two never overlap.',
+      value: kpis.recovered,
+      tone: 'recovered',
+    },
+  ];
 
   return (
-    <section className="ap-metrics" aria-label="Metrics summary">
-      {/* Column 1: Total attempts */}
-      <div className="ap-metric-col">
-        <div className="ap-metric-col__header">
-          <span className="ap-metric-col__dot ap-metric-col__dot--total" aria-hidden="true" />
-          <span className="ap-metric-col__label">Total attempts</span>
-        </div>
-        <div className="ap-metric-col__values">
-          <span className="ap-metric-col__num">{kpis.total.toLocaleString('en-IN')}</span>
-          <span className="ap-metric-col__share">screened</span>
-        </div>
-        <div className="ap-metric-col__bar-wrap" aria-hidden="true">
-          <div className="ap-metric-col__bar-track">
-            <div
-              className="ap-metric-col__bar-fill ap-metric-col__bar-fill--total"
-              style={{ width: '100%' }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Column 2: Captured */}
-      <div className="ap-metric-col">
-        <div className="ap-metric-col__header">
-          <span className="ap-metric-col__dot ap-metric-col__dot--captured" aria-hidden="true" />
-          <span className="ap-metric-col__label">Captured</span>
-        </div>
-        <div className="ap-metric-col__values">
-          <span className="ap-metric-col__num">{kpis.captured.toLocaleString('en-IN')}</span>
-          <span className="ap-metric-col__share ap-metric-col__share--captured">
-            {formatShare(kpis.captured)}
-          </span>
-        </div>
-        <div className="ap-metric-col__bar-wrap" aria-hidden="true">
-          <div className="ap-metric-col__bar-track">
-            <div
-              className="ap-metric-col__bar-fill ap-metric-col__bar-fill--captured"
-              style={{ width: `${capturedPct}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Column 3: Failed */}
-      <div className="ap-metric-col">
-        <div className="ap-metric-col__header">
-          <span className="ap-metric-col__dot ap-metric-col__dot--failed" aria-hidden="true" />
-          <span className="ap-metric-col__label">Failed</span>
-        </div>
-        <div className="ap-metric-col__values">
-          <span className="ap-metric-col__num">{kpis.failed.toLocaleString('en-IN')}</span>
-          <span className="ap-metric-col__share ap-metric-col__share--failed">
-            {formatShare(kpis.failed)}
-          </span>
-        </div>
-        <div className="ap-metric-col__bar-wrap" aria-hidden="true">
-          <div className="ap-metric-col__bar-track">
-            <div
-              className="ap-metric-col__bar-fill ap-metric-col__bar-fill--failed"
-              style={{ width: `${failedPct}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Column 4: Recovered */}
-      <div className="ap-metric-col">
-        <div className="ap-metric-col__header">
-          <span
-            className={`ap-metric-col__dot ${kpis.recovered > 0 ? 'ap-metric-col__dot--recovered' : 'ap-metric-col__dot--muted'}`}
-            aria-hidden="true"
-          />
-          <span className="ap-metric-col__label">Recovered</span>
-        </div>
-        <div className="ap-metric-col__values">
-          <span
-            className={`ap-metric-col__num ${kpis.recovered === 0 ? 'ap-metric-col__num--faint' : ''}`}
+    <section className="ap-metrics" aria-label="Attempt outcome summary">
+      {tiles.map((tile) => {
+        // "Total attempts" is the resting state, not a choice, so it never shows as selected —
+        // only a tile that is actually narrowing the table is highlighted.
+        const isActive = status === tile.key && tile.key !== 'all';
+        const isEmpty = tile.value === 0;
+        return (
+          <button
+            key={tile.key}
+            type="button"
+            className={`ap-metric-col${isActive ? ' is-active' : ''}`}
+            aria-pressed={isActive}
+            title={tile.hint}
+            // Clicking the tile that is already filtering clears the filter rather than reapplying it.
+            onClick={() => onStatus(isActive ? 'all' : tile.key)}
           >
-            {kpis.recovered.toLocaleString('en-IN')}
-          </span>
-          <span
-            className={`ap-metric-col__share ${kpis.recovered > 0 ? 'ap-metric-col__share--recovered' : 'ap-metric-col__share--faint'}`}
-          >
-            {formatShare(kpis.recovered)}
-          </span>
-        </div>
-        <div className="ap-metric-col__bar-wrap" aria-hidden="true">
-          <div className="ap-metric-col__bar-track">
-            <div
-              className="ap-metric-col__bar-fill ap-metric-col__bar-fill--recovered"
-              style={{ width: `${recoveredPct}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Column 5: Safe attempts */}
-      <div className="ap-metric-col">
-        <div className="ap-metric-col__header">
-          <span
-            className={`ap-metric-col__dot ${safeAttempts > 0 ? 'ap-metric-col__dot--safe' : 'ap-metric-col__dot--muted'}`}
-            aria-hidden="true"
-          />
-          <span className="ap-metric-col__label">Safe attempts</span>
-        </div>
-        <div className="ap-metric-col__values">
-          <span
-            className={`ap-metric-col__num ${safeAttempts === 0 ? 'ap-metric-col__num--faint' : ''}`}
-          >
-            {safeAttempts.toLocaleString('en-IN')}
-          </span>
-          <span
-            className={`ap-metric-col__share ${safeAttempts > 0 ? 'ap-metric-col__share--safe' : 'ap-metric-col__share--faint'}`}
-          >
-            {formatShare(safeAttempts)}
-          </span>
-        </div>
-        <div className="ap-metric-col__bar-wrap" aria-hidden="true">
-          <div className="ap-metric-col__bar-track">
-            <div
-              className="ap-metric-col__bar-fill ap-metric-col__bar-fill--safe"
-              style={{ width: `${safePct}%` }}
-            />
-          </div>
-        </div>
-        {/* Preserves test assertion query for incident count */}
-        <span className="ap-sr-only">
-          <span>In an incident</span>: {kpis.inIncident}
-        </span>
-      </div>
+            <div className="ap-metric-col__header">
+              <span
+                className={`ap-metric-col__dot ${
+                  isEmpty && tile.key !== 'all'
+                    ? 'ap-metric-col__dot--muted'
+                    : `ap-metric-col__dot--${tile.tone}`
+                }`}
+                aria-hidden="true"
+              />
+              <span className="ap-metric-col__label">{tile.label}</span>
+            </div>
+            <div className="ap-metric-col__values">
+              <span className={`ap-metric-col__num${isEmpty ? ' ap-metric-col__num--faint' : ''}`}>
+                {tile.value.toLocaleString('en-IN')}
+              </span>
+              <span
+                className={`ap-metric-col__share${
+                  tile.key === 'all'
+                    ? ''
+                    : isEmpty
+                      ? ' ap-metric-col__share--faint'
+                      : ` ap-metric-col__share--${tile.tone}`
+                }`}
+              >
+                {tile.key === 'all' ? (
+                  <>
+                    {/*
+                     * The count is right — it equals the high + medium + low severity totals — but
+                     * "screened · In an incident: 271" read as two unrelated labels. Said as a
+                     * proportion it is unambiguous.
+                     */}
+                    <span className="ap-metric-col__share--incident">
+                      {kpis.inIncident.toLocaleString('en-IN')}
+                    </span>{' '}
+                    of these belong to an incident
+                  </>
+                ) : (
+                  share(tile.value)
+                )}
+              </span>
+            </div>
+            <div className="ap-metric-col__bar-wrap" aria-hidden="true">
+              <div className="ap-metric-col__bar-track">
+                <div
+                  className={`ap-metric-col__bar-fill ap-metric-col__bar-fill--${tile.tone}`}
+                  style={{ width: `${tile.key === 'all' ? 100 : pct(tile.value)}%` }}
+                />
+              </div>
+            </div>
+          </button>
+        );
+      })}
     </section>
   );
 }
 
-function DateRangePopover({
-  customStart,
-  customEnd,
-  onPreset,
-  onCustomStart,
-  onCustomEnd,
-  onApplyCustom,
-}: {
-  customStart: string;
-  customEnd: string;
-  onPreset: (days: number | null) => void;
-  onCustomStart: (value: string) => void;
-  onCustomEnd: (value: string) => void;
-  onApplyCustom: () => void;
-}): React.JSX.Element {
-  return (
-    <div className="ap-date-popover">
-      <div className="ap-date-presets">
-        <button type="button" onClick={() => onPreset(null)}>
-          All time
-        </button>
-        <button type="button" onClick={() => onPreset(7)}>
-          Last 7 days
-        </button>
-        <button type="button" onClick={() => onPreset(30)}>
-          Last 30 days
-        </button>
-        <button type="button" onClick={() => onPreset(90)}>
-          Last 90 days
-        </button>
-      </div>
-      <div className="ap-date-custom">
-        <span className="ap-date-custom__title">Custom Range</span>
-        <div className="ap-date-custom__inputs">
-          <label>
-            <span>From</span>
-            <input
-              type="date"
-              value={customStart}
-              onChange={(e) => onCustomStart(e.target.value)}
-            />
-          </label>
-          <label>
-            <span>To</span>
-            <input type="date" value={customEnd} onChange={(e) => onCustomEnd(e.target.value)} />
-          </label>
-        </div>
-        <button type="button" className="ap-date-apply-btn" onClick={onApplyCustom}>
-          Apply range
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function DateRangePicker({
-  startDate,
-  endDate,
-  onRangeChange,
-}: {
-  startDate: string;
-  endDate: string;
-  onRangeChange: (start: string, end: string) => void;
-}): React.JSX.Element {
-  const [open, setOpen] = useState(false);
-  const [customStart, setCustomStart] = useState(startDate);
-  const [customEnd, setCustomEnd] = useState(endDate);
-
-  const displayLabel =
-    !startDate && !endDate
-      ? 'All dates'
-      : `${formatDateShort(startDate)} – ${formatDateShort(endDate)}`;
-
-  const applyPreset = (days: number | null) => {
-    if (days === null) {
-      onRangeChange('', '');
-    } else {
-      const now = new Date();
-      const past = new Date();
-      past.setDate(now.getDate() - days);
-      const startStr = past.toISOString().split('T')[0]!;
-      const endStr = now.toISOString().split('T')[0]!;
-      onRangeChange(startStr, endStr);
-    }
-    setOpen(false);
-  };
-
-  const applyCustom = () => {
-    onRangeChange(customStart, customEnd);
-    setOpen(false);
-  };
-
-  return (
-    <div className="ap-date-picker-wrap">
-      <button
-        type="button"
-        className="ap-pill-btn"
-        onClick={() => setOpen(!open)}
-        aria-expanded={open}
-        aria-label="Select date range"
-      >
-        <CalendarBlank size={14} />
-        <span>{displayLabel}</span>
-        <CaretDown size={12} className="ap-pill-chevron" />
-      </button>
-
-      {open && (
-        <DateRangePopover
-          customStart={customStart}
-          customEnd={customEnd}
-          onPreset={applyPreset}
-          onCustomStart={setCustomStart}
-          onCustomEnd={setCustomEnd}
-          onApplyCustom={applyCustom}
-        />
-      )}
-    </div>
-  );
-}
+const DATE_OPTIONS = [
+  { value: 'all', label: 'All dates' },
+  { value: 'today', label: 'Today' },
+  { value: '7d', label: 'Last 7 days' },
+  { value: '30d', label: 'Last 30 days' },
+] as const;
 
 function Row({ row }: { row: AttemptRow }): React.JSX.Element {
   return (
@@ -485,7 +275,7 @@ function Row({ row }: { row: AttemptRow }): React.JSX.Element {
             )}
       </td>
       <td className="ap-td-cell">
-        <PaymentMethodCell row={row} />
+        <PaymentMethodCell method={row.method} cardNetwork={row.cardNetwork} />
       </td>
       <td className="ap-td-cell">
         <span className={`ap-chip ap-chip--${row.status}`}>{STATUS_LABEL[row.status]}</span>
@@ -525,24 +315,28 @@ interface FilterProps {
   status: string;
   method: string;
   riskLevel: string;
-  startDate: string;
-  endDate: string;
+  dateFilter: string;
   search: string;
   setSearch: (value: string) => void;
   onStatus: (value: string) => void;
   onMethod: (value: string) => void;
   onRiskLevel: (value: string) => void;
-  onDateRangeChange: (start: string, end: string) => void;
+  onDateFilterChange: (value: string) => void;
 }
 
 function Filters(props: FilterProps): React.JSX.Element {
   return (
     <div className="ap-panel__toolbar">
       <div className="ap-toolbar-filters">
-        <DateRangePicker
-          startDate={props.startDate}
-          endDate={props.endDate}
-          onRangeChange={props.onDateRangeChange}
+        <CustomSelectPill
+          value={props.dateFilter}
+          options={DATE_OPTIONS.map((d) => ({
+            value: d.value,
+            label: d.label,
+          }))}
+          onChange={(val) => props.onDateFilterChange(val)}
+          ariaLabel="Date filter"
+          icon={<CalendarBlank size={14} />}
         />
 
         <CustomSelectPill
@@ -646,15 +440,17 @@ function ResultsFooter({
       </span>
       <div className="ap-foot-controls">
         <div className="ap-rows-per-page">
-          <span>Rows:</span>
           <CustomSelectPill
             value={String(pageSize)}
             options={[
               { value: '10', label: '10' },
               { value: '15', label: '15' },
-              { value: '25', label: '25' },
+              { value: '20', label: '20' },
+              { value: '30', label: '30' },
               { value: '50', label: '50' },
             ]}
+            direction="up"
+            menuMinWidth={72}
             onChange={(val) => onPageSizeChange(Number(val))}
             ariaLabel="Rows per page"
           />
@@ -709,12 +505,6 @@ function Results({
 
   return (
     <section className="ap-panel">
-      <div className="ap-panel__head">
-        <Receipt size={16} className="ap-panel__head-icon" />
-        <h2>All attempts</h2>
-        <span className="ap-panel__head-badge">{data.total} results</span>
-      </div>
-
       <Filters {...filterProps} />
 
       {data.total === 0 ? (
@@ -753,54 +543,17 @@ function Results({
   );
 }
 
-function matchesSearchTerm(row: AttemptRow, term: string): boolean {
-  return (
-    term === '' ||
-    row.paymentId.toLowerCase().includes(term) ||
-    row.orderId.toLowerCase().includes(term)
-  );
-}
-
-function matchesDateRange(row: AttemptRow, startDate: string, endDate: string): boolean {
-  if (!startDate || !endDate) return true;
-  const rowTime = Date.parse(row.at);
-  const startTime = Date.parse(`${startDate}T00:00:00Z`);
-  const endTime = Date.parse(`${endDate}T23:59:59Z`);
-  return rowTime >= startTime && rowTime <= endTime;
-}
-
-function matchesMethodFilter(row: AttemptRow, method: string): boolean {
-  return (
-    method === 'all' || (row.method !== null && row.method.toLowerCase() === method.toLowerCase())
-  );
-}
-
-function matchesRiskLevel(row: AttemptRow, riskLevel: string): boolean {
-  if (riskLevel === 'all') return true;
-  if (riskLevel === 'high' || riskLevel === 'medium' || riskLevel === 'critical') {
-    return row.incidentId !== null;
-  }
-  if (riskLevel === 'low') return row.incidentId === null;
-  return true;
-}
-
-interface RowFilters {
-  term: string;
-  startDate: string;
-  endDate: string;
-  status: string;
-  method: string;
-  riskLevel: string;
-}
-
-function rowMatchesFilters(row: AttemptRow, filters: RowFilters): boolean {
-  return (
-    matchesSearchTerm(row, filters.term) &&
-    matchesDateRange(row, filters.startDate, filters.endDate) &&
-    (filters.status === 'all' || row.status === filters.status) &&
-    matchesMethodFilter(row, filters.method) &&
-    matchesRiskLevel(row, filters.riskLevel)
-  );
+/** A `YYYY-MM-DD` lower bound for the relative date choices the toolbar offers. */
+function dateFilterFrom(dateFilter: string): string {
+  const days =
+    dateFilter === 'today' ? 0 : dateFilter === '7d' ? 6 : dateFilter === '30d' ? 29 : -1;
+  if (days < 0) return '';
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - days);
+  // Local midnight, formatted as a local calendar day — toISOString would shift it by the offset.
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
 }
 
 function AttemptsBody({
@@ -829,7 +582,8 @@ function AttemptsBody({
     <ErrorState message="Attempts are unavailable" />
   ) : (
     <>
-      <Kpis kpis={data.kpis} />
+      {/* The tiles and the Status dropdown drive the same filter, so they always agree. */}
+      <Kpis kpis={data.kpis} status={filterProps.status} onStatus={filterProps.onStatus} />
       <Results
         data={data}
         rows={rows}
@@ -843,22 +597,18 @@ function AttemptsBody({
   );
 }
 
-async function fetchStatus(): Promise<SimulationStatus> {
-  const response = await fetch('/api/simulation/status', { credentials: 'include' });
-  if (!response.ok) throw new Error(`api returned ${response.status}`);
-  return simulationStatusSchema.parse(await response.json());
-}
-
 export function AttemptsPage(): React.JSX.Element {
   const [source] = useState<Source>('all');
   const [status, setStatus] = useState('all');
   const [method, setMethod] = useState('all');
   const [riskLevel, setRiskLevel] = useState('all');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [dateFilter, setDateFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
+
+  const term = search.trim().toLowerCase();
+  const from = dateFilterFrom(dateFilter);
 
   const [showSimModal, setShowSimModal] = useState(false);
   const [simPanelOpen, setSimPanelOpen] = useState(false);
@@ -870,8 +620,9 @@ export function AttemptsPage(): React.JSX.Element {
   });
 
   const attempts = useQuery({
-    queryKey: ['attempt-rows', source, status, method, page, pageSize],
-    queryFn: () => fetchRows({ source, status, method, page, pageSize }),
+    queryKey: ['attempt-rows', source, status, method, term, riskLevel, from, page, pageSize],
+    queryFn: () =>
+      fetchRows({ source, status, method, q: term, severity: riskLevel, from, page, pageSize }),
     refetchInterval: 15_000,
     placeholderData: keepPreviousData,
   });
@@ -888,20 +639,9 @@ export function AttemptsPage(): React.JSX.Element {
     setPage(1);
   };
 
-  const handleDateRangeChange = (start: string, end: string) => {
-    setStartDate(start);
-    setEndDate(end);
-    setPage(1);
-  };
-
   const data = attempts.data;
-  const term = search.trim().toLowerCase();
-  const rows =
-    data === undefined
-      ? []
-      : data.rows.filter((row) =>
-          rowMatchesFilters(row, { term, startDate, endDate, status, method, riskLevel }),
-        );
+  // The API filters and pages together, so these rows are already the right ones for this page.
+  const rows = data?.rows ?? [];
 
   const isRunning = simStatus.data?.running ?? false;
 
@@ -912,27 +652,6 @@ export function AttemptsPage(): React.JSX.Element {
           <h1>Payment attempts</h1>
           <p>Every payment attempt received from your storefront</p>
         </div>
-        <button
-          type="button"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '7px 14px',
-            borderRadius: '8px',
-            fontFamily: 'inherit',
-            fontSize: '13px',
-            fontWeight: 600,
-            color: 'oklch(1 0 0)',
-            background: 'oklch(0.55 0.15 258)',
-            border: 0,
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)',
-            cursor: 'pointer',
-          }}
-          onClick={() => setShowSimModal(true)}
-        >
-          <Play size={14} weight="bold" /> Run simulation scenarios
-        </button>
       </header>
 
       {showSimModal && (
@@ -960,7 +679,7 @@ export function AttemptsPage(): React.JSX.Element {
           <AttemptsBody
             attempts={attempts}
             rows={rows}
-            searching={term !== '' || startDate !== ''}
+            searching={term !== '' || dateFilter !== 'all'}
             pageSize={pageSize}
             onPage={setPage}
             onPageSizeChange={handlePageSizeChange}
@@ -968,14 +687,13 @@ export function AttemptsPage(): React.JSX.Element {
               status,
               method,
               riskLevel,
-              startDate,
-              endDate,
+              dateFilter,
               search,
               setSearch,
               onStatus: onFilter(setStatus),
               onMethod: onFilter(setMethod),
               onRiskLevel: onFilter(setRiskLevel),
-              onDateRangeChange: handleDateRangeChange,
+              onDateFilterChange: onFilter(setDateFilter),
             }}
           />
         </div>
