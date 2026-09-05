@@ -17,7 +17,11 @@ or something innocent that looks like one, and shows every number behind the ans
 
 Razorpay Buildathon 2026 · Track 02, AI Risk Manager
 
-<video src="https://github.com/Aswin-Kumar7/buildathon/raw/main/docs/asset/project-teaser.mp4" controls muted width="820"></video>
+<p align="center">
+  <a href="docs/asset/project-teaser.mp4">
+    <img src="docs/asset/project-teaser.gif" alt="Sentinel detecting a card-testing burst, end to end" width="820" />
+  </a>
+</p>
 
 </div>
 
@@ -26,7 +30,7 @@ Razorpay Buildathon 2026 · Track 02, AI Risk Manager
 | **Live console**    | [sentinel-api.happytree-e373af54.uaenorth.azurecontainerapps.io](https://sentinel-api.happytree-e373af54.uaenorth.azurecontainerapps.io)                  |
 | **Live storefront** | [sentinel-shop.happytree-e373af54.uaenorth.azurecontainerapps.io](https://sentinel-shop.happytree-e373af54.uaenorth.azurecontainerapps.io)                |
 | **Sign in**         | `analyst@sentinel.local` · `sentinel-demo`                                                                                                               |
-| **Teaser video**    | [`docs/asset/project-teaser.mp4`](docs/asset/project-teaser.mp4)                                                                                          |
+| **Teaser video**    | [`project-teaser.mp4`](docs/asset/project-teaser.mp4) — full quality, 40s                                                                                          |
 
 > [!NOTE]
 > **Both apps sleep when nobody is using them.** The first visit after a quiet period waits about
