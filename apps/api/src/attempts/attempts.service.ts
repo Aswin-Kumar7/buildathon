@@ -7,6 +7,7 @@ import {
   type EntityKind,
   type Incident as ComputedIncident,
 } from '@sentinel/detect';
+import { SHOP_WIDE_ENTITY_KEY } from '@sentinel/contracts';
 import type {
   AttemptDetail,
   AttemptDetailPayment,
@@ -926,7 +927,14 @@ export class AttemptsService {
     return (from === null || at >= from) && (to === null || at <= to);
   }
 
-  /** Resolves payment orders connected to one incident entity and activity window. */
+  /**
+   * Resolves payment orders connected to one incident entity and activity window.
+   *
+   * A shop-wide incident has no actor to match on — its key is a sentinel, not a pseudonym — so
+   * the entity predicate is dropped and the window itself does the scoping. Matching the sentinel
+   * against a pseudonym column is what left those incidents reporting attempts in the header and
+   * none in the list.
+   */
   async listForEntity(input: {
     entityKind: 'session' | 'device' | 'network';
     entityKey: string;
@@ -934,6 +942,7 @@ export class AttemptsService {
     from: number;
     to: number;
   }): Promise<ResolvedOrder[]> {
+    const shopWide = input.entityKind === 'network' && input.entityKey === SHOP_WIDE_ENTITY_KEY;
     const entityColumn =
       input.entityKind === 'session'
         ? checkoutSessions.sessionPseudonym
@@ -950,7 +959,7 @@ export class AttemptsService {
       .where(
         and(
           eq(checkoutSessions.source, input.source),
-          eq(entityColumn, input.entityKey),
+          ...(shopWide ? [] : [eq(entityColumn, input.entityKey)]),
           gte(canonicalEvents.eventAt, new Date(input.from)),
           lte(canonicalEvents.eventAt, new Date(input.to)),
         ),

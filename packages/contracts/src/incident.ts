@@ -2,6 +2,20 @@ import { modelOpinionSchema } from './model.js';
 import { resolvedOrderSchema } from './attempt.js';
 import { z } from 'zod';
 
+/**
+ * The entity key of a shop-wide incident.
+ *
+ * Most incidents name one actor, and their key is that actor's pseudonym. The shop-wide pass
+ * describes the merchant as a whole — a distributed attack sprayed too thin for any one session,
+ * device or subnet to trip — so there is no actor to name and this sentinel stands in its place.
+ *
+ * It is a constant rather than a literal because two sides have to agree on it: the pass that
+ * raises the incident, and every lookup that resolves an incident back to its traffic. When they
+ * disagreed, the lookups searched for a pseudonym equal to "shop", matched nothing, and the
+ * console showed an incident with 111 attempts and no attempts listed.
+ */
+export const SHOP_WIDE_ENTITY_KEY = 'shop';
+
 export const incidentStatusSchema = z.enum([
   'open',
   'under_review',

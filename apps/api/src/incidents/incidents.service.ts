@@ -42,6 +42,7 @@ import {
   type IncidentStatus,
   type Observation,
 } from '@sentinel/detect';
+import { SHOP_WIDE_ENTITY_KEY } from '@sentinel/contracts';
 import type {
   EvaluateResponse,
   IncidentDetail,
@@ -253,6 +254,11 @@ export class IncidentsService {
       source,
       asOf,
       observations,
+      // Every entity's own explanation, so the shop-wide pass can be overruled the same way a
+      // per-entity case is. Computed here rather than inside, because the loop above only
+      // arbitrates entities that produced a rule incident — and this pass runs precisely when
+      // there were none.
+      explanations: [...vectors.values()].map((vector) => arbitrate(vector, traffic).best),
     });
     opened += spike.opened;
     updated += spike.updated;
@@ -279,6 +285,25 @@ export class IncidentsService {
    * reuses a handful of cards (fails CARD_SPREAD and the two-card cohort test), an outage is
    * gateway-blamed (fails INFRA_MAX and is dropped from the cohort).
    */
+  /**
+   * Whether the shop's own traffic already explains itself innocently.
+   *
+   * The per-entity path cannot open a case that arbitration positively explains as an outage, a
+   * biller retrying, or an ordinary busy hour. The shop-wide pass used to skip that check entirely
+   * and decide on thresholds alone, so a benign burst with enough volume — a sale, a wave of
+   * mistyped cards — opened a "Distributed card testing" incident that no hypothesis could argue
+   * against. Now the same explanations get the same veto.
+   *
+   * A simple majority, and `insufficient_evidence` deliberately does not count toward it. That is
+   * the signature of the case this pass exists for: an attack sprayed so thin that no single entity
+   * carries enough signal to decide, which is a reason to look, not a reason to stand down.
+   */
+  private static shopExplainedBenignly(explanations: readonly string[]): boolean {
+    if (explanations.length === 0) return false;
+    const benign = explanations.filter((best) => arbitrationExplainsBenign(best)).length;
+    return benign * 2 > explanations.length;
+  }
+
   private static shopUnderCardTesting(t: TrafficContext): boolean {
     const enoughVolume = t.attempts >= SHOP_MIN_ATTEMPTS;
     const notOutage = t.infrastructureFailureShare <= SHOP_INFRA_MAX;
@@ -305,12 +330,14 @@ export class IncidentsService {
     source: Source;
     asOf: number;
     observations: Observation[];
+    explanations: readonly string[];
   }): Promise<{ opened: number; updated: number }> {
-    const { traffic, ruleIncidents, change, hash, source, asOf, observations } = ctx;
+    const { traffic, ruleIncidents, change, hash, source, asOf, observations, explanations } = ctx;
     // Only when the rules found nothing this pass: a dense attack they already caught is not a
     // shop-wide miss, and a second aggregate case over it would double-count.
     if (ruleIncidents.length > 0) return { opened: 0, updated: 0 };
     if (!IncidentsService.shopUnderCardTesting(traffic)) return { opened: 0, updated: 0 };
+    if (IncidentsService.shopExplainedBenignly(explanations)) return { opened: 0, updated: 0 };
 
     const firstAttemptAt =
       observations.length > 0 ? Math.min(...observations.map((o) => o.at)) : asOf;
@@ -320,9 +347,9 @@ export class IncidentsService {
     // so the band is `high` and severity reads off it directly.
     const score = IncidentsService.modelRiskScore(1 - traffic.failingSessionApprovalRate);
     const incident: ComputedIncident = {
-      key: incidentKey('network', 'shop', firstAttemptAt),
+      key: incidentKey('network', SHOP_WIDE_ENTITY_KEY, firstAttemptAt),
       entityKind: 'network',
-      entityKey: 'shop',
+      entityKey: SHOP_WIDE_ENTITY_KEY,
       status: 'open',
       severity: severityOf(score),
       score,
@@ -787,6 +814,10 @@ export class IncidentsService {
    * The correlation behind an incident as a small graph: the entity, the distinct cards it touched,
    * and — for a network-level case — the sessions those cards came through. Cards are deduplicated by
    * their token id; each is shown by a short fingerprint, never a real number.
+   *
+   * A shop-wide incident names no actor, so there is no pseudonym to match and the window alone
+   * scopes it. Filtering on the sentinel instead returned an empty graph for exactly the case that
+   * most needs one — a distributed attack, whose whole point is that it spans many entities.
    */
   private async entityGraph(
     entityKind: 'session' | 'device' | 'network',
@@ -795,6 +826,7 @@ export class IncidentsService {
     from: Date,
     to: Date,
   ): Promise<IncidentGraph> {
+    const shopWide = entityKind === 'network' && entityKey === SHOP_WIDE_ENTITY_KEY;
     const column =
       entityKind === 'session'
         ? checkoutSessions.sessionPseudonym
@@ -817,7 +849,7 @@ export class IncidentsService {
       )
       .where(
         and(
-          eq(column, entityKey),
+          ...(shopWide ? [] : [eq(column, entityKey)]),
           eq(canonicalEvents.source, source),
           gte(canonicalEvents.eventAt, from),
           lte(canonicalEvents.eventAt, to),
